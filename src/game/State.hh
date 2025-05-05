@@ -7,11 +7,21 @@ using phevaluator::Card;
 
 struct PlayerState {
   bool has_position;
-  bool has_folded{false};
+  bool has_folded;
 
   int stack;
-  int wager{0};
+  int wager;
   int _id;
+
+  PlayerState() = default;
+
+  PlayerState(const int id, const bool position, int stack_size) {
+    _id = id;
+    has_position = position;
+    stack = stack_size;
+    has_folded = false;
+    wager = 0;
+  }
 
   int hash_code() { return _id; }
   void reset_wager() { wager = 0; };
@@ -27,7 +37,7 @@ struct PlayerState {
   }
 };
 
-class GameState {
+struct GameState {
 
   Street street;
   int pot;
@@ -42,20 +52,13 @@ class GameState {
   int minimum_bet_size;
   int minimum_raise_size;
 
-public:
-  GameState(const GameState &other) {
-    street = other.street;
-    pot = other.pot;
-    board = other.board;
-    p1 = other.p1;
-    p2 = other.p2;
-
-    minimum_bet_size = other.minimum_bet_size;
-    minimum_raise_size = other.minimum_raise_size;
-
-    current = other.current._id == 1 ? p1 : p2;
-    last_to_act = other.last_to_act._id == 1 ? p1 : p2;
-  };
+  GameState() = default;
+  GameState(const GameState &other)
+      : street(other.street), pot(other.pot), board(other.board), p1(other.p1),
+        p2(other.p2), minimum_bet_size(other.minimum_bet_size),
+        minimum_raise_size(other.minimum_raise_size),
+        current(other.current._id == 1 ? p1 : p2),
+        last_to_act(other.last_to_act._id == 1 ? p1 : p2) {};
 
   void set_turn(const Card card) {
     board[static_cast<size_t>(Street::TURN)] = card;

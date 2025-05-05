@@ -8,7 +8,7 @@ struct PreflopCombo {
   Card hand1;
   Card hand2;
 
-  std::string to_string() const {
+  auto to_string() const -> std::string {
     return "(" + hand1.describeCard() + ", " + hand2.describeCard() + ")";
   }
 };

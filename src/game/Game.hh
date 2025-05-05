@@ -1,4 +1,4 @@
-
+#pragma once
 #include <array>
 namespace GameParams {
 constexpr int NUM_SUITS = 4;

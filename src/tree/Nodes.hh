@@ -4,12 +4,13 @@
 
 class Node {
 
-public:
-  Node(std::weak_ptr<Node> parent) : m_parent(parent) {}
-
-private:
-  std::weak_ptr<Node> m_parent;
+  Node *m_parent;
   std::vector<Node> m_children;
+
+public:
+  Node() = default;
+  Node(Node *parent) : m_parent(parent) {}
+  void set_parent(Node *parent) { m_parent = parent; }
 };
 
 class ActionNode : public Node {
