@@ -1,6 +1,7 @@
 #include "../game/State.hh"
 #include "Nodes.hh"
 #include "TreeBuilderSettings.hh"
+#include <memory>
 
 class GameTree {
   TreeBuilderSettings m_settings;

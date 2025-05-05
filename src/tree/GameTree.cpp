@@ -1,5 +1,32 @@
 #include "GameTree.hh"
+
 #include <memory>
+
+bool is_valid_action(Action action, int stack, int wager, int call_amount,
+                     int minimum_raise_size) {
+  switch (action.type) {
+  case Action::FOLD:
+    return call_amount > 0;
+  case Action::CHECK:
+    return call_amount == 0;
+  case Action::CALL:
+    return call_amount > 0 &&
+           ((action.amount == call_amount && action.amount <= stack) ||
+            action.amount == stack);
+  case Action::BET:
+    return call_amount == 0 &&
+           ((action.amount > minimum_raise_size && action.amount <= stack) ||
+            (action.amount > 0 && action.amount == stack));
+  case Action::RAISE:
+    int raiseSize = action.amount - call_amount - wager;
+    return call_amount > 0 &&
+           ((raiseSize >= minimum_raise_size &&
+             action.amount <= (stack + wager)) ||
+            (raiseSize > 0 && action.amount == (stack + wager)));
+  }
+
+  return false;
+}
 
 auto GameTree::get_init_state() -> std::unique_ptr<GameState> {
   std::unique_ptr<GameState> state = std::make_unique<GameState>();
@@ -34,4 +61,8 @@ void GameTree::build_action(const ActionNode node, const GameState state,
                             const std::vector<Node> children,
                             const std::vector<Action> actions) {
 
+  if (is_valid_action(action, state.current.stack, state.current.wager,
+                      state.get_call_amount(), state.minimum_raise_size)) {
+    Node child{nullptr};
+  }
 };
