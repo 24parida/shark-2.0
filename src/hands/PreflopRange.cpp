@@ -1,5 +1,5 @@
 #include "PreflopRange.hh"
-#include "Game.hh"
+#include "../game/Game.hh"
 #include "card.h"
 #include <cassert>
 #include <iostream>
