@@ -1,0 +1,4 @@
+-std=c++17
+-I./src
+-I./include
+-I./testing
