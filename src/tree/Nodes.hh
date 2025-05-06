@@ -8,21 +8,23 @@
 class Node {
 protected:
   Node *m_parent;
-  std::vector<std::unique_ptr<Node>> m_children;
 
   Node(Node *parent) : m_parent(parent) {}
   void set_parent(Node *parent) { m_parent = parent; }
   virtual ~Node() = default;
 };
 
+// Action Node
 class ActionNode : public Node {
   std::vector<Action> m_actions;
+  std::vector<std::unique_ptr<Node>> m_children;
   int m_num_hands;
   int m_num_actions;
   int m_player;
   DCFR m_dcfr;
 
 public:
+  // check default initialization of std::vector
   ActionNode(Node *parent, const int player) : Node(parent), m_player(player) {}
   void init(std::vector<std::unique_ptr<Node>> &nodes,
             std::vector<Action> actions, const int num_hands) {
@@ -39,9 +41,15 @@ public:
   }
   void set_trainer(const DCFR dcfr) { m_dcfr = dcfr; }
   auto get_trainer() const -> DCFR { return m_dcfr; }
-  auto get_action(const int index) const -> Action {
+
+  auto get_child(const int index) const -> const Node * {
     assert(index >= 0 && index < m_children.size() &&
            "Node.hh attempting to access child out of range");
+    return m_children[index].get();
+  }
+  auto get_action(const int index) const -> Action {
+    assert(index >= 0 && index < m_actions.size() &&
+           "Node.hh attempting to access action out of range");
     return m_actions[index];
   }
   auto get_average_strat() -> std::vector<double> {
@@ -52,5 +60,38 @@ public:
   }
 };
 
-class ChanceNode : public Node {};
-class TerminalNode : public Node {};
+// Chance Node
+class ChanceNode : public Node {
+  enum ChanceType { DEAL_TURN, DEAL_RIVER };
+
+  std::vector<std::unique_ptr<Node>> m_children;
+  int m_child_count;
+  ChanceType m_type;
+
+public:
+  ChanceNode(Node *parent, const ChanceType type)
+      : Node(parent), m_type(type), m_children(52) {}
+
+  void add_child(std::unique_ptr<Node> node, const int card) {
+    assert(card >= 0 && card < 52 && "ChanceNode: add_child card out of range");
+    m_children[card] = std::move(node);
+    ++m_child_count;
+  }
+
+  auto get_child(const int index) -> Node *const {
+    return m_children[index].get();
+  }
+  auto get_child_count() -> int const { return m_child_count; }
+};
+
+// Terminal Node
+class TerminalNode : public Node {
+  enum TerminalType { ALLIN, UNCONTESTED, SHOWDOWN };
+  TerminalType m_type;
+  int m_last_to_act;
+  int m_pot;
+
+public:
+  TerminalNode(Node *parent, TerminalType type)
+      : Node(parent), m_type(type), m_pot(0) {}
+};
