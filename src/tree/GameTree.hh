@@ -21,13 +21,14 @@ class GameTree {
   auto get_init_state() -> std::unique_ptr<GameState>;
   auto build() -> std::unique_ptr<Node>;
   void build_action(const ActionNode node, const GameState state,
-                    const Action action, const std::vector<Node> children,
-                    const std::vector<Action> actions);
+                    const Action action,
+                    std::vector<std::unique_ptr<Node>> &children,
+                    std::vector<Action> &actions);
 
   auto build_action_nodes(Node parent, std::unique_ptr<GameState> state)
       -> std::unique_ptr<Node>;
   auto build_chance_nodes(Node parent, std::unique_ptr<GameState> state)
       -> std::unique_ptr<Node>;
-  auto build_terminal_nodes(Node parent, std::unique_ptr<GameState> state)
+  auto build_term_nodes(Node parent, std::unique_ptr<GameState> state)
       -> std::unique_ptr<Node>;
 };

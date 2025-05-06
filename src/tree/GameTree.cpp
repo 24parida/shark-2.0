@@ -1,4 +1,5 @@
 #include "GameTree.hh"
+#include "game/Game.hh"
 
 #include <memory>
 
@@ -35,7 +36,6 @@ auto GameTree::get_init_state() -> std::unique_ptr<GameState> {
   state->pot = m_settings.starting_pot;
   state->minimum_bet_size = m_settings.minimum_bet;
   state->minimum_raise_size = m_settings.minimum_bet;
-
   state->p1 = PlayerState(1, m_settings.in_position_player == 1,
                           m_settings.starting_stack);
   state->p2 = PlayerState(2, m_settings.in_position_player == 2,
@@ -58,11 +58,43 @@ auto GameTree::build() -> std::unique_ptr<Node> {
 
 void GameTree::build_action(const ActionNode node, const GameState state,
                             const Action action,
-                            const std::vector<Node> children,
-                            const std::vector<Action> actions) {
+                            std::vector<std::unique_ptr<Node>> &children,
+                            std::vector<Action> &actions) {
 
   if (is_valid_action(action, state.current.stack, state.current.wager,
                       state.get_call_amount(), state.minimum_raise_size)) {
-    Node child{nullptr};
+    std::unique_ptr<Node> child;
+    std::unique_ptr<GameState> nxt_state = std::make_unique<GameState>(state);
+    bool bets_setteld = nxt_state->apply_action(action);
+
+    if (bets_setteld) {
+      if (nxt_state->is_uncontested() || nxt_state->both_all_in() ||
+          state.street == Street::RIVER) {
+        child = build_term_nodes(node, std::move(nxt_state));
+      } else {
+        child = build_chance_nodes(node, std::move(nxt_state));
+      }
+    } else {
+      child = build_action_nodes(node, std::move(nxt_state));
+    }
+
+    children.push_back(std::move(child));
+    actions.push_back(action);
   }
-};
+}
+
+auto GameTree::build_action_nodes(Node parent, std::unique_ptr<GameState> state)
+    -> std::unique_ptr<Node> {
+
+  return std::make_unique<Node>();
+}
+auto GameTree::build_chance_nodes(Node parent, std::unique_ptr<GameState> state)
+    -> std::unique_ptr<Node> {
+
+  return std::make_unique<Node>();
+}
+auto GameTree::build_term_nodes(Node parent, std::unique_ptr<GameState> state)
+    -> std::unique_ptr<Node> {
+
+  return std::make_unique<Node>();
+}
