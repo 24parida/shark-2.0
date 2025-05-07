@@ -9,7 +9,6 @@ bool is_valid_action(const Action &action, const GameState &state);
 
 auto GameTree::get_init_state() const -> GameState {
   GameState state = {};
-
   state.street = m_settings.initial_street;
   state.pot = m_settings.starting_pot;
   state.minimum_bet_size = m_settings.minimum_bet;
@@ -19,7 +18,7 @@ auto GameTree::get_init_state() const -> GameState {
   state.p2 = PlayerState(2, m_settings.in_position_player == 2,
                          m_settings.starting_stack);
 
-  for (std::size_t i{0}; i < m_settings.initial_board.size(); i++) {
+  for (std::size_t i{0}; i < m_settings.initial_board.size(); ++i) {
     state.board[i] = m_settings.initial_board[i];
   }
 
