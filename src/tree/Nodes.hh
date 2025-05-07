@@ -11,7 +11,7 @@ protected:
 
 public:
   Node(const Node *parent) : m_parent(parent) {}
-  void set_parent(Node *parent) { m_parent = parent; }
+  void set_parent(const Node *parent) { m_parent = parent; }
   const Node *get_parent() const { return m_parent; };
   virtual ~Node() = default;
 };
@@ -26,7 +26,6 @@ class ActionNode : public Node {
   DCFR m_dcfr;
 
 public:
-  // check default initialization of std::vector
   ActionNode(const Node *parent, const int player)
       : Node(parent), m_player(player) {}
   void init(const int num_hands) {
@@ -34,7 +33,7 @@ public:
     m_num_actions = m_actions.size();
   }
 
-  void push_child(const std::unique_ptr<Node> child) {
+  void push_child(std::unique_ptr<Node> child) {
     m_children.push_back(std::move(child));
   }
   void push_action(const Action action) { m_actions.push_back(action); }
@@ -56,7 +55,7 @@ public:
   auto get_average_strat() -> std::vector<double> {
     return m_dcfr.get_average_strat();
   }
-  auto get_curent_strat() -> std::vector<double> {
+  auto get_current_strat() -> std::vector<double> {
     return m_dcfr.get_current_strat();
   }
 };
@@ -73,7 +72,7 @@ private:
 
 public:
   ChanceNode(const Node *parent, const ChanceType type)
-      : Node(parent), m_type(type), m_children(52) {}
+      : Node(parent), m_type(type), m_children(52), m_child_count(0) {}
 
   void add_child(std::unique_ptr<Node> node, const int card) {
     assert(card >= 0 && card < 52 && "ChanceNode: add_child card out of range");

@@ -39,7 +39,7 @@ auto GameTree::build_action(std::unique_ptr<ActionNode> node,
     -> std::unique_ptr<ActionNode> {
 
   if (!is_valid_action(action, state)) {
-    return node;
+    return std::move(node);
   }
 
   GameState nxt_state = {state};
@@ -122,9 +122,8 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
   using phevaluator::Card;
   using ChanceType = ChanceNode::ChanceType;
 
-  assert(state.street == Street::FLOP ||
-         state.street == Street::TURN &&
-             "build_chance_node error incorrect street");
+  assert((state.street == Street::FLOP || state.street == Street::TURN) &&
+         "build_chance_node error incorrect street");
   ChanceNode::ChanceType type{state.street == Street::FLOP
                                   ? ChanceType::DEAL_TURN
                                   : ChanceType::DEAL_RIVER};
@@ -136,12 +135,15 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
       continue;
 
     GameState nxt_state{state};
-
+    if (state.street == Street::TURN) {
+      nxt_state.set_turn(card);
+    } else if (state.street == Street::RIVER) {
+      nxt_state.set_river(card);
+    }
     nxt_state.street =
         static_cast<Street>(static_cast<int>(nxt_state.street) + 1);
 
-    std::unique_ptr<Node> action_node{
-        build_action_nodes(chance_node.get(), nxt_state)};
+    auto action_node{build_action_nodes(chance_node.get(), nxt_state)};
     chance_node->add_child(std::move(action_node), card);
   }
 
@@ -172,7 +174,7 @@ auto GameTree::build_term_nodes(const Node *parent, const GameState &state)
   const ActionNode *action_parent = dynamic_cast<const ActionNode *>(node);
 
   terminal_node->set_last_to_act(action_parent->get_player());
-  return std::move(terminal_node);
+  return terminal_node;
 }
 
 bool is_valid_action(const Action &action, const GameState &state) {

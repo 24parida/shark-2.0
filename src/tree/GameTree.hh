@@ -15,6 +15,7 @@ class GameTree {
   int m_chance_node_count;
   int m_terminal_node_count;
 
+public:
   GameTree(const TreeBuilderSettings settings)
       : m_settings(settings), m_p1_num_hands(settings.range1.num_hands),
         m_p2_num_hands(settings.range2.num_hands) {}
