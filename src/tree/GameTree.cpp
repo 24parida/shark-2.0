@@ -1,4 +1,5 @@
 #include "GameTree.hh"
+#include "../Helper.hh"
 #include "card.h"
 #include "game/Game.hh"
 #include "tree/Nodes.hh"
@@ -48,12 +49,12 @@ auto GameTree::build_action(std::unique_ptr<ActionNode> node,
   if (bets_setteld) {
     if (nxt_state.is_uncontested() || nxt_state.both_all_in() ||
         state.street == Street::RIVER) {
-      child = std::move(build_term_nodes(node.get(), nxt_state));
+      child = build_term_nodes(node.get(), nxt_state);
     } else {
-      child = std::move(build_chance_nodes(node.get(), nxt_state));
+      child = build_chance_nodes(node.get(), nxt_state);
     }
   } else {
-    child = std::move(build_action_nodes(node.get(), nxt_state));
+    child = build_action_nodes(node.get(), nxt_state);
   }
 
   node->push_child(std::move(child));
@@ -63,30 +64,49 @@ auto GameTree::build_action(std::unique_ptr<ActionNode> node,
 
 auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
     -> std::unique_ptr<Node> {
-
+  using ActionType = Action::ActionType;
   auto action_node = std::make_unique<ActionNode>(parent, state.current._id);
-  const std::vector<Action::ActionType> types{
-      Action::ActionType::FOLD, Action::ActionType::CHECK,
-      Action::ActionType::CALL, Action::ActionType::BET,
-      Action::ActionType::RAISE};
+  const std::vector<ActionType> types{ActionType::FOLD, ActionType::CHECK,
+                                      ActionType::CALL, ActionType::BET,
+                                      ActionType::RAISE};
 
   for (const auto &i : types) {
-    if (i == Action::ActionType::FOLD || i == Action::ActionType::CHECK ||
-        i == Action::ActionType::CALL) {
+    if (i == ActionType::FOLD || i == ActionType::CHECK ||
+        i == ActionType::CALL) {
       const int amount{i == Action::ActionType::CALL ? state.get_call_amount()
                                                      : 0};
       Action action{.type = i, .amount = amount};
-      build_action(std::move(action_node), state, action);
-    } else {
-      // TODO: skipped raise
+      action_node = build_action(std::move(action_node), state, action);
+    } else if (i == ActionType::BET) {
       for (const auto &size : GameParams::BET_SIZES) {
         int bet_amount{static_cast<int>(size * state.pot)};
         bet_amount =
             bet_amount > state.current.stack ? state.current.stack : bet_amount;
 
-        // TODO: all in thresholdstack
-        Action action{.type = i, .amount = bet_amount};
-        build_action(std::move(action_node), state, action);
+        if ((static_cast<double>(bet_amount + state.current.wager) /
+             (state.current.stack + state.current.wager)) >=
+            m_settings.all_in_threshold) {
+          bet_amount = state.current.stack;
+          Action action{.type = i, .amount = bet_amount};
+          action_node = build_action(std::move(action_node), state, action);
+        }
+      }
+    } else { // RAISE
+      for (const auto &size : GameParams::RAISE_SIZES) {
+        int raise_amount{
+            static_cast<int>(state.current.wager + state.get_call_amount() +
+                             size * (state.pot + state.get_call_amount()))};
+        raise_amount = raise_amount > state.current.stack + state.current.wager
+                           ? state.current.stack + state.current.wager
+                           : raise_amount;
+
+        if ((static_cast<double>(raise_amount) /
+             (state.current.stack + state.current.wager)) >=
+            m_settings.all_in_threshold) {
+          raise_amount = state.current.stack;
+          Action action{.type = i, .amount = raise_amount};
+          action_node = build_action(std::move(action_node), state, action);
+        }
       }
     }
   }
@@ -110,11 +130,11 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
                                   : ChanceType::DEAL_RIVER};
 
   auto chance_node = std::make_unique<ChanceNode>(parent, type);
-
-  for (int i{0}; i < 52; ++i) {
+  for (int i{0}; i < GameParams::NUM_CARDS; ++i) {
     Card card{i};
+    if (CardUtility::overlap(card, state.board))
+      continue;
 
-    // TODO: if card in board skip
     GameState nxt_state{state};
 
     nxt_state.street =

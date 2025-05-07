@@ -1,3 +1,4 @@
+#pragma once
 #include "PreflopCombo.hh"
 
 struct PreflopRange {
