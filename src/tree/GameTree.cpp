@@ -1,8 +1,8 @@
 #include "GameTree.hh"
+#include "card.h"
 #include "game/Game.hh"
 #include "tree/Nodes.hh"
 
-#include <algorithm>
 #include <memory>
 
 bool is_valid_action(Action action, int stack, int wager, int call_amount,
@@ -99,7 +99,7 @@ auto GameTree::build_action_nodes(Node *parent,
   std::vector<double> bet_sizes{};
   std::vector<double> raise_sizes{};
 
-  std::vector<Action::ActionType> types{
+  const std::vector<Action::ActionType> types{
       Action::ActionType::FOLD, Action::ActionType::CHECK,
       Action::ActionType::CALL, Action::ActionType::BET,
       Action::ActionType::RAISE};
@@ -130,13 +130,29 @@ auto GameTree::build_action_nodes(Node *parent,
 
 auto GameTree::build_chance_nodes(Node *parent,
                                   std::unique_ptr<GameState> state)
-    -> std::unique_ptr<Node> {
-  ChanceNode::ChanceType type{state->street == Street::FLOP
-                                  ? ChanceNode::ChanceType::DEAL_TURN
-                                  : ChanceNode::ChanceType::DEAL_RIVER};
 
-  for (std::size_t i{0}; i < 52; ++i) {
+    -> std::unique_ptr<Node> {
+  assert(state->street == Street::FLOP ||
+         state->street == Street::TURN && "build_chance_node error: ");
+  using phevaluator::Card;
+  using ChanceType = ChanceNode::ChanceType;
+  ChanceNode::ChanceType type{state->street == Street::FLOP
+                                  ? ChanceType::DEAL_TURN
+                                  : ChanceType::DEAL_RIVER};
+  ChanceNode chance_node{parent, type};
+
+  for (int i{0}; i < 52; ++i) {
+    Card card{i};
+
     // if card in board skip
+    GameState nxt_state{*state};
+
+    nxt_state.street =
+        static_cast<Street>(static_cast<int>(nxt_state.street) + 1);
+
+    std::unique_ptr<Node> action_node{
+        build_action_nodes(&chance_node, nxt_state)};
+    chance_node.add_child(std::move(action_node), card);
   }
 }
 auto GameTree::build_term_nodes(Node *parent, std::unique_ptr<GameState> state)
