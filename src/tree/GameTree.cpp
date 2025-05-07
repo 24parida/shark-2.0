@@ -1,6 +1,7 @@
 #include "GameTree.hh"
 #include "card.h"
 #include "game/Game.hh"
+#include "optional"
 #include "tree/Nodes.hh"
 
 #include <memory>
@@ -156,4 +157,29 @@ auto GameTree::build_chance_nodes(Node *parent,
   }
 }
 auto GameTree::build_term_nodes(Node *parent, std::unique_ptr<GameState> state)
-    -> std::unique_ptr<Node> {}
+    -> std::unique_ptr<Node> {
+  using TerminalType = TerminalNode::TerminalType;
+  std::optional<TerminalNode> terminal_node;
+
+  if (state->both_all_in() && state->street != Street::RIVER) {
+    terminal_node.emplace(parent, TerminalType::ALLIN);
+  } else if (state->is_uncontested()) {
+    terminal_node.emplace(parent, TerminalType::UNCONTESTED);
+  } else {
+    terminal_node.emplace(parent, TerminalType::SHOWDOWN);
+  }
+
+  assert(terminal_node.has_value() &&
+         "build_term_nodes uninitialized terminal_node");
+
+  Node *node{parent};
+  while (!dynamic_cast<ActionNode *>(node)) {
+    node = node->get_parent();
+  }
+
+  assert(node && "terminal_node no viable action_node_parent");
+  ActionNode *action_parent = dynamic_cast<ActionNode *>(node);
+
+  terminal_node.value().set_last_to_act(action_parent->get_player());
+  return terminal_node.value();
+}

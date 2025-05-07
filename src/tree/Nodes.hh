@@ -12,6 +12,7 @@ protected:
 public:
   Node(Node *parent) : m_parent(parent) {}
   void set_parent(Node *parent) { m_parent = parent; }
+  Node *get_parent() const { return m_parent; };
   virtual ~Node() = default;
 };
 
@@ -42,6 +43,7 @@ public:
   }
   void set_trainer(const DCFR dcfr) { m_dcfr = dcfr; }
   auto get_trainer() const -> DCFR { return m_dcfr; }
+  int get_player() const { return m_player; }
 
   auto get_child(const int index) const -> const Node * {
     assert(index >= 0 && index < m_children.size() &&
@@ -100,4 +102,5 @@ private:
 public:
   TerminalNode(Node *parent, TerminalType type)
       : Node(parent), m_type(type), m_pot(0) {}
+  void set_last_to_act(int last_to_act) { m_last_to_act = last_to_act; }
 };
