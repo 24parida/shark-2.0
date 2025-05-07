@@ -29,19 +29,16 @@ public:
   // check default initialization of std::vector
   ActionNode(const Node *parent, const int player)
       : Node(parent), m_player(player) {}
-  void init(std::vector<std::unique_ptr<Node>> &nodes,
-            std::vector<Action> actions, const int num_hands) {
+  void init(const int num_hands) {
     m_num_hands = num_hands;
-
-    for (const auto &i : nodes) {
-      m_children.push_back(std::move(i));
-    }
-    for (const auto &i : actions) {
-      m_actions.push_back(i);
-    }
-
     m_num_actions = m_actions.size();
   }
+
+  void push_child(const std::unique_ptr<Node> child) {
+    m_children.push_back(std::move(child));
+  }
+  void push_action(const Action action) { m_actions.push_back(action); }
+
   void set_trainer(const DCFR dcfr) { m_dcfr = dcfr; }
   auto get_trainer() const -> DCFR { return m_dcfr; }
   int get_player() const { return m_player; }

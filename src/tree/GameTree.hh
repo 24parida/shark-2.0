@@ -18,12 +18,11 @@ class GameTree {
   GameTree(const TreeBuilderSettings settings)
       : m_settings(settings), m_p1_num_hands(settings.range1.num_hands),
         m_p2_num_hands(settings.range2.num_hands) {}
-  auto get_init_state() -> GameState;
+
+  auto get_init_state() const -> GameState;
   auto build() -> std::unique_ptr<Node>;
-  void build_action(std::unique_ptr<Node> node, const GameState &state,
-                    const Action action,
-                    std::vector<std::unique_ptr<Node>> &children,
-                    std::vector<Action> &actions);
+  auto build_action(std::unique_ptr<ActionNode> node, const GameState &state,
+                    const Action &action) -> std::unique_ptr<ActionNode>;
 
   auto build_action_nodes(const Node *parent, const GameState &state)
       -> std::unique_ptr<Node>;
