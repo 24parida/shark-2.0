@@ -1,6 +1,8 @@
 #include "GameTree.hh"
 #include "game/Game.hh"
+#include "tree/Nodes.hh"
 
+#include <algorithm>
 #include <memory>
 
 bool is_valid_action(Action action, int stack, int wager, int call_amount,
@@ -56,7 +58,7 @@ auto GameTree::build() -> std::unique_ptr<Node> {
   return root;
 }
 
-void GameTree::build_action(const ActionNode node, const GameState state,
+void GameTree::build_action(std::unique_ptr<Node> node, const GameState state,
                             const Action action,
                             std::vector<std::unique_ptr<Node>> &children,
                             std::vector<Action> &actions) {
@@ -70,12 +72,12 @@ void GameTree::build_action(const ActionNode node, const GameState state,
     if (bets_setteld) {
       if (nxt_state->is_uncontested() || nxt_state->both_all_in() ||
           state.street == Street::RIVER) {
-        child = build_term_nodes(node, std::move(nxt_state));
+        child = build_term_nodes(&node, std::move(nxt_state));
       } else {
-        child = build_chance_nodes(node, std::move(nxt_state));
+        child = build_chance_nodes(&node, std::move(nxt_state));
       }
     } else {
-      child = build_action_nodes(node, std::move(nxt_state));
+      child = build_action_nodes(&node, std::move(nxt_state));
     }
 
     children.push_back(std::move(child));
@@ -83,18 +85,59 @@ void GameTree::build_action(const ActionNode node, const GameState state,
   }
 }
 
-auto GameTree::build_action_nodes(Node parent, std::unique_ptr<GameState> state)
+auto GameTree::build_action_nodes(Node *parent,
+                                  std::unique_ptr<GameState> state)
     -> std::unique_ptr<Node> {
+  std::unique_ptr<ActionNode> action_node =
+      std::make_unique<ActionNode>(parent, state->current._id);
 
-  return std::make_unique<Node>();
+  // TODO: move these types into type alias's
+  std::vector<Action> actions;
+  std::vector<std::unique_ptr<Node>> children;
+
+  // TODO: set bet_sizes and raise_sizes
+  std::vector<double> bet_sizes{};
+  std::vector<double> raise_sizes{};
+
+  std::vector<Action::ActionType> types{
+      Action::ActionType::FOLD, Action::ActionType::CHECK,
+      Action::ActionType::CALL, Action::ActionType::BET,
+      Action::ActionType::RAISE};
+
+  for (const auto &i : types) {
+    if (i == Action::ActionType::FOLD || i == Action::ActionType::CHECK ||
+        i == Action::ActionType::CALL) {
+      const int amount{i == Action::ActionType::CALL ? state->get_call_amount()
+                                                     : 0};
+      Action action{.type = i, .amount = amount};
+      buildAction(action_node, state, action, children, actions);
+    } else {
+      for (const auto &size : bet_sizes) {
+        int bet_amount{static_cast<int>(size * state->pot)};
+        bet_amount = bet_amount > state->current.stack ? state->current.stack
+                                                       : bet_amount;
+        // TODO: all in thresholdstack
+        Action action{.type = i, .amount = bet_amount};
+        build_action(action_node, state, action, children, actions);
+      }
+    }
+  }
+
+  const int curr_num_hands{state->current._id == 1 ? m_p1_num_hands
+                                                   : m_p2_num_hands};
+  action_node->init(children, actions, curr_num_hands);
 }
-auto GameTree::build_chance_nodes(Node parent, std::unique_ptr<GameState> state)
+
+auto GameTree::build_chance_nodes(Node *parent,
+                                  std::unique_ptr<GameState> state)
     -> std::unique_ptr<Node> {
+  ChanceNode::ChanceType type{state->street == Street::FLOP
+                                  ? ChanceNode::ChanceType::DEAL_TURN
+                                  : ChanceNode::ChanceType::DEAL_RIVER};
 
-  return std::make_unique<Node>();
+  for (std::size_t i{0}; i < 52; ++i) {
+    // if card in board skip
+  }
 }
-auto GameTree::build_term_nodes(Node parent, std::unique_ptr<GameState> state)
-    -> std::unique_ptr<Node> {
-
-  return std::make_unique<Node>();
-}
+auto GameTree::build_term_nodes(Node *parent, std::unique_ptr<GameState> state)
+    -> std::unique_ptr<Node> {}

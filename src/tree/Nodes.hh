@@ -9,6 +9,7 @@ class Node {
 protected:
   Node *m_parent;
 
+public:
   Node(Node *parent) : m_parent(parent) {}
   void set_parent(Node *parent) { m_parent = parent; }
   virtual ~Node() = default;
@@ -62,8 +63,10 @@ public:
 
 // Chance Node
 class ChanceNode : public Node {
+public:
   enum ChanceType { DEAL_TURN, DEAL_RIVER };
 
+private:
   std::vector<std::unique_ptr<Node>> m_children;
   int m_child_count;
   ChanceType m_type;
@@ -86,7 +89,10 @@ public:
 
 // Terminal Node
 class TerminalNode : public Node {
+public:
   enum TerminalType { ALLIN, UNCONTESTED, SHOWDOWN };
+
+private:
   TerminalType m_type;
   int m_last_to_act;
   int m_pot;
