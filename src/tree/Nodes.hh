@@ -7,12 +7,12 @@
 
 class Node {
 protected:
-  Node *m_parent;
+  Node const *m_parent;
 
 public:
-  Node(Node *parent) : m_parent(parent) {}
+  Node(const Node *parent) : m_parent(parent) {}
   void set_parent(Node *parent) { m_parent = parent; }
-  Node *get_parent() const { return m_parent; };
+  const Node *get_parent() const { return m_parent; };
   virtual ~Node() = default;
 };
 
@@ -27,7 +27,8 @@ class ActionNode : public Node {
 
 public:
   // check default initialization of std::vector
-  ActionNode(Node *parent, const int player) : Node(parent), m_player(player) {}
+  ActionNode(const Node *parent, const int player)
+      : Node(parent), m_player(player) {}
   void init(std::vector<std::unique_ptr<Node>> &nodes,
             std::vector<Action> actions, const int num_hands) {
     m_num_hands = num_hands;
@@ -74,7 +75,7 @@ private:
   ChanceType m_type;
 
 public:
-  ChanceNode(Node *parent, const ChanceType type)
+  ChanceNode(const Node *parent, const ChanceType type)
       : Node(parent), m_type(type), m_children(52) {}
 
   void add_child(std::unique_ptr<Node> node, const int card) {
@@ -100,7 +101,7 @@ private:
   int m_pot;
 
 public:
-  TerminalNode(Node *parent, TerminalType type)
+  TerminalNode(const Node *parent, TerminalType type)
       : Node(parent), m_type(type), m_pot(0) {}
   void set_last_to_act(int last_to_act) { m_last_to_act = last_to_act; }
 };
