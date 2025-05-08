@@ -9,7 +9,7 @@ struct TreeBuilderSettings {
   PreflopRange range2;
   int in_position_player;
   Street initial_street;
-  std::array<Card, 3> initial_board;
+  std::array<Card, 4> initial_board;
 
   int starting_stack;
   int starting_pot;

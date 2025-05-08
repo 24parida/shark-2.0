@@ -3,7 +3,6 @@
 #include "card.h"
 #include "game/Game.hh"
 #include "tree/Nodes.hh"
-
 #include <memory>
 
 bool is_valid_action(const Action &action, const GameState &state);
@@ -183,7 +182,7 @@ auto GameTree::build_term_nodes(const Node *parent, const GameState &state)
   terminal_node->set_pot(state.pot);
 
   const Node *node{parent};
-  while (!dynamic_cast<const ActionNode *>(node)) {
+  while (node->get_node_type() != NodeType::ACTION_NODE) {
     node = node->get_parent();
   }
 
@@ -221,4 +220,87 @@ bool is_valid_action(const Action &action, const GameState &state) {
             (raiseSize > 0 && action.amount == (stack + wager)));
   }
   return false;
+}
+
+json GameTree::jsonify_tree(const Node *node) const {
+  json ret;
+  switch (node->get_node_type()) {
+  case NodeType::ACTION_NODE: {
+    auto action_node = dynamic_cast<const ActionNode *>(node);
+    ret["type"] = "action_node";
+    ret["player"] = action_node->get_player();
+    ret["children"] = json::array();
+
+    for (int i{0}; i < action_node->get_num_actions(); ++i) {
+      const Node *child{action_node->get_child(i)};
+      json child_json{jsonify_tree(child)};
+      const Action action{action_node->get_action(i)};
+
+      std::string action_type;
+      switch (action.type) {
+      case Action::ActionType::FOLD:
+        action_type = "FOLD";
+        break;
+      case Action::ActionType::CHECK:
+        action_type = "CHECK";
+        break;
+      case Action::ActionType::CALL:
+        action_type = "CALL";
+        break;
+      case Action::ActionType::BET:
+        action_type = "BET";
+        break;
+      case Action::ActionType::RAISE:
+        action_type = "RAISE";
+        break;
+      }
+
+      child_json["action"] = action_type;
+      child_json["amount"] = action.amount;
+
+      ret["children"].push_back(child_json);
+    }
+  } break;
+  case NodeType::CHANCE_NODE: {
+    auto chance_node = dynamic_cast<const ChanceNode *>(node);
+    ret["type"] = "chance_node";
+    ret["children"] = json::array();
+
+    std::string chance_type{chance_node->get_type() ==
+                                    ChanceNode::ChanceType::DEAL_TURN
+                                ? "DEAL_TURN"
+                                : "DEAL_RIVER"};
+    ret["chance_type"] = chance_type;
+
+    for (int i{0}; i < chance_node->get_num_children(); ++i) {
+      const auto child{chance_node->get_child(i)};
+      if (!child)
+        continue;
+      json child_json{jsonify_tree(child)};
+      ret["children"].push_back(child_json);
+    }
+  } break;
+  case NodeType::TERMINAL_NODE: {
+    auto terminal_node = dynamic_cast<const TerminalNode *>(node);
+
+    std::string term_type;
+    switch (terminal_node->get_type()) {
+    case TerminalNode::TerminalType::ALLIN:
+      term_type = "ALLIN";
+      break;
+    case TerminalNode::TerminalType::UNCONTESTED:
+      term_type = "UNCONTESTED";
+      break;
+    case TerminalNode::TerminalType::SHOWDOWN:
+      term_type = "SHOWDOWN";
+      break;
+    }
+
+    ret["type"] = "terminal_node";
+    ret["terminal_type"] = term_type;
+    ret["last_to_act"] = terminal_node->get_last_to_act();
+    ret["pot"] = terminal_node->get_pot();
+  } break;
+  }
+  return ret;
 }
