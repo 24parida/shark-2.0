@@ -2,6 +2,7 @@
 #include "Game.hh"
 #include "card.h"
 #include <cassert>
+#include <memory>
 
 using phevaluator::Card;
 
@@ -27,14 +28,11 @@ struct PlayerState {
   void reset_wager() { wager = 0; };
   void all_in() { stack = 0; }
   void fold() { has_folded = true; }
-  void commit_chips(int amount) {
+  void commit_chips(const int amount) {
     wager += amount;
     stack -= amount;
   }
-
-  bool operator==(const PlayerState &other) const {
-    return this->_id == other._id;
-  }
+  bool operator==(const PlayerState &other) const { return _id == other._id; }
 };
 
 struct GameState {
@@ -43,22 +41,25 @@ struct GameState {
   int pot;
   std::array<Card, 5> board;
 
-  PlayerState p1;
-  PlayerState p2;
+  std::shared_ptr<PlayerState> p1;
+  std::shared_ptr<PlayerState> p2;
 
-  PlayerState current;
-  PlayerState last_to_act;
+  std::shared_ptr<PlayerState> current;
+  std::shared_ptr<PlayerState> last_to_act;
 
   int minimum_bet_size;
   int minimum_raise_size;
 
   GameState() = default;
   GameState(const GameState &other)
-      : street(other.street), pot(other.pot), board(other.board), p1(other.p1),
-        p2(other.p2), minimum_bet_size(other.minimum_bet_size),
-        minimum_raise_size(other.minimum_raise_size),
-        current(other.current._id == 1 ? p1 : p2),
-        last_to_act(other.last_to_act._id == 1 ? p1 : p2) {};
+      : street(other.street), pot(other.pot), board(other.board),
+        p1(std::make_shared<PlayerState>(*other.p1)),
+        p2(std::make_shared<PlayerState>(*other.p2)),
+        minimum_bet_size(other.minimum_bet_size),
+        minimum_raise_size(other.minimum_raise_size) {
+    current = other.current->_id == 1 ? p1 : p2;
+    last_to_act = other.last_to_act->_id == 1 ? p1 : p2;
+  };
 
   void set_turn(const Card card) {
     board[static_cast<size_t>(Street::TURN)] = card;
@@ -67,40 +68,46 @@ struct GameState {
     board[static_cast<size_t>(Street::RIVER)] = card;
   }
   void set_pot(const int amt) { pot = amt; }
-  int get_max_bet() const { return p1.wager > p2.wager ? p1.wager : p2.wager; }
-  int get_call_amount() const { return get_max_bet() - current.wager; }
-  bool is_uncontested() const { return p1.has_folded || p2.has_folded; }
-  bool both_all_in() const { return p1.stack == 0 && p2.stack == 0; }
+  int get_max_bet() const {
+    return p1->wager > p2->wager ? p1->wager : p2->wager;
+  }
+  int get_call_amount() const { return get_max_bet() - current->wager; }
+  bool is_uncontested() const { return p1->has_folded || p2->has_folded; }
+  bool both_all_in() const { return p1->stack == 0 && p2->stack == 0; }
   void reset_last_to_act() { last_to_act = last_to_act == p1 ? p2 : p1; }
   void update_current() { current = current == p1 ? p2 : p1; }
-  void init_current() { current = !p1.has_position ? p1 : p2; }
-  void init_last_to_act() { last_to_act = p1.has_position ? p1 : p2; }
+  void init_current() { current = !p1->has_position ? p1 : p2; }
+  void init_last_to_act() { last_to_act = p1->has_position ? p1 : p2; }
 
-  bool apply_action(Action action) {
+  bool apply_action(const Action action) {
     switch (action.type) {
     case Action::FOLD:
-      current.has_folded = true;
+      current->has_folded = true;
       pot -= get_call_amount();
       return true;
+      break;
 
     case Action::CHECK:
-      return current == last_to_act;
+      if (current == last_to_act)
+        return true;
+      break;
 
     case Action::CALL:
-      current.commit_chips(action.amount);
+      current->commit_chips(action.amount);
       pot += action.amount;
       return true;
+      break;
 
     case Action::BET:
-      current.commit_chips(action.amount);
+      current->commit_chips(action.amount);
       pot += action.amount;
       minimum_raise_size = action.amount;
       reset_last_to_act();
       break;
 
     case Action::RAISE:
-      int chips_to_commit = action.amount - current.wager;
-      current.commit_chips(chips_to_commit);
+      int chips_to_commit = action.amount - current->wager;
+      current->commit_chips(chips_to_commit);
       pot += chips_to_commit;
       int raise_size = action.amount - get_max_bet();
       if (raise_size > minimum_bet_size)
@@ -121,8 +128,8 @@ struct GameState {
     init_current();
     init_last_to_act();
 
-    p1.reset_wager();
-    p2.reset_wager();
+    p1->reset_wager();
+    p2->reset_wager();
 
     minimum_raise_size = minimum_bet_size;
   }

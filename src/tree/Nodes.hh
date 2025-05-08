@@ -79,7 +79,7 @@ public:
     m_children[card] = std::move(node);
     ++m_child_count;
   }
-
+  auto get_type() const -> ChanceType { return m_type; }
   auto get_child(const int index) -> Node *const {
     return m_children[index].get();
   }
@@ -100,4 +100,6 @@ public:
   TerminalNode(const Node *parent, TerminalType type)
       : Node(parent), m_type(type), m_pot(0) {}
   void set_last_to_act(int last_to_act) { m_last_to_act = last_to_act; }
+  void set_pot(const int pot) { m_pot = pot; }
+  auto get_type() const -> TerminalType { return m_type; }
 };
