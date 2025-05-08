@@ -106,10 +106,10 @@ struct GameState {
       break;
 
     case Action::RAISE:
-      int chips_to_commit = action.amount - current->wager;
+      const int chips_to_commit = action.amount - current->wager;
       current->commit_chips(chips_to_commit);
       pot += chips_to_commit;
-      int raise_size = action.amount - get_max_bet();
+      const int raise_size = action.amount - get_max_bet();
       if (raise_size > minimum_bet_size)
         minimum_bet_size = raise_size;
       reset_last_to_act();
