@@ -78,8 +78,8 @@ private:
 
 public:
   ChanceNode(const Node *parent, const ChanceType type)
-      : Node(parent, NodeType::CHANCE_NODE), m_type(type), m_children(52),
-        m_child_count(0) {}
+      : Node(parent, NodeType::CHANCE_NODE), m_children(52), m_child_count(0),
+        m_type(type) {}
 
   void add_child(std::unique_ptr<Node> node, const int card) {
     assert(card >= 0 && card < 52 && "ChanceNode: add_child card out of range");

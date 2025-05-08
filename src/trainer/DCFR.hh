@@ -15,7 +15,7 @@ class DCFR {
 public:
   DCFR() = default;
   DCFR(const int player, const int num_hands, const int num_actions)
-      : m_current(player), m_num_actions(num_actions), m_num_hands(num_hands),
+      : m_num_hands(num_hands), m_num_actions(num_actions), m_current(player),
         m_cummulative_regret(num_actions * num_hands),
         m_cummulative_strategy(num_actions * num_hands) {}
   auto get_average_strat() -> std::vector<double>;

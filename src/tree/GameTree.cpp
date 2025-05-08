@@ -38,7 +38,7 @@ auto GameTree::build_action(std::unique_ptr<ActionNode> node,
     -> std::unique_ptr<ActionNode> {
 
   if (!is_valid_action(action, state)) {
-    return std::move(node);
+    return node;
   }
 
   GameState nxt_state = {state};
