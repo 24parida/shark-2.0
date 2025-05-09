@@ -2,6 +2,52 @@
 #include "Helper.hh"
 #include "hands/RiverCombo.hh"
 
+auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
+                                 const std::vector<Card> &board)
+    -> std::vector<double> {
+  std::vector<double> card_weights(m_num_hero_hands * 52);
+
+  double villain_reach_sum{0.0};
+  std::vector<double> villain_card_reach_sum(52);
+
+  for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+    villain_card_reach_sum[m_villain_preflop_combos[hand].hand1] +=
+        villain_reach_pr[hand];
+    villain_card_reach_sum[m_villain_preflop_combos[hand].hand2] +=
+        villain_reach_pr[hand];
+    villain_reach_sum += villain_reach_pr[hand];
+  }
+
+  for (std::size_t hand{0}; hand < m_hero_preflop_combos.size(); ++hand) {
+    if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
+      continue;
+
+    double total_weight{0.0};
+    for (int card{0}; card < 52; ++card) {
+      if (CardUtility::overlap(card, board) ||
+          CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+        continue;
+      }
+
+      const double weight =
+          villain_reach_sum - villain_card_reach_sum[card] -
+          villain_card_reach_sum[m_hero_preflop_combos[hand].hand1] -
+          villain_card_reach_sum[m_hero_preflop_combos[hand].hand2] +
+          villain_reach_pr[hand];
+      card_weights[hand + card * m_num_hero_hands] = weight;
+      total_weight += weight;
+    }
+
+    for (int card{0}; card < 52; ++card) {
+      if (CardUtility::overlap(card, board) && total_weight > 0 &&
+          card_weights[hand + card * m_num_hero_hands] > 0) {
+        card_weights[hand + card * m_num_hero_hands] /= total_weight;
+      }
+    }
+  }
+
+  return card_weights;
+}
 auto CFRHelper::terminal_node_utility(
     const TerminalNode *node, const std::vector<double> villain_reach_pr,
     const std::vector<Card> &board) -> std::vector<double> {

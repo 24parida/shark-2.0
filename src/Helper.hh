@@ -5,6 +5,9 @@
 #include <array>
 
 namespace CardUtility {
+inline bool overlap(const PreflopCombo &combo, const Card &card) {
+  return combo.hand1 == card || combo.hand2 == card;
+}
 
 inline bool overlap(const Card &card, const std::vector<Card> &board) {
   for (const auto &i : board) {
