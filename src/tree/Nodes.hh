@@ -5,6 +5,8 @@
 #include <memory>
 #include <vector>
 
+class DCFR;
+
 enum class NodeType { ACTION_NODE, CHANCE_NODE, TERMINAL_NODE };
 
 class Node {
@@ -28,7 +30,7 @@ class ActionNode : public Node {
   int m_num_hands;
   int m_num_actions;
   int m_player;
-  DCFR m_dcfr;
+  std::unique_ptr<DCFR> m_dcfr;
 
 public:
   ActionNode(const Node *parent, const int player)
@@ -39,13 +41,14 @@ public:
   }
 
   auto get_num_actions() const -> int { return m_num_actions; }
+  auto get_num_hands() const -> int { return m_num_hands; }
   void push_child(std::unique_ptr<Node> child) {
     m_children.push_back(std::move(child));
   }
   void push_action(const Action action) { m_actions.push_back(action); }
 
   void set_trainer(const DCFR dcfr) { m_dcfr = dcfr; }
-  auto get_trainer() const -> DCFR { return m_dcfr; }
+  auto get_trainer() const -> const DCFR * { return m_dcfr.get(); }
   int get_player() const { return m_player; }
 
   auto get_child(const int index) const -> const Node * {
@@ -59,10 +62,10 @@ public:
     return m_actions[static_cast<std::size_t>(index)];
   }
   auto get_average_strat() -> std::vector<double> {
-    return m_dcfr.get_average_strat();
+    return m_dcfr->get_average_strat();
   }
   auto get_current_strat() -> std::vector<double> {
-    return m_dcfr.get_current_strat();
+    return m_dcfr->get_current_strat();
   }
 };
 

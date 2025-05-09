@@ -1,8 +1,8 @@
 #pragma once
-
+#include "../tree/Nodes.hh"
 #include <vector>
 
-class Node;
+class ActionNode;
 
 class DCFR {
   int m_num_hands;
@@ -10,14 +10,21 @@ class DCFR {
   int m_current;
   std::vector<double> m_cummulative_regret;
   std::vector<double> m_cummulative_strategy;
-  Node *node_ref;
 
 public:
   DCFR() = default;
-  DCFR(const int player, const int num_hands, const int num_actions)
-      : m_num_hands(num_hands), m_num_actions(num_actions), m_current(player),
-        m_cummulative_regret(num_actions * num_hands),
-        m_cummulative_strategy(num_actions * num_hands) {}
-  auto get_average_strat() -> std::vector<double>;
-  auto get_current_strat() -> std::vector<double>;
+  DCFR(const ActionNode *node)
+      : m_num_hands(node->get_num_hands()),
+        m_num_actions(node->get_num_actions()), m_current(node->get_player()),
+        m_cummulative_regret(m_num_hands * m_num_actions),
+        m_cummulative_strategy(m_num_hands * m_num_actions) {}
+  auto get_average_strat() const -> std::vector<double>;
+  auto get_current_strat() const -> std::vector<double>;
+  void update_cum_regret_one(const std::vector<double> &action_utils,
+                             const int action_index);
+  void update_cum_regret_two(const std::vector<double> &utils,
+                             const int iteration);
+  void update_cum_strategy(const std::vector<double> &strategy,
+                           const std::vector<double> &reach_probs,
+                           const int iteration);
 };
