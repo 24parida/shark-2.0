@@ -1,6 +1,8 @@
 #pragma once
 #include "card.h"
 #include "hands/PreflopCombo.hh"
+#include "phevaluator.h"
+#include <array>
 
 namespace CardUtility {
 template <std::size_t N>
@@ -26,6 +28,35 @@ inline bool overlap(const PreflopCombo &combo,
 inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {
   return (combo1.hand1 == combo2.hand1 || combo1.hand1 == combo2.hand2 ||
           combo1.hand2 == combo2.hand1 || combo1.hand2 == combo2.hand2);
+}
+
+// this sucks
+template <std::size_t N>
+inline int board_to_key(const std::array<Card, N> board) {
+  assert((board.size() >= 3 && board.size() <= 5) &&
+         "CardUtility: board_to_key incorrecy board size");
+  if (board.size() == 3) {
+    return 100000000 * static_cast<int>(board[0]) +
+           1000000 * static_cast<int>(board[1]) +
+           10000 * static_cast<int>(board[2]);
+  } else if (board.size() == 3) {
+    return 100000000 * static_cast<int>(board[0]) +
+           1000000 * static_cast<int>(board[1]) +
+           10000 * static_cast<int>(board[2]) +
+           100 * static_cast<int>(board[3]);
+  } else {
+    return 100000000 * static_cast<int>(board[0]) +
+           1000000 * static_cast<int>(board[1]) +
+           10000 * static_cast<int>(board[2]) +
+           100 * static_cast<int>(board[3]) + static_cast<int>(board[4]);
+  }
+}
+
+inline auto get_rank(const Card card1, const Card card2,
+                     const std::array<Card, 5> &board) -> int {
+  return phevaluator::EvaluateCards(board[1], board[2], board[2], board[3],
+                                    board[4], card1, card2)
+      .value();
 }
 
 } // namespace CardUtility
