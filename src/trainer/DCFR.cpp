@@ -38,9 +38,13 @@ auto DCFR::get_current_strat() const -> std::vector<double> {
 
     if (positive_regret_sum > 0) {
       for (std::size_t action{0}; action < m_num_actions; ++action) {
-        current_strategy[hand + action * m_num_hands] =
-            m_cummulative_regret[hand + action * m_num_hands] /
-            positive_regret_sum;
+        if (m_cummulative_regret[hand + action * m_num_hands] > 0) {
+          current_strategy[hand + action * m_num_hands] =
+              m_cummulative_regret[hand + action * m_num_hands] /
+              positive_regret_sum;
+        } else {
+          current_strategy[hand + action * m_num_hands] = 0;
+        }
       }
     } else {
       for (std::size_t action{0}; action < m_num_actions; ++action) {
@@ -83,7 +87,7 @@ void DCFR::update_cum_strategy(const std::vector<double> &strategy,
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     for (std::size_t action{0}; action < m_num_actions; ++action) {
       m_cummulative_strategy[hand + action * m_num_hands] +=
-          strategy[hand + action * m_num_hands] + reach_probs[hand];
+          strategy[hand + action * m_num_hands] * reach_probs[hand];
       m_cummulative_strategy[hand + action * m_num_hands] *= x;
     }
   }

@@ -22,4 +22,10 @@ inline bool overlap(const PreflopCombo &combo,
   }
   return false;
 }
+
+inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {
+  return (combo1.hand1 == combo2.hand1 || combo1.hand1 == combo2.hand2 ||
+          combo1.hand2 == combo2.hand1 || combo1.hand2 == combo2.hand2);
+}
+
 } // namespace CardUtility
