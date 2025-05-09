@@ -5,6 +5,22 @@
 #include <array>
 
 namespace CardUtility {
+
+inline bool overlap(const Card &card, const std::vector<Card> &board) {
+  for (const auto &i : board) {
+    if (i == card)
+      return true;
+  }
+  return false;
+}
+
+inline bool overlap(const PreflopCombo &combo, const std::vector<Card> &board) {
+  for (const auto &i : board) {
+    if (i == combo.hand1 || i == combo.hand2)
+      return true;
+  }
+  return false;
+}
 template <std::size_t N>
 inline bool overlap(const Card &card,
                     const std::array<phevaluator::Card, N> &board) {
