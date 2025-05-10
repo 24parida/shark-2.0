@@ -1,5 +1,4 @@
 #include "PreflopCombo.hh"
-#include "card.h"
 #include <cassert>
 
 class PreflopRangeManager {
@@ -9,7 +8,7 @@ class PreflopRangeManager {
 public:
   PreflopRangeManager(const std::vector<PreflopCombo> &p1_preflop_combos,
                       const std::vector<PreflopCombo> &p2_preflop_combos,
-                      const std::array<phevaluator::Card, 4> init_board)
+                      const std::vector<Card> &init_board)
 
       : m_p1_preflop_combos(p1_preflop_combos),
         m_p2_preflop_combos(p2_preflop_combos) {
@@ -34,10 +33,9 @@ public:
     return m_p2_preflop_combos;
   }
 
-  auto
-  get_initial_reach_probs(const int player,
-                          const std::array<phevaluator::Card, 4> &board) const
+  auto get_initial_reach_probs(const int player,
+                               const std::vector<Card> &board) const
       -> std::vector<double>;
 
-  void set_rel_probabilities(const std::array<phevaluator::Card, 4> init_board);
+  void set_rel_probabilities(const std::vector<Card> &init_board);
 };

@@ -6,7 +6,7 @@
 
 auto RiverRangeManager::get_river_combos(
     const int player, const std::vector<PreflopCombo> &preflop_combos,
-    const std::array<Card, 5> &board) -> std::vector<RiverCombo> {
+    const std::vector<Card> &board) -> std::vector<RiverCombo> {
 
   std::unordered_map<int, std::vector<RiverCombo>> &river_ranges{
       player == 1 ? m_p1_river_ranges : m_p2_river_ranges};

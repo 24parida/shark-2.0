@@ -36,9 +36,9 @@ void PreflopRange::add_combo(const char rank1, const int suit1,
          "PreflopRange attempting to add a suited pair");
 
   preflop_combos.push_back({
-      .probability = weight,
       .hand1{std::string{rank1} + GameParams::suitReverseArray[suit1]},
       .hand2{std::string{rank2} + GameParams::suitReverseArray[suit2]},
+      .probability = weight,
   });
 }
 

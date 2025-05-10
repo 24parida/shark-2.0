@@ -2,6 +2,11 @@
 #include "Helper.hh"
 #include "hands/RiverCombo.hh"
 
+void CFRHelper::chance_node_utility(ChanceNode *node,
+                                    std::vector<double> &hero_reach_pr,
+                                    std::vector<double> &villain_reach_pr,
+                                    std::vector<Card> board) {}
+
 auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
                                  const std::vector<Card> &board)
     -> std::vector<double> {
@@ -98,12 +103,10 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
                                    const std::vector<double> &villain_reach_pr,
                                    const std::vector<Card> &board)
     -> std::vector<double> {
-  // TODO: CHANGE TO USE BOARD
-  std::array<Card, 5> b;
   std::vector<RiverCombo> hero_river_combos{
-      m_rrm.get_river_combos(m_hero, m_hero_preflop_combos, b)};
+      m_rrm.get_river_combos(m_hero, m_hero_preflop_combos, board)};
   std::vector<RiverCombo> villain_river_combos{
-      m_rrm.get_river_combos(m_hero, m_villain_preflop_combos, b)};
+      m_rrm.get_river_combos(m_hero, m_villain_preflop_combos, board)};
 
   std::vector<double> utils(m_num_hero_hands);
 

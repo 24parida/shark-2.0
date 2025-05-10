@@ -10,13 +10,13 @@ class ParallelDCFR {
   PreflopRangeManager m_prm;
   RiverRangeManager m_rrm;
 
-  std::array<Card, 4> m_init_board;
+  std::vector<Card> m_init_board;
   int m_init_pot;
   int m_in_position_player;
 
 public:
-  ParallelDCFR(const PreflopRangeManager prm,
-               const std::array<Card, 4> init_board, const int init_pot,
+  ParallelDCFR(const PreflopRangeManager &prm,
+               const std::vector<Card> &init_board, const int init_pot,
                const int in_position_player)
       : m_prm(prm), m_init_board(init_board), m_init_pot(init_pot),
         m_in_position_player(in_position_player) {}
@@ -65,13 +65,16 @@ public:
   void compute();
   void complete();
 
-  void chance_node_utility();
+  void chance_node_utility(ChanceNode *node,
+                           const std::vector<double> &hero_reach_pr,
+                           const std::vector<double> &villain_reach_pr,
+                           const std::vector<Card> &board);
 
   auto get_card_weights(const std::vector<double> &villain_reach_pr,
                         const std::vector<Card> &board) -> std::vector<double>;
 
   auto terminal_node_utility(const TerminalNode *node,
-                             const std::vector<double> villain_reach_pr,
+                             const std::vector<double> &villain_reach_pr,
                              const std::vector<Card> &board)
       -> std::vector<double>;
   auto get_all_in_utils(const TerminalNode *node,

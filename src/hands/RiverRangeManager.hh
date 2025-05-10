@@ -10,6 +10,6 @@ public:
   RiverRangeManager() = default;
   auto get_river_combos(const int player,
                         const std::vector<PreflopCombo> &preflop_combos,
-                        const std::array<Card, 5> &board)
+                        const std::vector<Card> &board)
       -> std::vector<RiverCombo>;
 };

@@ -39,7 +39,7 @@ struct GameState {
 
   Street street;
   int pot;
-  std::array<Card, 5> board;
+  std::vector<Card> board;
 
   std::shared_ptr<PlayerState> p1;
   std::shared_ptr<PlayerState> p2;
@@ -62,10 +62,14 @@ struct GameState {
   };
 
   void set_turn(const Card card) {
-    board[static_cast<size_t>(Street::TURN)] = card;
+    assert(board.size() == 3 &&
+           "GameState set_turn: attempting to set an already set turn");
+    board.push_back(card);
   }
   void set_river(const Card card) {
-    board[static_cast<size_t>(Street::RIVER)] = card;
+    assert(board.size() == 4 &&
+           "GameState set_river: attempting to set an already set river");
+    board.push_back(card);
   }
   void set_pot(const int amt) { pot = amt; }
   int get_max_bet() const {

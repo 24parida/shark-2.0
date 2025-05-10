@@ -2,7 +2,7 @@
 #include "../Helper.hh"
 
 auto PreflopRangeManager::get_initial_reach_probs(
-    const int player, const std::array<phevaluator::Card, 4> &board) const
+    const int player, const std::vector<Card> &board) const
     -> std::vector<double> {
   const auto preflop_combos{get_preflop_combos(player)};
   std::vector<double> reach_probs(preflop_combos.size());
@@ -19,7 +19,7 @@ auto PreflopRangeManager::get_initial_reach_probs(
 }
 
 void PreflopRangeManager::set_rel_probabilities(
-    const std::array<phevaluator::Card, 4> init_board) {
+    const std::vector<Card> &init_board) {
   for (int p{1}; p <= 2; ++p) {
 
     auto &hero_preflop_combos{p == 1 ? m_p1_preflop_combos
