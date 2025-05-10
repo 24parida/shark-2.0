@@ -4,6 +4,11 @@
 #include "hands/PreflopCombo.hh"
 #include "trainer/DCFR.hh"
 
+#include <oneapi/tbb/global_control.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/task_group.h>
+#include <vector>
+
 enum class ResultType { CHANCE_NODE, ACTION_NODE };
 
 class ParallelDCFR {
@@ -59,16 +64,19 @@ public:
         m_villain_reach_probs(villain_reach_pr), m_board(board),
         m_hero_preflop_combos(hero_preflop_combos),
         m_villain_preflop_combos(villain_preflop_combos),
-        m_iteration_count(iteration_count), m_prm(prm), m_rrm(rrm) {};
+        m_num_hero_hands(hero_preflop_combos.size()),
+        m_num_villain_hands(villain_preflop_combos.size()),
+        m_iteration_count(iteration_count), m_result(m_num_hero_hands),
+        m_prm(prm), m_rrm(rrm) {};
 
-  auto compute() -> std::vector<double>;
+  void compute(tbb::task_group &tg);
   void complete();
+  auto get_result() const -> std::vector<double> { return m_result; };
 
-  auto chance_node_utility(ChanceNode *node,
+  void chance_node_utility(ChanceNode *node,
                            const std::vector<double> &hero_reach_pr,
                            const std::vector<double> &villain_reach_pr,
-                           const std::vector<Card> &board)
-      -> std::vector<double>;
+                           const std::vector<Card> &board, tbb::task_group &tg);
 
   auto get_card_weights(const std::vector<double> &villain_reach_pr,
                         const std::vector<Card> &board) -> std::vector<double>;
