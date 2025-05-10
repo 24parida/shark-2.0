@@ -64,7 +64,8 @@ inline auto get_rank(const Card &card1, const Card &card2,
 }
 
 inline auto get_win_pct(const PreflopCombo &hero, const PreflopCombo &villain,
-                        const std::vector<Card> board) {
+                        const std::vector<Card> board,
+                        const double accuracy_margin = 0.01) -> double {
   assert((board.size() == 3 || board.size() == 4) &&
          "get_win_pct: expected board of size 3 or 4 (undealt turn/river)");
   EquityCalculator eq;
@@ -81,7 +82,9 @@ inline auto get_win_pct(const PreflopCombo &hero, const PreflopCombo &villain,
   }
   uint64_t omp_board = CardRange::getCardMask(board_str);
 
-  eq.start(ranges, omp_board, 0, false, 0.01, nullptr, 0.2, 1);
+  // to explain the magic numbers being passed to eq.start()
+  // _,_, dead_cards, accuracy (<=1%), callback_period(idk), threads (1)
+  eq.start(ranges, omp_board, 0, false, accuracy_margin, nullptr, 0.2, 1);
   eq.wait();
 
   return eq.getResults().equity[0];

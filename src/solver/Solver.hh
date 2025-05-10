@@ -40,7 +40,6 @@ class CFRHelper {
   int m_num_villain_hands;
   int m_iteration_count;
   std::vector<double> m_result;
-  std::vector<CFRHelper> m_cfr_helpers;
   DCFR m_dcfr_module;
   ResultType m_result_type;
 

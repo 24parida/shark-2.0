@@ -1,5 +1,6 @@
 #include "Solver.hh"
 #include "Helper.hh"
+#include "hands/PreflopCombo.hh"
 #include "hands/RiverCombo.hh"
 
 auto CFRHelper::chance_node_utility(ChanceNode *node,
@@ -11,7 +12,6 @@ auto CFRHelper::chance_node_utility(ChanceNode *node,
   std::vector<double> result(m_num_hero_hands);
   std::vector<double> card_weights{get_card_weights(villain_reach_pr, board)};
 
-  int count{0};
   for (int card{0}; card < 52; ++card) {
     Node *child{node->get_child(card)};
     if (!child)
@@ -92,7 +92,7 @@ auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
     }
 
     for (int card{0}; card < 52; ++card) {
-      if (CardUtility::overlap(card, board) && total_weight > 0 &&
+      if (!CardUtility::overlap(card, board) && total_weight > 0 &&
           card_weights[hand + card * m_num_hero_hands] > 0) {
         card_weights[hand + card * m_num_hero_hands] /= total_weight;
       }
@@ -115,33 +115,36 @@ auto CFRHelper::terminal_node_utility(
   }
 }
 
-// will have to adjust for flop subgame -> probably just use per hand evs
 auto CFRHelper::get_all_in_utils(const TerminalNode *node,
                                  const std::vector<double> &villain_reach_pr,
                                  const std::vector<Card> &board)
     -> std::vector<double> {
   std::vector<double> preflop_combo_evs(m_num_hero_hands);
-  const auto villain_preflop_combos{m_prm.get_preflop_combos(m_villain)};
 
-  for (int card{0}; card < 52; ++card) {
-    if (CardUtility::overlap(card, board))
+  for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+    const PreflopCombo &hero_combo{m_hero_preflop_combos[hand]};
+
+    if (CardUtility::overlap(hero_combo, board))
       continue;
 
-    std::vector<Card> new_board{board};
-    new_board.push_back(card);
+    double ev_sum{0.0};
 
-    std::vector<double> new_villain_reach_probs(m_num_villain_hands);
-    for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
-      if (!CardUtility::overlap(villain_preflop_combos[hand], new_board)) {
-        new_villain_reach_probs[hand] = villain_reach_pr[hand];
+    for (std::size_t v{0}; v < m_num_villain_hands; ++v) {
+      const PreflopCombo &villain_combo{m_villain_preflop_combos[v]};
+      const double villain_reach{villain_reach_pr[v]};
+
+      if (villain_reach == 0 || CardUtility::overlap(villain_combo, board) ||
+          CardUtility::overlap(hero_combo, board)) {
+        continue;
       }
+
+      double win_pct{
+          CardUtility::get_win_pct(hero_combo, villain_combo, board)};
+      const double util{(2 * win_pct - 1) * (node->get_pot() / 2.0)};
+      ev_sum += util * villain_reach;
     }
 
-    const auto subgame_evs{
-        get_showdown_utils(node, new_villain_reach_probs, new_board)};
-    for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-      preflop_combo_evs[hand] += subgame_evs[hand] / 44;
-    }
+    preflop_combo_evs[hand] = ev_sum;
   }
 
   return preflop_combo_evs;
@@ -151,16 +154,16 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
                                    const std::vector<double> &villain_reach_pr,
                                    const std::vector<Card> &board)
     -> std::vector<double> {
-  std::vector<RiverCombo> hero_river_combos{
+  const std::vector<RiverCombo> &hero_river_combos{
       m_rrm.get_river_combos(m_hero, m_hero_preflop_combos, board)};
-  std::vector<RiverCombo> villain_river_combos{
-      m_rrm.get_river_combos(m_hero, m_villain_preflop_combos, board)};
+  const std::vector<RiverCombo> &villain_river_combos{
+      m_rrm.get_river_combos(m_villain, m_villain_preflop_combos, board)};
 
   std::vector<double> utils(m_num_hero_hands);
 
   double win_sum{0.0};
+  const double value{node->get_pot() / 2.0};
   std::vector<double> card_win_sum(52);
-  double value{node->get_pot() / 2.0};
 
   std::size_t j{0};
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
@@ -184,7 +187,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   double lose_sum{0.0};
   std::vector<double> card_lose_sum(52);
   j = villain_river_combos.size() - 1;
-  for (int i{static_cast<int>(hero_river_combos.size())}; i >= 0; i--) {
+  for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto hero_combo{hero_river_combos[i]};
     const auto villain_combo{villain_river_combos[j]};
 
