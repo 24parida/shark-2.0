@@ -2,10 +2,58 @@
 #include "Helper.hh"
 #include "hands/RiverCombo.hh"
 
-void CFRHelper::chance_node_utility(ChanceNode *node,
-                                    std::vector<double> &hero_reach_pr,
-                                    std::vector<double> &villain_reach_pr,
-                                    std::vector<Card> board) {}
+auto CFRHelper::chance_node_utility(ChanceNode *node,
+                                    const std::vector<double> &hero_reach_pr,
+                                    const std::vector<double> &villain_reach_pr,
+                                    const std::vector<Card> &board)
+    -> std::vector<double> {
+
+  std::vector<double> result(m_num_hero_hands);
+  std::vector<double> card_weights{get_card_weights(villain_reach_pr, board)};
+
+  int count{0};
+  for (int card{0}; card < 52; ++card) {
+    Node *child{node->get_child(card)};
+    if (!child)
+      continue;
+
+    std::vector<Card> new_board{board};
+    new_board.push_back(card);
+
+    std::vector<double> new_hero_reach_probs(m_num_hero_hands);
+    for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+      if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+        new_hero_reach_probs[hand] =
+            hero_reach_pr[hand] * card_weights[hand + card * m_num_hero_hands];
+      }
+    }
+
+    std::vector<double> new_villain_reach_probs(m_num_villain_hands);
+    for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+      if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
+        new_villain_reach_probs[hand] = villain_reach_pr[hand];
+      }
+    }
+
+    CFRHelper rec{child,
+                  m_hero,
+                  m_villain,
+                  m_hero_preflop_combos,
+                  m_villain_preflop_combos,
+                  new_hero_reach_probs,
+                  new_villain_reach_probs,
+                  new_board,
+                  m_iteration_count,
+                  m_prm,
+                  m_rrm};
+    auto child_result{rec.compute()};
+    for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+      result[hand] = child_result[hand] / 44;
+    }
+  }
+
+  return result;
+}
 
 auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
                                  const std::vector<Card> &board)
@@ -54,7 +102,7 @@ auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
   return card_weights;
 }
 auto CFRHelper::terminal_node_utility(
-    const TerminalNode *node, const std::vector<double> villain_reach_pr,
+    const TerminalNode *node, const std::vector<double> &villain_reach_pr,
     const std::vector<Card> &board) -> std::vector<double> {
 
   switch (node->get_type()) {
@@ -136,7 +184,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   double lose_sum{0.0};
   std::vector<double> card_lose_sum(52);
   j = villain_river_combos.size() - 1;
-  for (std::size_t i{hero_river_combos.size()}; i != 0; i--) {
+  for (int i{static_cast<int>(hero_river_combos.size())}; i >= 0; i--) {
     const auto hero_combo{hero_river_combos[i]};
     const auto villain_combo{villain_river_combos[j]};
 

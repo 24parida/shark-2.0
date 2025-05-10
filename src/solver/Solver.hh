@@ -62,13 +62,14 @@ public:
         m_villain_preflop_combos(villain_preflop_combos),
         m_iteration_count(iteration_count), m_prm(prm), m_rrm(rrm) {};
 
-  void compute();
+  auto compute() -> std::vector<double>;
   void complete();
 
-  void chance_node_utility(ChanceNode *node,
+  auto chance_node_utility(ChanceNode *node,
                            const std::vector<double> &hero_reach_pr,
                            const std::vector<double> &villain_reach_pr,
-                           const std::vector<Card> &board);
+                           const std::vector<Card> &board)
+      -> std::vector<double>;
 
   auto get_card_weights(const std::vector<double> &villain_reach_pr,
                         const std::vector<Card> &board) -> std::vector<double>;

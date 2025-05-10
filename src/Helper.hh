@@ -1,7 +1,11 @@
 #pragma once
+#include "../include/omp/EquityCalculator.hh"
 #include "hands/PreflopCombo.hh"
+#include "omp.h"
 #include "phevaluator.h"
 #include <cassert>
+
+using namespace omp;
 
 namespace CardUtility {
 inline bool overlap(const PreflopCombo &combo, const Card &card) {
@@ -57,6 +61,30 @@ inline auto get_rank(const Card &card1, const Card &card2,
   return phevaluator::EvaluateCards(board[1], board[2], board[2], board[3],
                                     board[4], card1, card2)
       .value();
+}
+
+inline auto get_win_pct(const PreflopCombo &hero, const PreflopCombo &villain,
+                        const std::vector<Card> board) {
+  assert((board.size() == 3 || board.size() == 4) &&
+         "get_win_pct: expected board of size 3 or 4 (undealt turn/river)");
+  EquityCalculator eq;
+
+  const std::string hand1{hero.hand1.describeCard() +
+                          hero.hand2.describeCard()};
+  const std::string hand2{villain.hand1.describeCard() +
+                          villain.hand2.describeCard()};
+  std::vector<CardRange> ranges{hand1, hand2};
+
+  std::string board_str{};
+  for (const auto &i : board) {
+    board_str += i.describeCard();
+  }
+  uint64_t omp_board = CardRange::getCardMask(board_str);
+
+  eq.start(ranges, omp_board, 0, false, 0.01, nullptr, 0.2, 1);
+  eq.wait();
+
+  return eq.getResults().equity[0];
 }
 
 } // namespace CardUtility
