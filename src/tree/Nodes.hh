@@ -5,8 +5,6 @@
 #include <memory>
 #include <vector>
 
-class DCFR;
-
 enum class NodeType { ACTION_NODE, CHANCE_NODE, TERMINAL_NODE };
 
 class Node {
@@ -30,7 +28,7 @@ class ActionNode : public Node {
   int m_num_hands;
   int m_num_actions;
   int m_player;
-  DCFR m_dcfr;
+  std::unique_ptr<DCFR> m_dcfr;
 
 public:
   ActionNode(const Node *parent, const int player)
@@ -53,7 +51,11 @@ public:
   }
 
   void push_action(const Action action) { m_actions.push_back(action); }
-  auto get_trainer() -> DCFR & { return m_dcfr; }
+
+  void load_trainer(const ActionNode *node) {
+    m_dcfr = std::make_unique<DCFR>(node);
+  }
+  auto get_trainer() -> DCFR * { return m_dcfr.get(); }
 
   auto get_child(const int index) const -> Node * {
     assert(index >= 0 && index < m_children.size() &&
@@ -66,10 +68,10 @@ public:
     return m_actions[static_cast<std::size_t>(index)];
   }
   auto get_average_strat() -> std::vector<double> {
-    return m_dcfr.get_average_strat();
+    return m_dcfr->get_average_strat();
   }
   auto get_current_strat() -> std::vector<double> {
-    return m_dcfr.get_current_strat();
+    return m_dcfr->get_current_strat();
   }
 };
 

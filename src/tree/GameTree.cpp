@@ -17,10 +17,7 @@ auto GameTree::get_init_state() const -> GameState {
       1, m_settings.in_position_player == 1, m_settings.starting_stack);
   state.p2 = std::make_shared<PlayerState>(
       2, m_settings.in_position_player == 2, m_settings.starting_stack);
-
-  for (std::size_t i{0}; i < m_settings.initial_board.size(); ++i) {
-    state.board[i] = m_settings.initial_board[i];
-  }
+  state.board = m_settings.initial_board;
 
   state.init_current();
   state.init_last_to_act();

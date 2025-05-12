@@ -1,7 +1,6 @@
 #pragma once
 #include "../include/omp/EquityCalculator.hh"
 #include "hands/PreflopCombo.hh"
-#include "omp.h"
 #include "phevaluator.h"
 #include <cassert>
 

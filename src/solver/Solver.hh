@@ -14,15 +14,12 @@ class ParallelDCFR {
   RiverRangeManager m_rrm;
 
   std::vector<Card> m_init_board;
-  int m_init_pot;
   int m_in_position_player;
 
 public:
   ParallelDCFR(const PreflopRangeManager &prm,
-               const std::vector<Card> &init_board, const int init_pot,
-               const int in_position_player)
-      : m_prm(prm), m_init_board(init_board), m_init_pot(init_pot),
-        m_in_position_player(in_position_player) {}
+               const std::vector<Card> &init_board)
+      : m_prm(prm), m_init_board(init_board) {}
 
   void load_trainer_modules(Node *const node);
   void train(Node *root, const int iterations);

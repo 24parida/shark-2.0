@@ -1,5 +1,12 @@
 #include "DCFR.hh"
+#include "../tree/Nodes.hh"
 #include <cmath>
+
+DCFR::DCFR(const ActionNode *node)
+    : m_num_hands(node->get_num_hands()),
+      m_num_actions(node->get_num_actions()), m_current(node->get_player()),
+      m_cummulative_regret(m_num_hands * m_num_actions),
+      m_cummulative_strategy(m_num_hands * m_num_actions) {}
 
 auto DCFR::get_average_strat() const -> std::vector<double> {
   std::vector<double> average_strategy(m_num_hands * m_num_actions);

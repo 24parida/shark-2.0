@@ -27,7 +27,7 @@ void CFRHelper::action_node_utility(ActionNode *const node,
   std::vector<std::vector<double>> subgame_utils(num_actions);
 
   for (std::size_t action{0}; action < num_actions; ++action) {
-    tg.run([&, action]() mutable {
+    tg.run([&, action]() {
       std::vector<double> new_hero_reach_probs(hero_reach_pr);
       std::vector<double> new_villain_reach_probs(villain_reach_pr);
 
@@ -66,17 +66,17 @@ void CFRHelper::action_node_utility(ActionNode *const node,
       }
     }
   } else {
-    auto &trainer{node->get_trainer()};
+    auto *trainer{node->get_trainer()};
     for (std::size_t action{0}; action < num_actions; ++action) {
-      trainer.update_cum_regret_one(subgame_utils[action], action);
+      trainer->update_cum_regret_one(subgame_utils[action], action);
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += subgame_utils[action][hand] *
                           strategy[hand + action * m_num_hero_hands];
       }
     }
 
-    trainer.update_cum_regret_two(m_result, m_iteration_count);
-    trainer.update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
+    trainer->update_cum_regret_two(m_result, m_iteration_count);
+    trainer->update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
   }
 };
 
@@ -96,7 +96,7 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
     if (!child)
       continue;
 
-    tg.run([&, count, card, card_weights]() mutable {
+    tg.run([&, count, card, card_weights]() {
       std::vector<Card> new_board{board};
       new_board.push_back(card);
 
