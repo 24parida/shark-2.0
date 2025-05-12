@@ -42,16 +42,16 @@ public:
 
   auto get_num_actions() const -> int { return m_num_actions; }
   auto get_num_hands() const -> int { return m_num_hands; }
+  auto get_player() const -> int { return m_player; }
   void push_child(std::unique_ptr<Node> child) {
     m_children.push_back(std::move(child));
   }
   void push_action(const Action action) { m_actions.push_back(action); }
 
-  void set_trainer(const DCFR dcfr) { m_dcfr = dcfr; }
-  auto get_trainer() const -> const DCFR * { return m_dcfr.get(); }
-  int get_player() const { return m_player; }
+  void set_trainer(std::unique_ptr<DCFR> dcfr) { m_dcfr = std::move(dcfr); }
+  auto get_trainer() const -> DCFR * { return m_dcfr.get(); }
 
-  auto get_child(const int index) const -> const Node * {
+  auto get_child(const int index) const -> Node * {
     assert(index >= 0 && index < m_children.size() &&
            "Node.hh attempting to access child out of range");
     return m_children[static_cast<std::size_t>(index)].get();

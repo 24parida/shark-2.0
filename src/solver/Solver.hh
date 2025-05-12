@@ -9,8 +9,6 @@
 #include <oneapi/tbb/task_group.h>
 #include <vector>
 
-enum class ResultType { CHANCE_NODE, ACTION_NODE };
-
 class ParallelDCFR {
   PreflopRangeManager m_prm;
   RiverRangeManager m_rrm;
@@ -46,7 +44,6 @@ class CFRHelper {
   int m_iteration_count;
   std::vector<double> m_result;
   DCFR m_dcfr_module;
-  ResultType m_result_type;
 
   PreflopRangeManager m_prm;
   RiverRangeManager m_rrm;
@@ -73,28 +70,33 @@ public:
   void complete();
   auto get_result() const -> std::vector<double> { return m_result; };
 
-  void chance_node_utility(ChanceNode *node,
+  void chance_node_utility(const ChanceNode *const node,
                            const std::vector<double> &hero_reach_pr,
                            const std::vector<double> &villain_reach_pr,
                            const std::vector<Card> &board, tbb::task_group &tg);
 
+  void action_node_utility(ActionNode *const node,
+                           const std::vector<double> &hero_reach_pr,
+                           const std::vector<double> &villain_reach_pr,
+                           tbb::task_group &tg);
+
+  void terminal_node_utility(const TerminalNode *const node,
+                             const std::vector<double> &villain_reach_pr,
+                             const std::vector<Card> &board);
+
   auto get_card_weights(const std::vector<double> &villain_reach_pr,
                         const std::vector<Card> &board) -> std::vector<double>;
 
-  auto terminal_node_utility(const TerminalNode *node,
-                             const std::vector<double> &villain_reach_pr,
-                             const std::vector<Card> &board)
-      -> std::vector<double>;
-  auto get_all_in_utils(const TerminalNode *node,
+  auto get_all_in_utils(const TerminalNode *const node,
                         const std::vector<double> &villain_reach_pr,
                         const std::vector<Card> &board) -> std::vector<double>;
 
-  auto get_showdown_utils(const TerminalNode *node,
+  auto get_showdown_utils(const TerminalNode *const node,
                           const std::vector<double> &villain_reach_pr,
                           const std::vector<Card> &board)
       -> std::vector<double>;
 
-  auto get_uncontested_utils(const TerminalNode *node,
+  auto get_uncontested_utils(const TerminalNode *const node,
                              const std::vector<double> &villain_reach_pr,
                              const std::vector<Card> &board)
       -> std::vector<double>;
