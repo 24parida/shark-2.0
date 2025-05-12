@@ -1,2 +1,5 @@
+-- old
 clang++ -g src/tree/*.cpp src/hands/*.cpp testing/game_tree.cpp include/libpheval.a -Isrc -Iinclude -o tree.exe
-## pls don't judge lol ill setup the cmake later
+
+-- new
+clang++ -g src/tree/*.cpp src/hands/*.cpp testing/game_tree.cpp include/libpheval.a -Isrc -Iinclude -o tree.exe

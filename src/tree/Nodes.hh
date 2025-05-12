@@ -41,6 +41,9 @@ public:
   }
 
   auto get_num_actions() const -> int { return m_num_actions; }
+  auto get_children() -> std::vector<std::unique_ptr<Node>> & {
+    return m_children;
+  }
   auto get_actions() const -> const std::vector<Action> & { return m_actions; }
   auto get_num_hands() const -> int { return m_num_hands; }
   auto get_player() const -> int { return m_player; }

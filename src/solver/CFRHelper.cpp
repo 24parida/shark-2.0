@@ -27,7 +27,7 @@ void CFRHelper::action_node_utility(ActionNode *const node,
   std::vector<std::vector<double>> subgame_utils(num_actions);
 
   for (std::size_t action{0}; action < num_actions; ++action) {
-    tg.run([&, action, this]() mutable {
+    tg.run([&, action]() mutable {
       std::vector<double> new_hero_reach_probs(hero_reach_pr);
       std::vector<double> new_villain_reach_probs(villain_reach_pr);
 
@@ -73,9 +73,10 @@ void CFRHelper::action_node_utility(ActionNode *const node,
         m_result[hand] += subgame_utils[action][hand] *
                           strategy[hand + action * m_num_hero_hands];
       }
-      trainer.update_cum_regret_two(m_result, m_iteration_count);
-      trainer.update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
     }
+
+    trainer.update_cum_regret_two(m_result, m_iteration_count);
+    trainer.update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
   }
 };
 
@@ -95,7 +96,7 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
     if (!child)
       continue;
 
-    tg.run([&, this, count, card, card_weights]() mutable {
+    tg.run([&, count, card, card_weights]() mutable {
       std::vector<Card> new_board{board};
       new_board.push_back(card);
 
@@ -186,16 +187,21 @@ auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
 
   return card_weights;
 }
+
 void CFRHelper::terminal_node_utility(
     const TerminalNode *const node, const std::vector<double> &villain_reach_pr,
     const std::vector<Card> &board) {
+
   switch (node->get_type()) {
   case TerminalNode::ALLIN:
     m_result = get_all_in_utils(node, villain_reach_pr, board);
+    break;
   case TerminalNode::UNCONTESTED:
     m_result = get_uncontested_utils(node, villain_reach_pr, board);
+    break;
   case TerminalNode::SHOWDOWN:
     m_result = get_showdown_utils(node, villain_reach_pr, board);
+    break;
   }
 }
 
@@ -249,12 +255,13 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   const double value{node->get_pot() / 2.0};
   std::vector<double> card_win_sum(52);
 
-  std::size_t j{0};
+  int j{0};
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
-    const auto hero_combo{hero_river_combos[i]};
-    const auto villain_combo{villain_river_combos[j]};
+    const auto &hero_combo{hero_river_combos[i]};
 
-    while (hero_combo.rank < villain_combo.rank) {
+    while (j < villain_river_combos.size() &&
+           hero_combo.rank < villain_river_combos[j].rank) {
+      const auto &villain_combo{villain_river_combos[j]};
       win_sum += villain_reach_pr[villain_combo.reach_probs_index];
       card_win_sum[villain_combo.hand1] +=
           villain_reach_pr[villain_combo.reach_probs_index];
@@ -270,12 +277,12 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
 
   double lose_sum{0.0};
   std::vector<double> card_lose_sum(52);
-  j = villain_river_combos.size() - 1;
+  j = static_cast<int>(villain_river_combos.size()) - 1;
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
-    const auto hero_combo{hero_river_combos[i]};
-    const auto villain_combo{villain_river_combos[j]};
+    const auto &hero_combo{hero_river_combos[i]};
 
-    while (hero_combo.rank > villain_combo.rank) {
+    while (j >= 0 && hero_combo.rank > villain_river_combos[j].rank) {
+      const auto &villain_combo{villain_river_combos[j]};
 
       lose_sum += villain_reach_pr[villain_combo.reach_probs_index];
       card_lose_sum[villain_combo.hand1] +=

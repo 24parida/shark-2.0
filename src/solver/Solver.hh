@@ -66,7 +66,6 @@ public:
         m_rrm(rrm) {};
 
   void compute(tbb::task_group &tg);
-  void complete();
   auto get_result() const -> std::vector<double> { return m_result; };
 
   void chance_node_utility(const ChanceNode *const node,
