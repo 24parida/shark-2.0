@@ -45,7 +45,6 @@ class CFRHelper {
   std::vector<double> m_result;
   DCFR m_dcfr_module;
 
-  PreflopRangeManager m_prm;
   RiverRangeManager m_rrm;
 
 public:
@@ -55,7 +54,7 @@ public:
             const std::vector<double> &hero_reach_pr,
             const std::vector<double> &villain_reach_pr,
             const std::vector<Card> &board, int iteration_count,
-            PreflopRangeManager prm, RiverRangeManager rrm)
+            const RiverRangeManager &rrm)
       : m_hero(hero_id), m_villain(villain_id), m_node(node),
         m_hero_reach_probs(hero_reach_pr),
         m_villain_reach_probs(villain_reach_pr), m_board(board),
@@ -64,7 +63,7 @@ public:
         m_num_hero_hands(hero_preflop_combos.size()),
         m_num_villain_hands(villain_preflop_combos.size()),
         m_iteration_count(iteration_count), m_result(m_num_hero_hands),
-        m_prm(prm), m_rrm(rrm) {};
+        m_rrm(rrm) {};
 
   void compute(tbb::task_group &tg);
   void complete();

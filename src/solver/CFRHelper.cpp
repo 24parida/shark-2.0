@@ -52,7 +52,6 @@ void CFRHelper::action_node_utility(ActionNode *const node,
                     new_villain_reach_probs,
                     m_board,
                     m_iteration_count,
-                    m_prm,
                     m_rrm};
       rec.compute(tg);
       subgame_utils[action] = rec.get_result();
@@ -126,7 +125,6 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
                     new_villain_reach_probs,
                     new_board,
                     m_iteration_count,
-                    m_prm,
                     m_rrm};
       rec.compute(tg);
       subgame_utils[count] = rec.get_result();
