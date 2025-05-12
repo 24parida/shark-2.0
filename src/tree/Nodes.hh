@@ -30,7 +30,7 @@ class ActionNode : public Node {
   int m_num_hands;
   int m_num_actions;
   int m_player;
-  std::unique_ptr<DCFR> m_dcfr;
+  DCFR m_dcfr;
 
 public:
   ActionNode(const Node *parent, const int player)
@@ -41,15 +41,16 @@ public:
   }
 
   auto get_num_actions() const -> int { return m_num_actions; }
+  auto get_actions() const -> const std::vector<Action> & { return m_actions; }
   auto get_num_hands() const -> int { return m_num_hands; }
   auto get_player() const -> int { return m_player; }
+
   void push_child(std::unique_ptr<Node> child) {
     m_children.push_back(std::move(child));
   }
-  void push_action(const Action action) { m_actions.push_back(action); }
 
-  void set_trainer(std::unique_ptr<DCFR> dcfr) { m_dcfr = std::move(dcfr); }
-  auto get_trainer() const -> DCFR * { return m_dcfr.get(); }
+  void push_action(const Action action) { m_actions.push_back(action); }
+  auto get_trainer() -> DCFR & { return m_dcfr; }
 
   auto get_child(const int index) const -> Node * {
     assert(index >= 0 && index < m_children.size() &&
@@ -62,10 +63,10 @@ public:
     return m_actions[static_cast<std::size_t>(index)];
   }
   auto get_average_strat() -> std::vector<double> {
-    return m_dcfr->get_average_strat();
+    return m_dcfr.get_average_strat();
   }
   auto get_current_strat() -> std::vector<double> {
-    return m_dcfr->get_current_strat();
+    return m_dcfr.get_current_strat();
   }
 };
 

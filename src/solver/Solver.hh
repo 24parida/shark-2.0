@@ -24,10 +24,10 @@ public:
       : m_prm(prm), m_init_board(init_board), m_init_pot(init_pot),
         m_in_position_player(in_position_player) {}
 
-  void load_trainer_modules(Node *node);
-  void train(Node *node, const int iterations);
-  auto cfr(const int hero, const int villain, Node *root, int iteration_count)
-      -> std::vector<double>;
+  void load_trainer_modules(Node *const node);
+  void train(Node *root, const int iterations);
+  void cfr(const int hero, const int villain, Node *root,
+           const int iteration_count, tbb::task_group &tg);
 };
 
 class CFRHelper {
