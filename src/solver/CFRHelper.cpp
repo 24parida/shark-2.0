@@ -5,8 +5,6 @@
 #include "tree/Nodes.hh"
 #include <oneapi/tbb/blocked_range.h>
 #include <oneapi/tbb/parallel_for.h>
-#include <tbb/blocked_range.h>
-#include <tbb/parallel_for.h>
 
 void CFRHelper::compute() {
   if (m_node->get_node_type() == NodeType::ACTION_NODE) {
@@ -30,35 +28,40 @@ void CFRHelper::action_node_utility(
   std::vector<std::vector<double>> subgame_utils(num_actions);
 
   for (std::size_t action{0}; action < num_actions; ++action) {
-    tbb::parallel_for(tbb::blocked_range<int>(0, num_actions), [&, action]() {
-      std::vector<double> new_hero_reach_probs(hero_reach_pr);
-      std::vector<double> new_villain_reach_probs(villain_reach_pr);
+    tbb::parallel_for(
+        tbb::blocked_range<int>(0, num_actions),
+        [&, action](const tbb::blocked_range<int> &r) {
+          for (auto i = r.begin(); i < r.end(); ++i) {
+            std::vector<double> new_hero_reach_probs(hero_reach_pr);
+            std::vector<double> new_villain_reach_probs(villain_reach_pr);
 
-      if (player == m_hero) {
-        for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-          new_hero_reach_probs[hand] =
-              strategy[hand + action * m_num_hero_hands] * hero_reach_pr[hand];
-        }
-      } else {
-        for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
-          new_villain_reach_probs[hand] =
-              strategy[hand + action * m_num_villain_hands] *
-              villain_reach_pr[hand];
-        }
-      }
-      CFRHelper rec{node->get_child(action),
-                    m_hero,
-                    m_villain,
-                    m_hero_preflop_combos,
-                    m_villain_preflop_combos,
-                    new_hero_reach_probs,
-                    new_villain_reach_probs,
-                    m_board,
-                    m_iteration_count,
-                    m_rrm};
-      rec.compute();
-      subgame_utils[action] = rec.get_result();
-    });
+            if (player == m_hero) {
+              for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+                new_hero_reach_probs[hand] =
+                    strategy[hand + action * m_num_hero_hands] *
+                    hero_reach_pr[hand];
+              }
+            } else {
+              for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+                new_villain_reach_probs[hand] =
+                    strategy[hand + action * m_num_villain_hands] *
+                    villain_reach_pr[hand];
+              }
+            }
+            CFRHelper rec{node->get_child(action),
+                          m_hero,
+                          m_villain,
+                          m_hero_preflop_combos,
+                          m_villain_preflop_combos,
+                          new_hero_reach_probs,
+                          new_villain_reach_probs,
+                          m_board,
+                          m_iteration_count,
+                          m_rrm};
+            rec.compute();
+            subgame_utils[action] = rec.get_result();
+          }
+        });
   }
 
   if (player != m_hero) {

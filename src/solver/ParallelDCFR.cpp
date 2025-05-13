@@ -24,8 +24,7 @@ void ParallelDCFR::load_trainer_modules(Node *const node) {
 }
 
 void ParallelDCFR::train(Node *root, const int iterations) {
-  tbb::global_control c{tbb::global_control::max_allowed_parallelism, 1};
-  tbb::task_group tg;
+  tbb::global_control c{tbb::global_control::max_allowed_parallelism, 8};
 
   load_trainer_modules(root);
 
@@ -33,9 +32,9 @@ void ParallelDCFR::train(Node *root, const int iterations) {
 
   for (int i{0}; i < iterations; ++i) {
     std::cout << "cfr1" << '\n';
-    cfr(1, 2, root, i, tg);
+    cfr(1, 2, root, i);
     std::cout << "cfr2" << '\n';
-    cfr(2, 1, root, i, tg);
+    cfr(2, 1, root, i);
   }
 
   const auto end = std::chrono::high_resolution_clock::now();
@@ -45,7 +44,7 @@ void ParallelDCFR::train(Node *root, const int iterations) {
 }
 
 void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
-                       const int iteration_count, tbb::task_group &tg) {
+                       const int iteration_count) {
 
   const auto &hero_preflop_combos{m_prm.get_preflop_combos(hero)};
   const auto &villain_preflop_combos{m_prm.get_preflop_combos(villain)};
@@ -65,5 +64,5 @@ void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
                 m_init_board,
                 iteration_count,
                 m_rrm};
-  rec.compute(tg);
+  rec.compute();
 }

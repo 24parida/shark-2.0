@@ -1,5 +1,1 @@
--- old
-clang++ -g src/tree/*.cpp src/hands/*.cpp testing/game_tree.cpp include/libpheval.a -Isrc -Iinclude -o tree.exe
-
--- new
 clang++ -g src/*.cpp src/hands/*.cpp src/solver/*.cpp src/trainer/*.cpp src/tree/*.cpp include/libpheval.a include/omp/ompeval.a -Isrc -Iinclude -ltbb -o solver.exe
