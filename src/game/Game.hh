@@ -9,4 +9,4 @@ constexpr std::array<double, 5> BET_SIZES{0.5, 1.0};
 constexpr std::array<double, 1> RAISE_SIZES{0.5};
 } // namespace GameParams
 
-enum class Street { FLOP = 2, TURN = 3, RIVER = 4 };
+enum class Street { FLOP = 3, TURN = 4, RIVER = 5 };

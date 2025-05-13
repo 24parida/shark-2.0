@@ -3,31 +3,34 @@
 #include "hands/PreflopCombo.hh"
 #include "hands/RiverCombo.hh"
 #include "tree/Nodes.hh"
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
 
-void CFRHelper::compute(tbb::task_group &tg) {
+void CFRHelper::compute() {
   if (m_node->get_node_type() == NodeType::ACTION_NODE) {
     action_node_utility(static_cast<ActionNode *>(m_node), m_hero_reach_probs,
-                        m_villain_reach_probs, tg);
+                        m_villain_reach_probs);
   } else if (m_node->get_node_type() == NodeType::CHANCE_NODE) {
     chance_node_utility(static_cast<ChanceNode *>(m_node), m_hero_reach_probs,
-                        m_villain_reach_probs, m_board, tg);
+                        m_villain_reach_probs, m_board);
   } else {
     terminal_node_utility(static_cast<TerminalNode *>(m_node),
                           m_villain_reach_probs, m_board);
   }
 }
 
-void CFRHelper::action_node_utility(ActionNode *const node,
-                                    const std::vector<double> &hero_reach_pr,
-                                    const std::vector<double> &villain_reach_pr,
-                                    tbb::task_group &tg) {
+void CFRHelper::action_node_utility(
+    ActionNode *const node, const std::vector<double> &hero_reach_pr,
+    const std::vector<double> &villain_reach_pr) {
   const auto &strategy{node->get_current_strat()};
   const int player{node->get_player()};
   const int num_actions{node->get_num_actions()};
   std::vector<std::vector<double>> subgame_utils(num_actions);
 
   for (std::size_t action{0}; action < num_actions; ++action) {
-    tg.run([&, action]() {
+    tbb::parallel_for(tbb::blocked_range<int>(0, num_actions), [&, action]() {
       std::vector<double> new_hero_reach_probs(hero_reach_pr);
       std::vector<double> new_villain_reach_probs(villain_reach_pr);
 
@@ -53,11 +56,10 @@ void CFRHelper::action_node_utility(ActionNode *const node,
                     m_board,
                     m_iteration_count,
                     m_rrm};
-      rec.compute(tg);
+      rec.compute();
       subgame_utils[action] = rec.get_result();
     });
   }
-  tg.wait();
 
   if (player != m_hero) {
     for (auto &i : subgame_utils) {
@@ -83,56 +85,58 @@ void CFRHelper::action_node_utility(ActionNode *const node,
 void CFRHelper::chance_node_utility(const ChanceNode *node,
                                     const std::vector<double> &hero_reach_pr,
                                     const std::vector<double> &villain_reach_pr,
-                                    const std::vector<Card> &board,
-                                    tbb::task_group &tg) {
+                                    const std::vector<Card> &board) {
   const auto card_weights{get_card_weights(villain_reach_pr, board)};
   const int num_children(node->get_num_children());
   std::vector<std::vector<double>> subgame_utils(num_children);
 
-  int count{0};
-
-  for (int card{0}; card < 52; ++card) {
-    Node *child{node->get_child(card)};
-    if (!child)
-      continue;
-
-    tg.run([&, count, card, card_weights]() {
-      std::vector<Card> new_board{board};
-      new_board.push_back(card);
-
-      std::vector<double> new_hero_reach_probs(m_num_hero_hands);
-      std::vector<double> new_villain_reach_probs(m_num_villain_hands);
-
-      for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-        if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
-          new_hero_reach_probs[hand] =
-              hero_reach_pr[hand] *
-              card_weights[hand + card * m_num_hero_hands];
-        }
-      }
-
-      for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
-        if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
-          new_villain_reach_probs[hand] = villain_reach_pr[hand];
-        }
-      }
-
-      CFRHelper rec{child,
-                    m_hero,
-                    m_villain,
-                    m_hero_preflop_combos,
-                    m_villain_preflop_combos,
-                    new_hero_reach_probs,
-                    new_villain_reach_probs,
-                    new_board,
-                    m_iteration_count,
-                    m_rrm};
-      rec.compute(tg);
-      subgame_utils[count] = rec.get_result();
-    });
-    ++count;
+  std::vector<int> valid_children{};
+  for (std::size_t i{0}; i < 52; ++i) {
+    if (node->get_child(i)) {
+      valid_children.push_back(i);
+    }
   }
-  tg.wait();
+
+  tbb::parallel_for(
+      tbb::blocked_range<int>(0, num_children),
+      [&, card_weights](const tbb::blocked_range<int> &r) {
+        for (auto i = r.begin(); i < r.end(); ++i) {
+          int card{valid_children[i]};
+
+          std::vector<Card> new_board{board};
+          new_board.push_back(card);
+
+          std::vector<double> new_hero_reach_probs(m_num_hero_hands);
+          std::vector<double> new_villain_reach_probs(m_num_villain_hands);
+
+          for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+            if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+              new_hero_reach_probs[hand] =
+                  hero_reach_pr[hand] *
+                  card_weights[hand + card * m_num_hero_hands];
+            }
+          }
+
+          for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+            if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
+              new_villain_reach_probs[hand] = villain_reach_pr[hand];
+            }
+          }
+
+          CFRHelper rec{node->get_child(card),
+                        m_hero,
+                        m_villain,
+                        m_hero_preflop_combos,
+                        m_villain_preflop_combos,
+                        new_hero_reach_probs,
+                        new_villain_reach_probs,
+                        new_board,
+                        m_iteration_count,
+                        m_rrm};
+          rec.compute();
+          subgame_utils[i] = rec.get_result();
+        }
+      });
 
   for (auto &i : subgame_utils) {
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
@@ -191,7 +195,6 @@ auto CFRHelper::get_card_weights(const std::vector<double> &villain_reach_pr,
 void CFRHelper::terminal_node_utility(
     const TerminalNode *const node, const std::vector<double> &villain_reach_pr,
     const std::vector<Card> &board) {
-
   switch (node->get_type()) {
   case TerminalNode::ALLIN:
     m_result = get_all_in_utils(node, villain_reach_pr, board);

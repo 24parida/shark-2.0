@@ -6,7 +6,6 @@
 
 #include <oneapi/tbb/global_control.h>
 #include <oneapi/tbb/parallel_for.h>
-#include <oneapi/tbb/task_group.h>
 #include <vector>
 
 class ParallelDCFR {
@@ -24,7 +23,7 @@ public:
   void load_trainer_modules(Node *const node);
   void train(Node *root, const int iterations);
   void cfr(const int hero, const int villain, Node *root,
-           const int iteration_count, tbb::task_group &tg);
+           const int iteration_count);
 };
 
 class CFRHelper {
@@ -62,18 +61,17 @@ public:
         m_iteration_count(iteration_count), m_result(m_num_hero_hands),
         m_rrm(rrm) {};
 
-  void compute(tbb::task_group &tg);
+  void compute();
   auto get_result() const -> std::vector<double> { return m_result; };
 
   void chance_node_utility(const ChanceNode *const node,
                            const std::vector<double> &hero_reach_pr,
                            const std::vector<double> &villain_reach_pr,
-                           const std::vector<Card> &board, tbb::task_group &tg);
+                           const std::vector<Card> &board);
 
   void action_node_utility(ActionNode *const node,
                            const std::vector<double> &hero_reach_pr,
-                           const std::vector<double> &villain_reach_pr,
-                           tbb::task_group &tg);
+                           const std::vector<double> &villain_reach_pr);
 
   void terminal_node_utility(const TerminalNode *const node,
                              const std::vector<double> &villain_reach_pr,

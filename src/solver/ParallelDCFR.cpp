@@ -32,7 +32,9 @@ void ParallelDCFR::train(Node *root, const int iterations) {
   const auto start = std::chrono::high_resolution_clock::now();
 
   for (int i{0}; i < iterations; ++i) {
+    std::cout << "cfr1" << '\n';
     cfr(1, 2, root, i, tg);
+    std::cout << "cfr2" << '\n';
     cfr(2, 1, root, i, tg);
   }
 
