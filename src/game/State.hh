@@ -114,8 +114,8 @@ struct GameState {
       current->commit_chips(chips_to_commit);
       pot += chips_to_commit;
       const int raise_size = action.amount - get_max_bet();
-      if (raise_size > minimum_bet_size)
-        minimum_bet_size = raise_size;
+      if (raise_size > minimum_raise_size)
+        minimum_raise_size = raise_size;
       reset_last_to_act();
       break;
     }
