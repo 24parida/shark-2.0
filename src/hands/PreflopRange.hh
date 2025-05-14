@@ -7,6 +7,6 @@ struct PreflopRange {
 
   PreflopRange() = delete;
   PreflopRange(std::string);
-  void add_combo(const char, const int, const char, const int, const double);
+  void add_combo(const char, const int, const char, const int, const float);
   void print() const;
 };

@@ -86,7 +86,7 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
         bet_amount = bet_amount > state.current->stack ? state.current->stack
                                                        : bet_amount;
 
-        if ((static_cast<double>(bet_amount + state.current->wager) /
+        if ((static_cast<float>(bet_amount + state.current->wager) /
              (state.current->stack + state.current->wager)) >=
             m_settings.all_in_threshold) {
           bet_amount = state.current->stack;
@@ -107,7 +107,7 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
                 ? state.current->stack + state.current->wager
                 : raise_amount;
 
-        if ((static_cast<double>(raise_amount) /
+        if ((static_cast<float>(raise_amount) /
              (state.current->stack + state.current->wager)) >=
             m_settings.all_in_threshold) {
           raise_amount = state.current->stack;

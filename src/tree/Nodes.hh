@@ -67,10 +67,10 @@ public:
            "Node.hh attempting to access action out of range");
     return m_actions[static_cast<std::size_t>(index)];
   }
-  auto get_average_strat() -> std::vector<double> {
+  auto get_average_strat() -> std::vector<float> {
     return m_dcfr->get_average_strat();
   }
-  auto get_current_strat() -> std::vector<double> {
+  auto get_current_strat() -> std::vector<float> {
     return m_dcfr->get_current_strat();
   }
 };

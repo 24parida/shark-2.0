@@ -882,7 +882,7 @@ uint32_t libdivide_u32_recover(const struct libdivide_u32_t *denom) {
     // Notice (m + 2^32) is a 33 bit number. Use 64 bit division for now
     // Also note that shift may be as high as 31, so shift + 1 will
     // overflow. So we have to compute it as 2^(32+shift)/(m+2^32), and
-    // then double the quotient and remainder.
+    // then float the quotient and remainder.
     // TODO: do something better than 64 bit math
     uint64_t half_n = 1ULL << (32 + shift);
     uint64_t d = (1ULL << 32) | denom->magic;
@@ -891,7 +891,7 @@ uint32_t libdivide_u32_recover(const struct libdivide_u32_t *denom) {
     uint32_t half_q = (uint32_t)(half_n / d);
     uint64_t rem = half_n % d;
     // We computed 2^(32+shift)/(m+2^32)
-    // Need to double it, and then add 1 to the quotient if doubling th
+    // Need to float it, and then add 1 to the quotient if doubling th
     // remainder would increase the quotient.
     // Note that rem<<1 cannot overflow, since rem < d and d is 33 bits
     uint32_t full_q = half_q + half_q + ((rem << 1) >= d);

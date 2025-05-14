@@ -35,7 +35,7 @@ public:
 
   auto get_initial_reach_probs(const int player,
                                const std::vector<Card> &board) const
-      -> std::vector<double>;
+      -> std::vector<float>;
 
   void set_rel_probabilities(const std::vector<Card> &init_board);
 };

@@ -3931,7 +3931,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     /// @sa https://json.nlohmann.me/api/basic_json/operator_gt/
     friend bool operator>(const_reference lhs, const_reference rhs) noexcept
     {
-        // double inverse
+        // float inverse
         if (compares_unordered(lhs, rhs))
         {
             return false;

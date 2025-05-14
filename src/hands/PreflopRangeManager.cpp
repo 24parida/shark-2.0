@@ -3,9 +3,9 @@
 
 auto PreflopRangeManager::get_initial_reach_probs(
     const int player, const std::vector<Card> &board) const
-    -> std::vector<double> {
+    -> std::vector<float> {
   const auto preflop_combos{get_preflop_combos(player)};
-  std::vector<double> reach_probs(preflop_combos.size());
+  std::vector<float> reach_probs(preflop_combos.size());
 
   for (std::size_t i{0}; i < preflop_combos.size(); ++i) {
     if (CardUtility::overlap(preflop_combos[i], board)) {
@@ -27,7 +27,7 @@ void PreflopRangeManager::set_rel_probabilities(
     auto &villain_preflop_combos{p == 1 ? m_p2_preflop_combos
                                         : m_p1_preflop_combos};
 
-    double rel_sum{0.0};
+    float rel_sum{0.0};
 
     for (std::size_t hero_hand{0}; hero_hand < hero_preflop_combos.size();
          ++hero_hand) {
@@ -38,7 +38,7 @@ void PreflopRangeManager::set_rel_probabilities(
         continue;
       }
 
-      double villain_sum{0.0};
+      float villain_sum{0.0};
 
       for (std::size_t villain_hand{0};
            villain_hand < villain_preflop_combos.size(); ++villain_hand) {

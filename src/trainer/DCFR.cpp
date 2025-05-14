@@ -8,11 +8,11 @@ DCFR::DCFR(const ActionNode *node)
       m_cummulative_regret(m_num_hands * m_num_actions),
       m_cummulative_strategy(m_num_hands * m_num_actions) {}
 
-auto DCFR::get_average_strat() const -> std::vector<double> {
-  std::vector<double> average_strategy(m_num_hands * m_num_actions);
+auto DCFR::get_average_strat() const -> std::vector<float> {
+  std::vector<float> average_strategy(m_num_hands * m_num_actions);
 
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-    double total{0.0};
+    float total{0.0};
     for (std::size_t action{0}; action < m_num_actions; ++action) {
       total += m_cummulative_strategy[hand + action * m_num_hands];
     }
@@ -32,14 +32,14 @@ auto DCFR::get_average_strat() const -> std::vector<double> {
   return average_strategy;
 }
 
-auto DCFR::get_current_strat() const -> std::vector<double> {
-  std::vector<double> current_strategy(m_num_hands * m_num_actions);
+auto DCFR::get_current_strat() const -> std::vector<float> {
+  std::vector<float> current_strategy(m_num_hands * m_num_actions);
 
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-    double positive_regret_sum{0.0};
+    float positive_regret_sum{0.0};
 
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      const double regret{m_cummulative_regret[hand + action * m_num_hands]};
+      const float regret{m_cummulative_regret[hand + action * m_num_hands]};
       positive_regret_sum += regret > 0 ? regret : 0;
     }
 
@@ -63,16 +63,16 @@ auto DCFR::get_current_strat() const -> std::vector<double> {
   return current_strategy;
 }
 
-void DCFR::update_cum_regret_one(const std::vector<double> &action_utils,
+void DCFR::update_cum_regret_one(const std::vector<float> &action_utils,
                                  const int action_index) {
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     m_cummulative_regret[hand + action_index * m_num_hands] +=
         action_utils[hand];
   }
 }
-void DCFR::update_cum_regret_two(const std::vector<double> &utils,
+void DCFR::update_cum_regret_two(const std::vector<float> &utils,
                                  const int iteration) {
-  double x{pow(iteration, 1.5)};
+  float x{static_cast<float>(pow(iteration, 1.5f))};
   x = x / (x + 1);
 
   for (std::size_t action{0}; action < m_num_actions; ++action) {
@@ -87,10 +87,11 @@ void DCFR::update_cum_regret_two(const std::vector<double> &utils,
   }
 }
 
-void DCFR::update_cum_strategy(const std::vector<double> &strategy,
-                               const std::vector<double> &reach_probs,
+void DCFR::update_cum_strategy(const std::vector<float> &strategy,
+                               const std::vector<float> &reach_probs,
                                const int iteration) {
-  double x{pow(static_cast<double>(iteration) / (iteration + 1), 2)};
+  float x{static_cast<float>(
+      pow(static_cast<float>(iteration) / (iteration + 1), 2))};
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     for (std::size_t action{0}; action < m_num_actions; ++action) {
       m_cummulative_strategy[hand + action * m_num_hands] +=

@@ -30,27 +30,26 @@ class CFRHelper {
   int m_hero;
   int m_villain;
   Node *m_node;
-  std::vector<double> m_hero_reach_probs;
-  std::vector<double> m_villain_reach_probs;
-  std::vector<Card> m_board;
-  std::vector<PreflopCombo> m_hero_preflop_combos;
-  std::vector<PreflopCombo> m_villain_preflop_combos;
+  std::vector<float> &m_hero_reach_probs;
+  std::vector<float> &m_villain_reach_probs;
+  std::vector<Card> &m_board;
+  std::vector<PreflopCombo> &m_hero_preflop_combos;
+  std::vector<PreflopCombo> &m_villain_preflop_combos;
   int m_num_hero_hands;
   int m_num_villain_hands;
   int m_iteration_count;
-  std::vector<double> m_result;
+  std::vector<float> m_result;
   DCFR m_dcfr_module;
 
-  RiverRangeManager m_rrm;
+  RiverRangeManager &m_rrm;
 
 public:
   CFRHelper(Node *node, const int hero_id, const int villain_id,
-            const std::vector<PreflopCombo> &hero_preflop_combos,
-            const std::vector<PreflopCombo> &villain_preflop_combos,
-            const std::vector<double> &hero_reach_pr,
-            const std::vector<double> &villain_reach_pr,
-            const std::vector<Card> &board, int iteration_count,
-            const RiverRangeManager &rrm)
+            std::vector<PreflopCombo> &hero_preflop_combos,
+            std::vector<PreflopCombo> &villain_preflop_combos,
+            std::vector<float> &hero_reach_pr,
+            std::vector<float> &villain_reach_pr, std::vector<Card> &board,
+            int iteration_count, RiverRangeManager &rrm)
       : m_hero(hero_id), m_villain(villain_id), m_node(node),
         m_hero_reach_probs(hero_reach_pr),
         m_villain_reach_probs(villain_reach_pr), m_board(board),
@@ -62,35 +61,35 @@ public:
         m_rrm(rrm) {};
 
   void compute();
-  auto get_result() const -> std::vector<double> { return m_result; };
+  auto get_result() const -> std::vector<float> { return m_result; };
 
   void chance_node_utility(const ChanceNode *const node,
-                           const std::vector<double> &hero_reach_pr,
-                           const std::vector<double> &villain_reach_pr,
+                           const std::vector<float> &hero_reach_pr,
+                           const std::vector<float> &villain_reach_pr,
                            const std::vector<Card> &board);
 
   void action_node_utility(ActionNode *const node,
-                           const std::vector<double> &hero_reach_pr,
-                           const std::vector<double> &villain_reach_pr);
+                           const std::vector<float> &hero_reach_pr,
+                           const std::vector<float> &villain_reach_pr);
 
   void terminal_node_utility(const TerminalNode *const node,
-                             const std::vector<double> &villain_reach_pr,
+                             const std::vector<float> &villain_reach_pr,
                              const std::vector<Card> &board);
 
-  auto get_card_weights(const std::vector<double> &villain_reach_pr,
-                        const std::vector<Card> &board) -> std::vector<double>;
+  auto get_card_weights(const std::vector<float> &villain_reach_pr,
+                        const std::vector<Card> &board) -> std::vector<float>;
 
   auto get_all_in_utils(const TerminalNode *const node,
-                        const std::vector<double> &villain_reach_pr,
-                        const std::vector<Card> &board) -> std::vector<double>;
+                        const std::vector<float> &villain_reach_pr,
+                        const std::vector<Card> &board) -> std::vector<float>;
 
   auto get_showdown_utils(const TerminalNode *const node,
-                          const std::vector<double> &villain_reach_pr,
+                          const std::vector<float> &villain_reach_pr,
                           const std::vector<Card> &board)
-      -> std::vector<double>;
+      -> std::vector<float>;
 
   auto get_uncontested_utils(const TerminalNode *const node,
-                             const std::vector<double> &villain_reach_pr,
+                             const std::vector<float> &villain_reach_pr,
                              const std::vector<Card> &board)
-      -> std::vector<double>;
+      -> std::vector<float>;
 };

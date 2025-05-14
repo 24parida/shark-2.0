@@ -13,14 +13,14 @@ struct TreeBuilderSettings {
   int starting_stack;
   int starting_pot;
   int minimum_bet;
-  double all_in_threshold;
+  float all_in_threshold;
 
   TreeBuilderSettings(const PreflopRange &o_range1,
                       const PreflopRange &o_range2,
                       const int o_in_position_player,
                       const std::vector<Card> &o_initial_board,
                       const int o_starting_stack, const int o_starting_pot,
-                      const int o_min_bet, const double o_all_in_threshold)
+                      const int o_min_bet, const float o_all_in_threshold)
       : range1(o_range1), range2(o_range2),
         in_position_player(o_in_position_player),
         initial_board(o_initial_board),

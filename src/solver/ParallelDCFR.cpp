@@ -44,12 +44,11 @@ void ParallelDCFR::train(Node *root, const int iterations) {
 void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
                        const int iteration_count) {
 
-  const auto &hero_preflop_combos{m_prm.get_preflop_combos(hero)};
-  const auto &villain_preflop_combos{m_prm.get_preflop_combos(villain)};
+  auto hero_preflop_combos{m_prm.get_preflop_combos(hero)};
+  auto villain_preflop_combos{m_prm.get_preflop_combos(villain)};
 
-  const auto &hero_reach_probs{
-      m_prm.get_initial_reach_probs(hero, m_init_board)};
-  const auto &villain_reach_probs{
+  auto hero_reach_probs{m_prm.get_initial_reach_probs(hero, m_init_board)};
+  auto villain_reach_probs{
       m_prm.get_initial_reach_probs(villain, m_init_board)};
 
   CFRHelper rec{root,

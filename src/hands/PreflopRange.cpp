@@ -26,7 +26,7 @@ bool isValidRank(const char rank) {
 
 void PreflopRange::add_combo(const char rank1, const int suit1,
                              const char rank2, const int suit2,
-                             const double weight = 1.0) {
+                             const float weight = 1.0) {
 
   assert(suit1 >= 0 && suit1 < 4 && "PreflopRange suit1 out of range 1-3");
   assert(suit2 >= 0 && suit2 < 4 && "PrefopRange suit2 out of range 1-3");

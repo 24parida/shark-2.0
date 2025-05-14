@@ -29,28 +29,28 @@ public:
     // Number of players.
     unsigned players = 0;
     // Equity by player (between 0 and 1).
-    double equity[MAX_PLAYERS] = {};
+    float equity[MAX_PLAYERS] = {};
     // Wins by player.
     uint64_t wins[MAX_PLAYERS] = {};
     // Ties by player, adjusted for equity: 2-way splits = 1/2, 3-way = 1/3
     // etc..
-    double ties[MAX_PLAYERS] = {};
+    float ties[MAX_PLAYERS] = {};
     // Wins for each combination of winning players. Index ranges from 0 to
     // 2^(n-1), where bit 0 is player 1, bit 1 player 2 etc).
     uint64_t winsByPlayerMask[1 << MAX_PLAYERS] = {};
     // Total hand count / hand count for last update period.
     uint64_t hands = 0, intervalHands = 0;
     // Total speed in hands/s / speed for last update period.
-    double speed = 0, intervalSpeed = 0;
+    float speed = 0, intervalSpeed = 0;
     // Total duration / duration of the last update period.
-    double time = 0, intervalTime = 0;
+    float time = 0, intervalTime = 0;
     // Standard deviation for the total equity of first player.
-    double stdev = 0;
+    float stdev = 0;
     // Single-hand standard deviation.
-    double stdevPerHand = 0;
+    float stdevPerHand = 0;
     // Progress from 0 to 1. Based on hand count for enumeration, and stdev
     // target for monte carlo.
-    double progress = 0;
+    float progress = 0;
     // Number of different combinations of starting hands for all players.
     uint64_t preflopCombos = 0;
     // Number of preflop combos that were skipped due the having same cards.
@@ -79,9 +79,9 @@ public:
   // supported by hardware
   bool start(const std::vector<CardRange> &handRanges, uint64_t boardCards = 0,
              uint64_t deadCards = 0, bool enumerateAll = false,
-             double stdevTarget = 5e-5,
+             float stdevTarget = 5e-5,
              std::function<void(const Results &)> callback = nullptr,
-             double updateInterval = 0.2, unsigned threadCount = 0);
+             float updateInterval = 0.2, unsigned threadCount = 0);
 
   // Force current calculation to stop before it's ready. Still must call
   // wait()!
@@ -96,9 +96,9 @@ public:
 
   // Set a time limit for the calculation in seconds. Use 0 to disable. Disabled
   // by default.
-  void setTimeLimit(double seconds) {
+  void setTimeLimit(float seconds) {
     std::lock_guard<std::mutex> lock(mMutex);
-    mTimeLimit = seconds <= 0 ? static_cast<double>(INFINITE) : seconds;
+    mTimeLimit = seconds <= 0 ? static_cast<float>(INFINITE) : seconds;
   }
 
   // Set a hand limit for the calculation or 0 to disable. Disabled by default.
@@ -182,7 +182,7 @@ private:
   uint64_t getPostflopCombinationCount();
 
   void updateResults(const BatchResults &stats, bool finished);
-  double combineResults(const BatchResults &batch);
+  float combineResults(const BatchResults &batch);
   void outputLookupTable() const;
 
   std::vector<std::thread> mThreads;
@@ -193,7 +193,7 @@ private:
   unsigned mUnfinishedThreads;
   std::chrono::high_resolution_clock::time_point mLastUpdate;
   Results mResults, mUpdateResults;
-  double mBatchSum, mBatchSumSqr, mBatchCount;
+  float mBatchSum, mBatchSumSqr, mBatchCount;
   uint64_t mEnumPosition;
   std::unordered_map<uint64_t, BatchResults> mLookup;
 
@@ -206,7 +206,7 @@ private:
   unsigned mCombinedRangeCount;
   uint64_t mDeadCards, mBoardCards;
   HandEvaluator mEval;
-  double mStdevTarget = 5e-5, mTimeLimit = (double)INFINITE,
+  float mStdevTarget = 5e-5, mTimeLimit = (float)INFINITE,
          mUpdateInterval = 0.1;
   uint64_t mHandLimit = INFINITE;
   std::function<void(const Results &results)> mCallback;

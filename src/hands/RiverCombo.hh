@@ -8,10 +8,10 @@ struct RiverCombo {
   Card hand2;
   int rank;
   int reach_probs_index;
-  double probability;
+  float probability;
 
   RiverCombo() = default;
-  RiverCombo(const Card card1, const Card card2, const double prob,
+  RiverCombo(const Card card1, const Card card2, const float prob,
              const int reach_probs_idx)
       : hand1(card1), hand2(card2), rank(0), reach_probs_index(reach_probs_idx),
         probability(prob) {}
