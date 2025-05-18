@@ -24,7 +24,7 @@ public:
   }
 
   auto get_preflop_combos(const int player_id) const
-      -> std::vector<PreflopCombo> {
+      -> const std::vector<PreflopCombo> & {
     assert((player_id == 1 || player_id == 2) &&
            "PreflopRangeManager get_num_hands invalid player_id");
 

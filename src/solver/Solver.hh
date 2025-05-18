@@ -22,8 +22,13 @@ public:
 
   void load_trainer_modules(Node *const node);
   void train(Node *root, const int iterations);
+
   void cfr(const int hero, const int villain, Node *root,
-           const int iteration_count);
+           const int iteration_count,
+           std::vector<PreflopCombo> &hero_preflop_combos,
+           std::vector<PreflopCombo> &villain_preflop_combos,
+           std::vector<float> &hero_reach_probs,
+           std::vector<float> &villain_reach_probs);
 };
 
 class CFRHelper {
@@ -85,8 +90,7 @@ public:
 
   auto get_showdown_utils(const TerminalNode *const node,
                           const std::vector<float> &villain_reach_pr,
-                          const std::vector<Card> &board)
-      -> std::vector<float>;
+                          const std::vector<Card> &board) -> std::vector<float>;
 
   auto get_uncontested_utils(const TerminalNode *const node,
                              const std::vector<float> &villain_reach_pr,

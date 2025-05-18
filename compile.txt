@@ -1,1 +1,4 @@
 clang++ -g src/*.cpp src/hands/*.cpp src/solver/*.cpp src/trainer/*.cpp src/tree/*.cpp include/libpheval.a include/omp/ompeval.a -Isrc -Iinclude -ltbb -o solver.exe
+clang++ -O3 src/*.cpp src/hands/*.cpp src/solver/*.cpp src/trainer/*.cpp src/tree/*.cpp include/libpheval.a include/omp/ompeval.a -Isrc -Iinclude -ltbb -o solver.exe
+clang++ -O1 -fsanitize=address,undefined,thread src/*.cpp src/hands/*.cpp src/solver/*.cpp src/trainer/*.cpp src/tree/*.cpp include/libpheval.a include/omp/ompeval.a -Isrc -Iinclude -ltbb -o solver.exe
+

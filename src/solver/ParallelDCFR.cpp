@@ -1,4 +1,5 @@
 #include "Solver.hh"
+#include "hands/PreflopCombo.hh"
 #include "tree/Nodes.hh"
 #include <chrono>
 #include <iostream>
@@ -30,9 +31,16 @@ void ParallelDCFR::train(Node *root, const int iterations) {
 
   const auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i{0}; i < iterations; ++i) {
-    cfr(1, 2, root, i);
-    cfr(2, 1, root, i);
+  auto hero_preflop_combos{m_prm.get_preflop_combos(1)};
+  auto villain_preflop_combos{m_prm.get_preflop_combos(2)};
+  auto hero_reach_probs{m_prm.get_initial_reach_probs(1, m_init_board)};
+  auto villain_reach_probs{m_prm.get_initial_reach_probs(2, m_init_board)};
+
+  for (int i{1}; i <= iterations; ++i) {
+    cfr(1, 2, root, i, hero_preflop_combos, villain_preflop_combos,
+        hero_reach_probs, villain_reach_probs);
+    cfr(2, 1, root, i, villain_preflop_combos, hero_preflop_combos,
+        villain_reach_probs, hero_reach_probs);
   }
 
   const auto end = std::chrono::high_resolution_clock::now();
@@ -42,14 +50,11 @@ void ParallelDCFR::train(Node *root, const int iterations) {
 }
 
 void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
-                       const int iteration_count) {
-
-  auto hero_preflop_combos{m_prm.get_preflop_combos(hero)};
-  auto villain_preflop_combos{m_prm.get_preflop_combos(villain)};
-
-  auto hero_reach_probs{m_prm.get_initial_reach_probs(hero, m_init_board)};
-  auto villain_reach_probs{
-      m_prm.get_initial_reach_probs(villain, m_init_board)};
+                       const int iteration_count,
+                       std::vector<PreflopCombo> &hero_preflop_combos,
+                       std::vector<PreflopCombo> &villain_preflop_combos,
+                       std::vector<float> &hero_reach_probs,
+                       std::vector<float> &villain_reach_probs) {
 
   CFRHelper rec{root,
                 hero,

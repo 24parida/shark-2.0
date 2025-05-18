@@ -1,10 +1,14 @@
 #include "PreflopCombo.hh"
 #include "RiverCombo.hh"
+#include <oneapi/tbb/concurrent_unordered_map.h>
+#include <tbb/concurrent_unordered_map.h>
 #include <unordered_map>
 
+using RiverMap = tbb::concurrent_unordered_map<int, std::vector<RiverCombo>>;
+
 class RiverRangeManager {
-  std::unordered_map<int, std::vector<RiverCombo>> m_p1_river_ranges;
-  std::unordered_map<int, std::vector<RiverCombo>> m_p2_river_ranges;
+  RiverMap m_p1_river_ranges;
+  RiverMap m_p2_river_ranges;
 
 public:
   RiverRangeManager() = default;

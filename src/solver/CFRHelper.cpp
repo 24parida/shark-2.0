@@ -248,7 +248,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   std::vector<float> utils(m_num_hero_hands);
 
   float win_sum{0.0};
-  const float value{node->get_pot() / 2.0f};
+  const float value{static_cast<float>(node->get_pot() / 2.0)};
   std::vector<float> card_win_sum(52);
 
   int j{0};
