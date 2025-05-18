@@ -56,6 +56,7 @@ public:
     m_dcfr = std::make_unique<DCFR>(node);
   }
   auto get_trainer() -> DCFR * { return m_dcfr.get(); }
+  auto get_trainer() const -> const DCFR * { return m_dcfr.get(); }
 
   auto get_child(const int index) const -> Node * {
     assert(index >= 0 && index < m_children.size() &&
@@ -67,10 +68,10 @@ public:
            "Node.hh attempting to access action out of range");
     return m_actions[static_cast<std::size_t>(index)];
   }
-  auto get_average_strat() -> std::vector<float> {
+  auto get_average_strat() const -> std::vector<float> {
     return m_dcfr->get_average_strat();
   }
-  auto get_current_strat() -> std::vector<float> {
+  auto get_current_strat() const -> std::vector<float> {
     return m_dcfr->get_current_strat();
   }
 };

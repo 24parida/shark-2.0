@@ -1,3 +1,4 @@
+#pragma once
 #include "PreflopCombo.hh"
 #include <cassert>
 
