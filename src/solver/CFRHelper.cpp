@@ -212,6 +212,11 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
                                  const std::vector<float> &villain_reach_pr,
                                  const std::vector<Card> &board)
     -> std::vector<float> {
+  assert(board.size() <= 5 && "get_all_in_utils unexpected all in board size");
+  if (board.size() == 5) {
+    return get_showdown_utils(node, villain_reach_pr, board);
+  }
+
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
   for (int card = 0; card < 52; ++card) {
     if (CardUtility::overlap(card, board))
@@ -226,11 +231,12 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
         new_villain_reach_probs[hand] = villain_reach_pr[hand];
     }
 
-    std::vector<float> subgame_evs{
-        get_showdown_utils(node, new_villain_reach_probs, new_board)};
+    const auto subgame_evs{
+        get_all_in_utils(node, new_villain_reach_probs, new_board)};
 
+    const float normalizing_sum{static_cast<float>(52 - 2 - 2 - board.size())};
     for (int hand = 0; hand < m_num_hero_hands; ++hand)
-      preflop_combo_evs[hand] += subgame_evs[hand] / 44;
+      preflop_combo_evs[hand] += subgame_evs[hand] / normalizing_sum;
   }
 
   return preflop_combo_evs;
