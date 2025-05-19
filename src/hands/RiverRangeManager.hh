@@ -1,8 +1,8 @@
+#pragma once
 #include "PreflopCombo.hh"
 #include "RiverCombo.hh"
 #include <oneapi/tbb/concurrent_unordered_map.h>
 #include <tbb/concurrent_unordered_map.h>
-#include <unordered_map>
 
 using RiverMap = tbb::concurrent_unordered_map<int, std::vector<RiverCombo>>;
 

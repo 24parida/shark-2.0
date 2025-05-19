@@ -45,10 +45,12 @@ void BestResponse::print_exploitability(Node *node, int iteration_count,
                                    m_prm.get_preflop_combos(a), board)};
 
   float exploitability{(oop_ev + ip_ev) / 2 / init_pot * 100};
-  std::cout << "OOP BR EV: " << oop_ev;
-  std::cout << "IP BR EV: " << ip_ev;
+  std::cout << "-------------------------------------------" << '\n';
+  std::cout << "OOP BEST RESPONSE EV: " << oop_ev << '\n';
+  std::cout << "IP BEST RESPONSE EV: " << ip_ev << '\n';
   std::cout << "exploitability at iteration " << iteration_count << " is "
-            << exploitability << "% of the pot per hand";
+            << exploitability << "% of the pot per hand" << '\n';
+  std::cout << "-------------------------------------------" << '\n';
 }
 
 auto BestResponse::get_unblocked_combo_counts(
@@ -211,7 +213,6 @@ auto BestResponse::all_in_best_response(
 auto BestResponse::show_down_best_response(
     TerminalNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
-
   const std::vector<RiverCombo> &hero_river_combos{
       m_rrm.get_river_combos(m_hero, m_hero_preflop_combos, board)};
   const std::vector<RiverCombo> &villain_river_combos{
@@ -227,8 +228,7 @@ auto BestResponse::show_down_best_response(
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (j < villain_river_combos.size() &&
-           hero_combo.rank < villain_river_combos[j].rank) {
+    while (hero_combo.rank > villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
       win_sum += villain_reach_probs[villain_combo.reach_probs_index];
       card_win_sum[villain_combo.hand1] +=
@@ -249,7 +249,7 @@ auto BestResponse::show_down_best_response(
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (j >= 0 && hero_combo.rank > villain_river_combos[j].rank) {
+    while (hero_combo.rank < villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
 
       lose_sum += villain_reach_probs[villain_combo.reach_probs_index];

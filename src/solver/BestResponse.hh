@@ -13,6 +13,7 @@ class BestResponse {
   int m_num_hero_hands;
   int m_num_villain_hands;
 
+public:
   BestResponse(const PreflopRangeManager &prm) : m_prm(prm) {};
   float get_best_response_ev(Node *node, int hero, int villain,
                              const std::vector<PreflopCombo> &hero_combos,

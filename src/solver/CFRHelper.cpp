@@ -61,14 +61,14 @@ void CFRHelper::action_node_utility(
         }
       });
 
-  if (player != m_hero) {
+  auto *trainer{node->get_trainer()};
+  if (trainer->get_current() != m_hero) {
     for (auto &i : subgame_utils) {
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += i[hand];
       }
     }
   } else {
-    auto *trainer{node->get_trainer()};
     for (std::size_t action{0}; action < num_actions; ++action) {
       trainer->update_cum_regret_one(subgame_utils[action], action);
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
@@ -261,8 +261,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (j < villain_river_combos.size() &&
-           hero_combo.rank < villain_river_combos[j].rank) {
+    while (hero_combo.rank > villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
       win_sum += villain_reach_pr[villain_combo.reach_probs_index];
       card_win_sum[villain_combo.hand1] +=
@@ -283,7 +282,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (j >= 0 && hero_combo.rank > villain_river_combos[j].rank) {
+    while (hero_combo.rank < villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
 
       lose_sum += villain_reach_pr[villain_combo.reach_probs_index];

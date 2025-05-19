@@ -1,6 +1,7 @@
 #include "DCFR.hh"
 #include "../tree/Nodes.hh"
 #include <cmath>
+#include <iostream>
 
 DCFR::DCFR(const ActionNode *node)
     : m_num_hands(node->get_num_hands()),
@@ -92,11 +93,14 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
                                const int iteration) {
   float x{static_cast<float>(
       pow(static_cast<float>(iteration) / (iteration + 1), 2))};
-  for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-    for (std::size_t action{0}; action < m_num_actions; ++action) {
+  for (std::size_t action{0}; action < m_num_actions; ++action) {
+    for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       m_cummulative_strategy[hand + action * m_num_hands] +=
           strategy[hand + action * m_num_hands] * reach_probs[hand];
-      m_cummulative_strategy[hand + action * m_num_hands] *= x;
     }
+  }
+
+  for (auto &cs : m_cummulative_strategy) {
+    cs *= x;
   }
 }

@@ -35,7 +35,7 @@ inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {
 // this sucks
 inline int board_to_key(const std::vector<Card> &board) {
   assert((board.size() >= 3 && board.size() <= 5) &&
-         "CardUtility: board_to_key incorrecy board size");
+         "CardUtility: board_to_key incorrect board size");
   if (board.size() == 3) {
     return 100000000 * static_cast<int>(board[0]) +
            1000000 * static_cast<int>(board[1]) +
@@ -57,9 +57,9 @@ inline auto get_rank(const Card &card1, const Card &card2,
                      const std::vector<Card> &board) -> int {
   assert(board.size() == 5 &&
          "Helper get_rank: board is of incorrect size (!=5)");
-  return phevaluator::EvaluateCards(board[1], board[2], board[2], board[3],
-                                    board[4], card1, card2)
-      .value();
+  return -1 * phevaluator::EvaluateCards(board[0], board[1], board[2], board[3],
+                                         board[4], card1, card2)
+                  .value();
 }
 
 inline auto get_win_pct(const PreflopCombo &hero, const PreflopCombo &villain,

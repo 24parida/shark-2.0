@@ -4,6 +4,7 @@
 #include "hands/PreflopCombo.hh"
 #include "trainer/DCFR.hh"
 
+#include "BestResponse.hh"
 #include <oneapi/tbb/global_control.h>
 #include <oneapi/tbb/parallel_for.h>
 #include <vector>
@@ -11,14 +12,18 @@
 class ParallelDCFR {
   PreflopRangeManager m_prm;
   RiverRangeManager m_rrm;
+  BestResponse m_brm;
 
   std::vector<Card> m_init_board;
+  int m_init_pot;
   int m_in_position_player;
 
 public:
   ParallelDCFR(const PreflopRangeManager &prm,
-               const std::vector<Card> &init_board)
-      : m_prm(prm), m_init_board(init_board) {}
+               const std::vector<Card> &init_board, int init_pot,
+               int in_position_player)
+      : m_prm(prm), m_brm(prm), m_init_board(init_board), m_init_pot(init_pot),
+        m_in_position_player(in_position_player) {}
 
   void load_trainer_modules(Node *const node);
   void train(Node *root, const int iterations);

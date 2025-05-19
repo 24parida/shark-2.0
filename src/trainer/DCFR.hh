@@ -13,6 +13,7 @@ class DCFR {
 public:
   DCFR() = default;
   explicit DCFR(const ActionNode *);
+  auto get_current() const -> int { return m_current; }
   auto get_average_strat() const -> std::vector<float>;
   auto get_current_strat() const -> std::vector<float>;
   void update_cum_regret_one(const std::vector<float> &action_utils,

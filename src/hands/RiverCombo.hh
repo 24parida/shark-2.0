@@ -21,5 +21,5 @@ struct RiverCombo {
   }
 
   auto get_rank() const -> int { return rank; }
-  bool compare(const RiverCombo &other) { return rank < other.get_rank(); }
+  bool operator<(const RiverCombo &other) const { return rank < other.rank; }
 };

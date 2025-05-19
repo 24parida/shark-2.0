@@ -34,10 +34,7 @@ auto RiverRangeManager::get_river_combos(
     river_combos.push_back(river_combo);
   }
 
-  std::sort(river_combos.begin(), river_combos.end(),
-            [](const RiverCombo &a, const RiverCombo &b) {
-              return a.get_rank() < b.get_rank();
-            });
+  std::sort(river_combos.begin(), river_combos.end());
 
   river_ranges.insert({key, river_combos});
   return river_combos;
