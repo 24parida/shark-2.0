@@ -12,7 +12,7 @@ int main() {
   PreflopRange range2{"88,77"};
 
   TreeBuilderSettings settings{
-      range1, range2, 2,  {Card{"3h"}, Card{"8h"}, Card{"4c"}, Card{"3d"}},
+      range1, range2, 2,  {Card{"3h"}, Card{"8h"}, Card{"4c"}},
       800,    400,    10, 0.67};
   PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos,
                           settings.initial_board};

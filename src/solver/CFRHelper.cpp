@@ -318,8 +318,8 @@ auto CFRHelper::get_uncontested_utils(
   }
 
   const float value = (m_hero == node->get_last_to_act())
-                          ? (-node->get_pot() / 2.0)
-                          : (node->get_pot() / 2.0);
+                          ? (-node->get_pot() / 2.0f)
+                          : (node->get_pot() / 2.0f);
   std::vector<float> utils(m_num_hero_hands);
   for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
     if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
