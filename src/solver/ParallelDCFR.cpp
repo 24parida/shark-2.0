@@ -41,7 +41,7 @@ void ParallelDCFR::train(Node *root, const int iterations) {
     cfr(2, 1, root, i, villain_preflop_combos, hero_preflop_combos,
         villain_reach_probs, hero_reach_probs);
 
-    if (i % static_cast<int>(iterations / 10) == 0) {
+    if (i % static_cast<int>(iterations / 3) == 0 && i != 0) {
       m_brm.print_exploitability(root, i, m_init_board, m_init_pot,
                                  m_in_position_player);
     }
