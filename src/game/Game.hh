@@ -8,8 +8,8 @@ constexpr std::array suitReverseArray = {'c', 'd', 'h', 's'};
 // constexpr std::array BET_SIZES{0.25, 0.5, 0.75, 1.0};
 // constexpr std::array RAISE_SIZES{0.5, 1.0};
 
-constexpr std::array BET_SIZES{0.5, 1.0};
-constexpr std::array RAISE_SIZES{0.5};
+constexpr std::array BET_SIZES{0.5f, 1.0f};
+constexpr std::array RAISE_SIZES{0.5f};
 } // namespace GameParams
 
 enum class Street { FLOP = 3, TURN = 4, RIVER = 5 };

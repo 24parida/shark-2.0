@@ -8,12 +8,12 @@
 int main() {
   using phevaluator::Card;
 
-  PreflopRange range3{"KK,QQ"};
+  // PreflopRange range3{"KK,QQ"};
   PreflopRange range1{"AA,22"};
-  PreflopRange range2{"AA,22"};
+  PreflopRange range2{"88,77"};
 
   TreeBuilderSettings settings{
-      range1, range2, 2,  {Card{"3h"}, Card{"8h"}, Card{"4c"}},
+      range1, range2, 2,  {Card{"3h"}, Card{"8h"}, Card{"4c"}, Card{"4d"}},
       800,    400,    10, 0.67};
   PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos,
                           settings.initial_board};

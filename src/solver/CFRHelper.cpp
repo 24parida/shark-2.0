@@ -154,7 +154,7 @@ auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
 
   for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
     const int c1{m_villain_preflop_combos[hand].hand1};
-    const int c2{m_villain_preflop_combos[hand].hand1};
+    const int c2{m_villain_preflop_combos[hand].hand2};
 
     assert(c1 < 52 && c1 >= 0 && "get_card_weights: card out of range");
     assert(c2 < 52 && c2 >= 0 && "get_card_weights: card out of range");
@@ -164,7 +164,7 @@ auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
     villain_reach_sum += villain_reach_pr[hand];
   }
 
-  for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+  for (std::size_t hand{0}; hand < m_hero_preflop_combos.size(); ++hand) {
     if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
       continue;
 
@@ -264,7 +264,9 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (hero_combo.rank > villain_river_combos[j].rank) {
+    while (j < villain_river_combos.size() &&
+           hero_combo.rank > villain_river_combos[j].rank) {
+      assert(j < villain_river_combos.size() && j >= 0 && "forward pass error");
       const auto &villain_combo{villain_river_combos[j]};
       win_sum += villain_reach_pr[villain_combo.reach_probs_index];
       card_win_sum[villain_combo.hand1] +=
@@ -285,7 +287,7 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (villain_river_combos[j].rank) {
+    while (j >= 0 && hero_combo.rank < villain_river_combos[j].rank) {
       assert(j < villain_river_combos.size() && j >= 0 &&
              "backward pass error");
       const auto &villain_combo{villain_river_combos[j]};
