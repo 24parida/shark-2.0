@@ -10,7 +10,7 @@ int main() {
 
   // PreflopRange range3{"KK,QQ"};
   PreflopRange range1{"AA,22"};
-  PreflopRange range2{"88,77"};
+  PreflopRange range2{"KK,QQ,AK"};
 
   TreeBuilderSettings settings{
       range1, range2, 2,  {Card{"3h"}, Card{"8h"}, Card{"4c"}, Card{"4d"}},

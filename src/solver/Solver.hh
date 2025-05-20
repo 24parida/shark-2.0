@@ -52,6 +52,7 @@ class CFRHelper {
   DCFR m_dcfr_module;
 
   RiverRangeManager &m_rrm;
+  std::vector<int> &m_hero_to_villain;
 
 public:
   CFRHelper(Node *node, const int hero_id, const int villain_id,
@@ -59,7 +60,8 @@ public:
             std::vector<PreflopCombo> &villain_preflop_combos,
             std::vector<float> &hero_reach_pr,
             std::vector<float> &villain_reach_pr, std::vector<Card> &board,
-            int iteration_count, RiverRangeManager &rrm)
+            int iteration_count, RiverRangeManager &rrm,
+            std::vector<int> &hero_to_villain)
       : m_hero(hero_id), m_villain(villain_id), m_node(node),
         m_hero_reach_probs(hero_reach_pr),
         m_villain_reach_probs(villain_reach_pr), m_board(board),
@@ -68,7 +70,7 @@ public:
         m_num_hero_hands(hero_preflop_combos.size()),
         m_num_villain_hands(villain_preflop_combos.size()),
         m_iteration_count(iteration_count), m_result(m_num_hero_hands),
-        m_rrm(rrm) {};
+        m_rrm(rrm), m_hero_to_villain(hero_to_villain) {};
 
   void compute();
   auto get_result() const -> std::vector<float> { return m_result; };

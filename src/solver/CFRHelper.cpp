@@ -3,8 +3,6 @@
 #include "hands/PreflopCombo.hh"
 #include "hands/RiverCombo.hh"
 #include "tree/Nodes.hh"
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/parallel_for.h>
 
 void CFRHelper::compute() {
   if (m_node->get_node_type() == NodeType::ACTION_NODE) {
@@ -27,39 +25,35 @@ void CFRHelper::action_node_utility(
   const int num_actions{node->get_num_actions()};
   std::vector<std::vector<float>> subgame_utils(num_actions);
 
-  tbb::parallel_for(
-      tbb::blocked_range<int>(0, num_actions),
-      [&](const tbb::blocked_range<int> &r) {
-        for (auto i = r.begin(); i < r.end(); ++i) {
-          std::vector<float> new_hero_reach_probs(hero_reach_pr);
-          std::vector<float> new_villain_reach_probs(villain_reach_pr);
+  for (int i = 0; i < num_actions; ++i) {
+    std::vector<float> new_hero_reach_probs(hero_reach_pr);
+    std::vector<float> new_villain_reach_probs(villain_reach_pr);
 
-          if (player == m_hero) {
-            for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-              new_hero_reach_probs[hand] =
-                  strategy[hand + i * m_num_hero_hands] * hero_reach_pr[hand];
-            }
-          } else {
-            for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
-              new_villain_reach_probs[hand] =
-                  strategy[hand + i * m_num_villain_hands] *
-                  villain_reach_pr[hand];
-            }
-          }
-          CFRHelper rec{node->get_child(i),
-                        m_hero,
-                        m_villain,
-                        m_hero_preflop_combos,
-                        m_villain_preflop_combos,
-                        new_hero_reach_probs,
-                        new_villain_reach_probs,
-                        m_board,
-                        m_iteration_count,
-                        m_rrm};
-          rec.compute();
-          subgame_utils[i] = rec.get_result();
-        }
-      });
+    if (player == m_hero) {
+      for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+        new_hero_reach_probs[hand] =
+            strategy[hand + i * m_num_hero_hands] * hero_reach_pr[hand];
+      }
+    } else {
+      for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+        new_villain_reach_probs[hand] =
+            strategy[hand + i * m_num_villain_hands] * villain_reach_pr[hand];
+      }
+    }
+    CFRHelper rec{node->get_child(i),
+                  m_hero,
+                  m_villain,
+                  m_hero_preflop_combos,
+                  m_villain_preflop_combos,
+                  new_hero_reach_probs,
+                  new_villain_reach_probs,
+                  m_board,
+                  m_iteration_count,
+                  m_rrm,
+                  m_hero_to_villain};
+    rec.compute();
+    subgame_utils[i] = rec.get_result();
+  }
 
   auto *trainer{node->get_trainer()};
   if (trainer->get_current() != m_hero) {
@@ -87,56 +81,54 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
                                     const std::vector<float> &villain_reach_pr,
                                     const std::vector<Card> &board) {
   const auto card_weights{get_card_weights(villain_reach_pr, board)};
-  const int num_children(node->get_num_children());
-  std::vector<std::vector<float>> subgame_utils(num_children);
 
   std::vector<int> valid_children{};
+  valid_children.reserve(52);
   for (std::size_t i{0}; i < 52; ++i) {
     if (node->get_child(i)) {
       valid_children.push_back(i);
     }
   }
+  const int num_children(valid_children.size());
 
-  tbb::parallel_for(
-      tbb::blocked_range<int>(0, num_children),
-      [&, card_weights](const tbb::blocked_range<int> &r) {
-        for (auto i = r.begin(); i < r.end(); ++i) {
-          int card{valid_children[i]};
+  std::vector<std::vector<float>> subgame_utils(num_children);
 
-          std::vector<Card> new_board{board};
-          new_board.push_back(card);
+  for (int i = 0; i < num_children; ++i) {
+    int card{valid_children[i]};
 
-          std::vector<float> new_hero_reach_probs(m_num_hero_hands);
-          std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+    std::vector<Card> new_board{board};
+    new_board.push_back(card);
 
-          for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-            if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
-              new_hero_reach_probs[hand] =
-                  hero_reach_pr[hand] *
-                  card_weights[hand + card * m_num_hero_hands];
-            }
-          }
+    std::vector<float> new_hero_reach_probs(m_num_hero_hands);
+    std::vector<float> new_villain_reach_probs(m_num_villain_hands);
 
-          for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
-            if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
-              new_villain_reach_probs[hand] = villain_reach_pr[hand];
-            }
-          }
+    for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
+      if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+        new_hero_reach_probs[hand] =
+            hero_reach_pr[hand] * card_weights[hand + card * m_num_hero_hands];
+      }
+    }
 
-          CFRHelper rec{node->get_child(card),
-                        m_hero,
-                        m_villain,
-                        m_hero_preflop_combos,
-                        m_villain_preflop_combos,
-                        new_hero_reach_probs,
-                        new_villain_reach_probs,
-                        new_board,
-                        m_iteration_count,
-                        m_rrm};
-          rec.compute();
-          subgame_utils[i] = rec.get_result();
-        }
-      });
+    for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+      if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
+        new_villain_reach_probs[hand] = villain_reach_pr[hand];
+      }
+    }
+
+    CFRHelper rec{node->get_child(card),
+                  m_hero,
+                  m_villain,
+                  m_hero_preflop_combos,
+                  m_villain_preflop_combos,
+                  new_hero_reach_probs,
+                  new_villain_reach_probs,
+                  new_board,
+                  m_iteration_count,
+                  m_rrm,
+                  m_hero_to_villain};
+    rec.compute();
+    subgame_utils[i] = rec.get_result();
+  }
 
   for (auto &i : subgame_utils) {
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
@@ -156,30 +148,29 @@ auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
     const int c1{m_villain_preflop_combos[hand].hand1};
     const int c2{m_villain_preflop_combos[hand].hand2};
 
-    assert(c1 < 52 && c1 >= 0 && "get_card_weights: card out of range");
-    assert(c2 < 52 && c2 >= 0 && "get_card_weights: card out of range");
-
     villain_card_reach_sum[c1] += villain_reach_pr[hand];
     villain_card_reach_sum[c2] += villain_reach_pr[hand];
     villain_reach_sum += villain_reach_pr[hand];
   }
 
   for (std::size_t hand{0}; hand < m_hero_preflop_combos.size(); ++hand) {
-    if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
+    auto &hero_combo{m_hero_preflop_combos[hand]};
+    if (CardUtility::overlap(hero_combo, board))
       continue;
+
+    int v{m_hero_to_villain[hand]};
+    float v_weight = v >= 0 ? villain_reach_pr[v] : 0.0f;
 
     float total_weight{0.0};
     for (int card{0}; card < 52; ++card) {
       if (CardUtility::overlap(card, board) ||
-          CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+          CardUtility::overlap(hero_combo, card)) {
         continue;
       }
 
-      const float weight =
-          villain_reach_sum - villain_card_reach_sum[card] -
-          villain_card_reach_sum[m_hero_preflop_combos[hand].hand1] -
-          villain_card_reach_sum[m_hero_preflop_combos[hand].hand2] +
-          villain_reach_pr[hand];
+      const float weight = villain_reach_sum - villain_card_reach_sum[card] -
+                           villain_card_reach_sum[hero_combo.hand1] -
+                           villain_card_reach_sum[hero_combo.hand2] + v_weight;
       card_weights[hand + card * m_num_hero_hands] = weight;
       total_weight += weight;
     }
@@ -249,9 +240,9 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
                                    const std::vector<float> &villain_reach_pr,
                                    const std::vector<Card> &board)
     -> std::vector<float> {
-  const std::vector<RiverCombo> &hero_river_combos{
+  const std::vector<RiverCombo> hero_river_combos{
       m_rrm.get_river_combos(m_hero, m_hero_preflop_combos, board)};
-  const std::vector<RiverCombo> &villain_river_combos{
+  const std::vector<RiverCombo> villain_river_combos{
       m_rrm.get_river_combos(m_villain, m_villain_preflop_combos, board)};
 
   std::vector<float> utils(m_num_hero_hands);
@@ -331,10 +322,13 @@ auto CFRHelper::get_uncontested_utils(
     if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
       continue;
 
-    utils[hand] = value * (villain_reach_sum -
-                           sum_with_card[m_hero_preflop_combos[hand].hand1] -
-                           sum_with_card[m_hero_preflop_combos[hand].hand2] +
-                           villain_reach_pr[hand]);
+    int v{m_hero_to_villain[hand]};
+    float v_weight = v >= 0 ? villain_reach_pr[v] : 0.0f;
+
+    utils[hand] =
+        value *
+        (villain_reach_sum - sum_with_card[m_hero_preflop_combos[hand].hand1] -
+         sum_with_card[m_hero_preflop_combos[hand].hand2] + v_weight);
   }
 
   return utils;

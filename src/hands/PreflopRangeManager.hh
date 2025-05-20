@@ -15,6 +15,7 @@ public:
         m_p2_preflop_combos(p2_preflop_combos) {
     set_rel_probabilities(init_board);
   }
+
   auto get_num_hands(const int player_id) const -> int {
     assert((player_id == 1 || player_id == 2) &&
            "PreflopRangeManager get_num_hands invalid player_id");

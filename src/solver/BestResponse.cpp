@@ -8,13 +8,14 @@ float BestResponse::get_best_response_ev(
     Node *node, int hero, int villain,
     const std::vector<PreflopCombo> &hero_combos,
     const std::vector<PreflopCombo> &villain_combos,
-    const std::vector<Card> &board) {
+    const std::vector<Card> &board, const std::vector<int> &hero_to_villain) {
   m_hero = hero;
   m_villain = villain;
   m_hero_preflop_combos = hero_combos;
   m_villain_preflop_combos = villain_combos;
   m_num_hero_hands = hero_combos.size();
   m_num_villain_hands = villain_combos.size();
+  m_hero_to_villain = hero_to_villain;
 
   float ev{0.0};
 
@@ -36,13 +37,43 @@ void BestResponse::print_exploitability(Node *node, int iteration_count,
                                         const std::vector<Card> &board,
                                         int init_pot, int in_position_player) {
 
-  const int a{in_position_player == 2 ? 1 : 2};
-  const int b{in_position_player == 2 ? 2 : 1};
+  const int p1{in_position_player == 2 ? 1 : 2};
+  const int p2{in_position_player == 2 ? 2 : 1};
 
-  float oop_ev{get_best_response_ev(node, a, b, m_prm.get_preflop_combos(a),
-                                    m_prm.get_preflop_combos(b), board)};
-  float ip_ev{get_best_response_ev(node, b, a, m_prm.get_preflop_combos(b),
-                                   m_prm.get_preflop_combos(a), board)};
+  auto p1_combos{m_prm.get_preflop_combos(p1)};
+  auto p2_combos{m_prm.get_preflop_combos(p2)};
+
+  std::vector<int> p1_to_p2(p1_combos.size(), -1);
+  std::vector<int> p2_to_p1(p2_combos.size(), -1);
+
+  for (int h = 0; h < p1_combos.size(); ++h) {
+    auto &hc = p1_combos[h];
+
+    for (int v = 0; v < p2_combos.size(); ++v) {
+      auto &vc = p2_combos[v];
+
+      if (hc == vc) {
+        p1_to_p2[h] = v;
+        break;
+      }
+    }
+  }
+
+  for (int h = 0; h < p2_combos.size(); ++h) {
+    auto &hc = p2_combos[h];
+
+    for (int v = 0; v < p1_combos.size(); ++v) {
+      auto &vc = p1_combos[v];
+
+      if (hc == vc) {
+      }
+    }
+  }
+
+  float oop_ev{get_best_response_ev(node, p1, p2, p1_combos, p2_combos, board,
+                                    p1_to_p2)};
+  float ip_ev{get_best_response_ev(node, p2, p1, p2_combos, p1_combos, board,
+                                   p2_to_p1)};
 
   float exploitability{(oop_ev + ip_ev) / 2 / init_pot * 100};
   std::cout << "-------------------------------------------" << '\n';
@@ -228,7 +259,8 @@ auto BestResponse::show_down_best_response(
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (hero_combo.rank > villain_river_combos[j].rank) {
+    while (j < villain_river_combos.size() &&
+           hero_combo.rank > villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
       win_sum += villain_reach_probs[villain_combo.reach_probs_index];
       card_win_sum[villain_combo.hand1] +=
@@ -249,7 +281,7 @@ auto BestResponse::show_down_best_response(
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto &hero_combo{hero_river_combos[i]};
 
-    while (hero_combo.rank < villain_river_combos[j].rank) {
+    while (j >= 0 && hero_combo.rank < villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
 
       lose_sum += villain_reach_probs[villain_combo.reach_probs_index];
@@ -269,18 +301,18 @@ auto BestResponse::show_down_best_response(
 }
 
 auto BestResponse::uncontested_best_response(
-    TerminalNode *node, const std::vector<float> &villain_reach_probs,
+    TerminalNode *node, const std::vector<float> &villain_reach_pr,
     const std::vector<Card> &board) -> std::vector<float> {
   float villain_reach_sum{0.0};
   std::vector<float> sum_with_card(52);
 
   for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
     sum_with_card[m_villain_preflop_combos[hand].hand1] +=
-        villain_reach_probs[hand];
+        villain_reach_pr[hand];
     sum_with_card[m_villain_preflop_combos[hand].hand2] +=
-        villain_reach_probs[hand];
+        villain_reach_pr[hand];
 
-    villain_reach_sum += villain_reach_probs[hand];
+    villain_reach_sum += villain_reach_pr[hand];
   }
 
   const float value = (m_hero == node->get_last_to_act())
@@ -291,10 +323,13 @@ auto BestResponse::uncontested_best_response(
     if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
       continue;
 
-    utils[hand] = value * (villain_reach_sum -
-                           sum_with_card[m_hero_preflop_combos[hand].hand1] -
-                           sum_with_card[m_hero_preflop_combos[hand].hand2] +
-                           villain_reach_probs[hand]);
+    int v{m_hero_to_villain[hand]};
+    float v_weight = v >= 0 ? villain_reach_pr[v] : 0.0f;
+
+    utils[hand] =
+        value *
+        (villain_reach_sum - sum_with_card[m_hero_preflop_combos[hand].hand1] -
+         sum_with_card[m_hero_preflop_combos[hand].hand2] + v_weight);
   }
 
   return utils;

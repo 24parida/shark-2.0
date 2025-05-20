@@ -8,6 +8,7 @@ class BestResponse {
 
   std::vector<PreflopCombo> m_hero_preflop_combos;
   std::vector<PreflopCombo> m_villain_preflop_combos;
+  std::vector<int> m_hero_to_villain;
   int m_hero;
   int m_villain;
   int m_num_hero_hands;
@@ -18,7 +19,8 @@ public:
   float get_best_response_ev(Node *node, int hero, int villain,
                              const std::vector<PreflopCombo> &hero_combos,
                              const std::vector<PreflopCombo> &villain_combos,
-                             const std::vector<Card> &board);
+                             const std::vector<Card> &board,
+                             const std::vector<int> &hero_to_villain);
 
   void print_exploitability(Node *node, int iteration_count,
                             const std::vector<Card> &board, int init_pot,
