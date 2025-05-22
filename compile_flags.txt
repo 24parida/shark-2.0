@@ -3,3 +3,4 @@
 -I./src
 -I./include
 -I./testing
+-I./gui

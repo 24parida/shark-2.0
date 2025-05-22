@@ -14,9 +14,19 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
-// CardButton: rounded box with base suit color and selection highlight
+// Solver headers
+#include "hands/PreflopRange.hh"
+#include "solver/Solver.hh"
+#include "tree/GameTree.hh"
+#include "tree/Nodes.hh"
+
+static const std::vector<std::string> RANKS = {
+    "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
+static const std::vector<char> SUITS = {'h', 'd', 'c', 's'};
+
 class CardButton : public Fl_Button {
   Fl_Color m_base;
   bool m_sel = false;
@@ -43,14 +53,9 @@ public:
 };
 const Fl_Color CardButton::HIGHLIGHT = fl_rgb_color(255, 200, 0);
 
-// Wizard: multi-page FLTK application
 class Wizard : public Fl_Window {
-  // User inputs and selections
   struct UserInputs {
-    int stackSize{};
-    int startingPot{};
-    int minBet{};
-    int iterations{};
+    int stackSize{}, startingPot{}, minBet{}, iterations{};
     float allInThreshold{};
     std::string potType, yourPos, theirPos;
     std::vector<std::string> board;
@@ -58,32 +63,32 @@ class Wizard : public Fl_Window {
     std::vector<std::string> villainRange;
   } m_data;
 
-  // Page groups
-  Fl_Group *m_pg1{nullptr}, *m_pg2{nullptr}, *m_pg3{nullptr}, *m_pg4{nullptr};
+  Fl_Group *m_pg1, *m_pg2, *m_pg3, *m_pg4, *m_pg5;
 
-  // Page1 widgets
-  Fl_Input *m_inpStack{nullptr}, *m_inpPot{nullptr}, *m_inpMinBet{nullptr},
-      *m_inpIters{nullptr};
-  Fl_Float_Input *m_inpAllIn{nullptr};
-  Fl_Choice *m_choPotType{nullptr}, *m_choYourPos{nullptr},
-      *m_choTheirPos{nullptr};
-  Fl_Button *m_btn1Next{nullptr};
+  // Page1
+  Fl_Input *m_inpStack, *m_inpPot, *m_inpMinBet, *m_inpIters;
+  Fl_Float_Input *m_inpAllIn;
+  Fl_Choice *m_choPotType, *m_choYourPos, *m_choTheirPos;
+  Fl_Button *m_btn1Next;
 
-  // Page2 widgets
-  Fl_Box *m_lblBoard{nullptr};
+  // Page2
+  Fl_Box *m_lblBoard;
   std::vector<CardButton *> m_cards;
-  Fl_Input *m_selDisplay{nullptr};
-  Fl_Button *m_btnRand{nullptr}, *m_btn2Back{nullptr}, *m_btn2Next{nullptr};
+  Fl_Input *m_selDisplay;
+  Fl_Button *m_btnRand, *m_btn2Back, *m_btn2Next;
 
-  // Page3 widgets
-  Fl_Box *m_lblRange{nullptr};
+  // Page3
+  Fl_Box *m_lblRange;
   std::vector<CardButton *> m_rangeBtns;
-  Fl_Button *m_btn3Back{nullptr}, *m_btn3Next{nullptr};
+  Fl_Button *m_btn3Back, *m_btn3Next;
 
-  // Page4 widgets
-  Fl_Box *m_lblVillain{nullptr};
+  // Page4
+  Fl_Box *m_lblVillain;
   std::vector<CardButton *> m_villainBtns;
-  Fl_Button *m_btn4Back{nullptr}, *m_btn4Next{nullptr};
+  Fl_Button *m_btn4Back, *m_btn4Next;
+
+  // Page5
+  Fl_Box *m_lblWait;
 
   // Callbacks
   static void cb1Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do1Next(); }
@@ -94,18 +99,18 @@ class Wizard : public Fl_Window {
   static void cb2Back(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack2(); }
   static void cb2Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do2Next(); }
   static void cb3Back(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack3(); }
+  static void cb3Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do3Next(); }
   static void cbRange(Fl_Widget *w, void *d) {
     ((Wizard *)d)->doRange((CardButton *)w);
   }
-  static void cb3Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do3Next(); }
   static void cb4Back(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack4(); }
   static void cb4Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do4Next(); }
 
-  // --- Page1 to Page2 ---
+  // Page1 -> Page2
   void do1Next() {
-    if (!m_inpStack->value()[0] || !m_inpPot->value()[0] ||
-        !m_inpMinBet->value()[0] || !m_inpAllIn->value()[0] ||
-        !m_inpIters->value()[0]) {
+    if (!*m_inpStack->value() || !*m_inpPot->value() ||
+        !*m_inpMinBet->value() || !*m_inpAllIn->value() ||
+        !*m_inpIters->value()) {
       fl_message("Please fill out all fields.");
       return;
     }
@@ -125,11 +130,11 @@ class Wizard : public Fl_Window {
     m_pg2->show();
   }
 
-  // --- Page2 board selector ---
+  // Page2 actions
   void doCard(CardButton *cb) {
-    int count = std::count_if(m_cards.begin(), m_cards.end(),
-                              [](auto *b) { return b->selected(); });
-    if (!cb->selected() && count >= 5)
+    int c = std::count_if(m_cards.begin(), m_cards.end(),
+                          [](auto *b) { return b->selected(); });
+    if (!cb->selected() && c >= 5)
       return;
     cb->toggle();
     updateBoardSel();
@@ -152,11 +157,11 @@ class Wizard : public Fl_Window {
     std::string out;
     for (auto *cb : m_cards)
       if (cb->selected()) {
-        std::string lbl = cb->label();
-        m_data.board.push_back(lbl);
+        std::string l = cb->label();
+        m_data.board.push_back(l);
         if (!out.empty())
           out += ' ';
-        out += lbl;
+        out += l;
       }
     m_selDisplay->value(out.c_str());
   }
@@ -175,39 +180,53 @@ class Wizard : public Fl_Window {
     m_pg3->show();
   }
 
-  // --- Page3 hero range selector ---
+  // Page3 hero range
   void doRange(CardButton *cb) { cb->toggle(); }
   void doBack3() {
     m_pg3->hide();
     m_pg2->show();
   }
+  // Page3 hero range
   void do3Next() {
     m_data.heroRange.clear();
     for (auto *b : m_rangeBtns)
       if (b->selected())
         m_data.heroRange.push_back(b->label());
+
+    if (m_data.heroRange.empty()) {
+      fl_message("Please select at least one hand for your range.");
+      return;
+    }
+
     m_pg3->hide();
     m_pg4->show();
   }
-
-  // --- Page4 villain range selector ---
+  // Page4 villain range
   void doBack4() {
     m_pg4->hide();
     m_pg3->show();
   }
+  // Page4 villain range
   void do4Next() {
     m_data.villainRange.clear();
     for (auto *b : m_villainBtns)
       if (b->selected())
         m_data.villainRange.push_back(b->label());
-    hide(); // completed
+
+    if (m_data.villainRange.empty()) {
+      fl_message("Please select at least one hand for the villain's range.");
+      return;
+    }
+
+    // move to waiting page
+    m_pg4->hide();
+    m_pg5->show();
   }
 
 public:
   Wizard(int W, int H, const char *L = 0) : Fl_Window(W, H, L) {
     position((Fl::w() - W) / 2, (Fl::h() - H) / 2);
-
-    // Page1 setup
+    // Page1
     m_pg1 = new Fl_Group(0, 0, W, H);
     int xL = 50, xI = 300, y = 50, h = 60, sp = 25;
     int wL = 250, wI = W - xI - 100;
@@ -261,27 +280,20 @@ public:
     m_btn1Next->labelsize(24);
     m_btn1Next->callback(cb1Next, this);
     m_pg1->end();
-
-    // Page2 setup
+    // Page2
     m_pg2 = new Fl_Group(0, 0, W, H);
     m_lblBoard = new Fl_Box(0, 20, W, 50, "Init Board (3-5 Cards)");
     m_lblBoard->labelfont(FL_BOLD);
     m_lblBoard->labelsize(28);
     m_lblBoard->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
-    static const std::vector<std::string> ranks = {
-        "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
-    static const std::vector<char> suits = {'h', 'd', 'c', 's'};
-    int cols = 4, rows = 13;
-    int GX = 50, GY = 100, GW = W - 100, GH = H - 900;
-    int bw = GW / cols - 10;
-    int bh = GH / rows - 10;
-    int cardH = (bh * 3) / 2;
-    int rowSp = cardH + 8;
+    int cols = 4, rows = 13, GX = 50, GY = 100, GW = W - 100, GH = H - 900;
+    int bw = GW / cols - 10, bh = GH / rows - 10, cardH = (bh * 3) / 2,
+        rowSp = cardH + 8;
     for (int r = 0; r < rows; ++r)
       for (int s = 0; s < cols; ++s) {
         int x = GX + s * (bw + 10), y0 = GY + r * rowSp;
         Fl_Color base;
-        switch (suits[s]) {
+        switch (SUITS[s]) {
         case 'h':
           base = fl_rgb_color(180, 30, 30);
           break;
@@ -295,16 +307,16 @@ public:
           base = fl_rgb_color(20, 20, 20);
         }
         auto *cb = new CardButton(x, y0, bw, cardH, base);
-        std::string lbl = ranks[r] + std::string(1, suits[s]);
+        std::string lbl = RANKS[r] + std::string(1, SUITS[s]);
         cb->copy_label(lbl.c_str());
         cb->callback(cbCard, this);
         m_cards.push_back(cb);
       }
-    int ySel = GY + rows * rowSp + 20;
-    m_selDisplay = new Fl_Input(50, ySel, W - 400, 60);
+    m_selDisplay = new Fl_Input(50, GY + rows * rowSp + 20, W - 400, 60);
     m_selDisplay->textsize(24);
     m_selDisplay->readonly(1);
-    m_btnRand = new Fl_Button(W - 350, ySel, 320, 60, "Generate Random Flop");
+    m_btnRand = new Fl_Button(W - 350, m_selDisplay->y(), 320, 60,
+                              "Generate Random Flop");
     m_btnRand->labelsize(24);
     m_btnRand->callback(cbRand, this);
     int yBtn = H - 200;
@@ -316,30 +328,27 @@ public:
     m_btn2Next->callback(cb2Next, this);
     m_pg2->end();
     m_pg2->hide();
-
-    // Page3 setup
+    // Page3
     m_pg3 = new Fl_Group(0, 0, W, H);
     m_lblRange = new Fl_Box(0, 20, W, 50, "Range Editor (you)");
     m_lblRange->labelfont(FL_BOLD);
     m_lblRange->labelsize(28);
     m_lblRange->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
     int RGX = 50, RGY = 100, RGW = W - 100, RGH = H - 900;
-    int rbw = RGW / 13 - 10;
-    int rbh = (RGH / 13 - 10) * 3 / 2;
-    int rsp = rbh + 8;
+    int rbw = RGW / 13 - 10, rbh = (RGH / 13 - 10) * 3 / 2, rsp = rbh + 8;
     for (int i = 0; i < 13; ++i)
       for (int j = 0; j < 13; ++j) {
         int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
         std::string lbl;
         Fl_Color base = FL_BACKGROUND_COLOR;
         if (i == j) {
-          lbl = ranks[i] + ranks[j];
+          lbl = RANKS[i] + RANKS[j];
           base = fl_rgb_color(100, 200, 100);
         } else if (j > i) {
-          lbl = ranks[i] + ranks[j] + "s";
+          lbl = RANKS[i] + RANKS[j] + "s";
           base = fl_rgb_color(100, 100, 200);
         } else {
-          lbl = ranks[j] + ranks[i] + "o";
+          lbl = RANKS[j] + RANKS[i] + "o";
         }
         auto *btn = new CardButton(x, y0, rbw, rbh, base);
         btn->copy_label(lbl.c_str());
@@ -355,7 +364,7 @@ public:
     m_pg3->end();
     m_pg3->hide();
 
-    // Page4 setup
+    // Page4
     m_pg4 = new Fl_Group(0, 0, W, H);
     m_lblVillain = new Fl_Box(0, 20, W, 50, "Range Editor (villain)");
     m_lblVillain->labelfont(FL_BOLD);
@@ -367,13 +376,13 @@ public:
         std::string lbl;
         Fl_Color base = FL_BACKGROUND_COLOR;
         if (i == j) {
-          lbl = ranks[i] + ranks[j];
+          lbl = RANKS[i] + RANKS[j];
           base = fl_rgb_color(100, 200, 100);
         } else if (j > i) {
-          lbl = ranks[i] + ranks[j] + "s";
+          lbl = RANKS[i] + RANKS[j] + "s";
           base = fl_rgb_color(100, 100, 200);
         } else {
-          lbl = ranks[j] + ranks[i] + "o";
+          lbl = RANKS[j] + RANKS[i] + "o";
         }
         auto *btn = new CardButton(x, y0, rbw, rbh, base);
         btn->copy_label(lbl.c_str());
@@ -388,6 +397,13 @@ public:
     m_btn4Next->callback(cb4Next, this);
     m_pg4->end();
     m_pg4->hide();
+    // Page5
+    m_pg5 = new Fl_Group(0, 0, W, H);
+    m_lblWait = new Fl_Box(0, 0, W, H, "Please wait...");
+    m_lblWait->labelsize(36);
+    m_lblWait->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
+    m_pg5->end();
+    m_pg5->hide();
 
     end();
   }
