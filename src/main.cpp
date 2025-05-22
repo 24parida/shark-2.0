@@ -8,7 +8,6 @@
 int main() {
   using phevaluator::Card;
 
-  // PreflopRange range3{"KK,QQ"};
   PreflopRange range1{"AA,22"};
   PreflopRange range2{"KK,QQ,AK"};
 
