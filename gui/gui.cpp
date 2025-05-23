@@ -7,12 +7,15 @@
 #include <FL/Fl_Input.H>
 #include <FL/Fl_Window.H>
 #include <FL/fl_ask.H>
+#include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Text_Buffer.H>
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -76,8 +79,15 @@ class Wizard : public Fl_Window {
   Node *m_current_node;
   PreflopRangeManager m_prm;
   std::unique_ptr<Node> m_root;
+  
+  // Track game state
+  int m_current_pot;
+  int m_p1_stack;
+  int m_p2_stack;
+  int m_p1_wager;
+  int m_p2_wager;
 
-  Fl_Group *m_pg1, *m_pg2, *m_pg3, *m_pg4, *m_pg5;
+  Fl_Group *m_pg1, *m_pg2, *m_pg3, *m_pg4, *m_pg5, *m_pg6;
 
   // Page1
   Fl_Input *m_inpStack, *m_inpPot, *m_inpMinBet, *m_inpIters;
@@ -104,6 +114,17 @@ class Wizard : public Fl_Window {
   // Page5
   Fl_Box *m_lblWait;
 
+  // Page6 - Strategy Display
+  Fl_Box *m_lblStrategy;
+  std::vector<CardButton *> m_strategyBtns;  // 13x13 grid
+  Fl_Text_Display *m_infoDisplay;  // Right side info display
+  Fl_Text_Buffer *m_infoBuffer;    // Buffer for info display
+  std::vector<Fl_Button *> m_actionBtns;  // Bottom action buttons
+  Fl_Choice *m_cardChoice;  // Turn/river card selector
+  Fl_Box *m_potInfo;  // Display for pot and stack sizes
+  Fl_Box *m_boardInfo;  // Display for board information
+  Fl_Box *m_infoTitle;  // Info box title
+
   // Callbacks
   static void cb1Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do1Next(); }
   static void cbCard(Fl_Widget *w, void *d) {
@@ -119,6 +140,9 @@ class Wizard : public Fl_Window {
   }
   static void cb4Back(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack4(); }
   static void cb4Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do4Next(); }
+  static void cbStrategy(Fl_Widget *w, void *d) { ((Wizard *)d)->doStrategy((CardButton *)w); }
+  static void cbAction(Fl_Widget *w, void *d) { ((Wizard *)d)->doAction((Fl_Button *)w); }
+  static void cbBack(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack6(); }
 
   // Page1 -> Page2
   void do1Next() {
@@ -286,7 +310,342 @@ class Wizard : public Fl_Window {
     // 9) run it
     m_root = game_tree.build();
     trainer.train(m_root.get(), m_data.iterations, m_data.min_exploitability);
-    std::cout << "completed";
+    
+    // Initialize pot and stack tracking
+    m_current_pot = m_data.startingPot;
+    m_p1_stack = m_p2_stack = m_data.stackSize;
+    m_p1_wager = m_p2_wager = 0;
+
+    // Store current node and show strategy display
+    m_current_node = m_root.get();
+    m_pg5->hide();
+    m_pg6->show();
+    updateStrategyDisplay();
+    updateActionButtons();
+    Fl::check();
+  }
+
+  void updatePotAndStacks(const Action &action, int player) {
+    // Update wagers based on action
+    int &current_wager = (player == 1) ? m_p1_wager : m_p2_wager;
+    int &other_wager = (player == 1) ? m_p2_wager : m_p1_wager;
+    int &current_stack = (player == 1) ? m_p1_stack : m_p2_stack;
+    int &other_stack = (player == 1) ? m_p2_stack : m_p1_stack;
+    
+    switch (action.type) {
+      case Action::FOLD:
+        // Pot and all wagers go to other player
+        other_stack += m_current_pot + current_wager + other_wager;
+        m_current_pot = 0;
+        m_p1_wager = m_p2_wager = 0;
+        break;
+        
+      case Action::CHECK:
+        if (current_wager == other_wager && current_wager > 0) {
+          // If both players have wagered equally, move wagers to pot
+          m_current_pot += current_wager + other_wager;
+          m_p1_wager = m_p2_wager = 0;
+        }
+        break;
+        
+      case Action::CALL:
+        {
+          int call_amount = other_wager - current_wager;
+          current_stack -= call_amount;
+          current_wager = other_wager;  // Match the other wager
+          // Both wagers go to pot
+          m_current_pot += current_wager + other_wager;
+          m_p1_wager = m_p2_wager = 0;
+        }
+        break;
+        
+      case Action::BET:
+        {
+          current_stack -= action.amount;
+          current_wager = action.amount;
+        }
+        break;
+        
+      case Action::RAISE:
+        {
+          int additional_amount = action.amount - current_wager;
+          current_stack -= additional_amount;
+          current_wager = action.amount;
+        }
+        break;
+    }
+  }
+
+  void updateStrategyDisplay() {
+    // Clear title for terminal nodes
+    if (m_current_node && m_current_node->get_node_type() == NodeType::TERMINAL_NODE) {
+      m_lblStrategy->copy_label("Terminal Node - Hand Complete");
+      
+      // Hide action buttons at terminal nodes
+      for (auto *btn : m_actionBtns) {
+        btn->hide();
+      }
+      return;
+    }
+
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
+      return;
+
+    auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
+    const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
+    
+    // Update title
+    std::string title = (action_node->get_player() == 1 ? "Hero's" : "Villain's") + std::string(" Turn");
+    m_lblStrategy->copy_label(title.c_str());
+
+    // Update board info
+    std::string board = "Board: ";
+    for (const auto &card : m_data.board) {
+      board += card + " ";
+    }
+    m_boardInfo->copy_label(board.c_str());
+
+    // Update pot/stack info
+    std::string info = "Hero: " + std::to_string(m_p1_stack) + 
+                      " | Villain: " + std::to_string(m_p2_stack) + 
+                      " | Pot: " + std::to_string(m_current_pot);
+    m_potInfo->copy_label(info.c_str());
+
+    // Update grid
+    for (int r = 0; r < 13; r++) {
+      for (int c = 0; c < 13; c++) {
+        auto *btn = m_strategyBtns[r * 13 + c];
+        std::string hand;
+        
+        if (r == c) {
+          // Pocket pair
+          hand = RANKS[r] + RANKS[r];
+        } else if (c > r) {
+          // Suited
+          hand = RANKS[r] + RANKS[c] + "s";
+        } else {
+          // Offsuit
+          hand = RANKS[c] + RANKS[r] + "o";
+        }
+        
+        btn->copy_label(hand.c_str());
+        
+        // Find if this hand is in the range
+        bool in_range = false;
+        for (const auto &h : hands) {
+          if (h.to_string() == hand) {
+            in_range = true;
+            break;
+          }
+        }
+        
+        if (in_range) {
+          btn->color(fl_rgb_color(100, 200, 100));  // Green for available
+        } else {
+          btn->color(FL_BACKGROUND_COLOR);  // White for unavailable
+        }
+      }
+    }
+  }
+
+  void updateActionButtons() {
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
+      return;
+
+    auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
+    const auto &actions = action_node->get_actions();
+
+    // Hide all buttons first
+    for (auto *btn : m_actionBtns)
+      btn->hide();
+
+    // Show and update available action buttons
+    for (size_t i = 0; i < actions.size() && i < m_actionBtns.size(); ++i) {
+      const auto &action = actions[i];
+      std::string label;
+      switch (action.type) {
+        case Action::FOLD: label = "Fold"; break;
+        case Action::CHECK: label = "Check"; break;
+        case Action::CALL: label = "Call " + std::to_string(action.amount); break;
+        case Action::BET: label = "Bet " + std::to_string(action.amount); break;
+        case Action::RAISE: label = "Raise to " + std::to_string(action.amount); break;
+      }
+      m_actionBtns[i]->copy_label(label.c_str());
+      m_actionBtns[i]->show();
+    }
+  }
+
+  void updateInfoBox(const std::string &hand) {
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
+      return;
+
+    auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
+    const auto &strategy = action_node->get_average_strat();
+    const auto &actions = action_node->get_actions();
+    const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
+    
+    // Get all specific combos for this hand
+    std::vector<std::pair<std::string, size_t>> combos;
+    for (size_t i = 0; i < hands.size(); ++i) {
+      const auto &h = hands[i];
+      std::string hand_str = h.to_string();
+      
+      // Convert hand string format from "(Ah, Ad)" to "AhAd"
+      hand_str = hand_str.substr(1, hand_str.length() - 2);
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ' '), hand_str.end());
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ','), hand_str.end());
+      
+      // Get the rank+suit format (e.g., "AKs" from "AhKh")
+      std::string rank1 = hand_str.substr(0, 1);
+      std::string rank2 = hand_str.substr(2, 1);
+      bool suited = hand_str[1] == hand_str[3];
+      std::string hand_format = rank1 + rank2 + (suited ? "s" : "o");
+      if (rank1 == rank2) hand_format = rank1 + rank2;
+      
+      if (hand_format == hand) {
+        // Check if combo overlaps with board
+        bool overlaps = false;
+        for (const auto &board_card : m_data.board) {
+          Card card(board_card.c_str());
+          if (h.hand1 == card || h.hand2 == card) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (!overlaps) {
+          std::string combo = h.hand1.describeCard() + h.hand2.describeCard();
+          combos.emplace_back(combo, i);
+        }
+      }
+    }
+    
+    if (combos.empty()) return;
+
+    // Build strategy info string with better formatting and bigger text
+    std::string info = "\n" + hand + " Combos:\n\n";
+    for (const auto &combo : combos) {
+      info += combo.first + ":\n\n";
+      
+      bool has_actions = false;
+      std::string action_info;
+      
+      for (size_t i = 0; i < actions.size(); ++i) {
+        const auto &action = actions[i];
+        size_t strat_idx = combo.second + i * hands.size();
+        
+        if (strat_idx < strategy.size()) {
+          float prob = strategy[strat_idx] * 100.0f;
+          if (prob < 0.1f) continue;
+          
+          has_actions = true;
+          std::string action_str;
+          switch (action.type) {
+            case Action::FOLD: action_str = "Fold"; break;
+            case Action::CHECK: action_str = "Check"; break;
+            case Action::CALL: action_str = "Call " + std::to_string(action.amount); break;
+            case Action::BET: action_str = "Bet " + std::to_string(action.amount); break;
+            case Action::RAISE: action_str = "Raise to " + std::to_string(action.amount); break;
+          }
+          action_info += "      " + action_str + ": " + std::to_string(int(prob + 0.5f)) + "%\n\n";
+        }
+      }
+      
+      if (has_actions) {
+        info += action_info + "\n";
+      }
+    }
+    
+    m_infoBuffer->text(info.c_str());
+    m_infoDisplay->scroll(0, 0);  // Scroll to top when updating
+  }
+
+  void doStrategy(CardButton *btn) {
+    updateInfoBox(btn->label());
+  }
+
+  void doAction(Fl_Button *btn) {
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
+      return;
+
+    auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
+    const auto &actions = action_node->get_actions();
+    
+    // Find which action button was clicked
+    size_t btn_idx = 0;
+    for (; btn_idx < m_actionBtns.size(); ++btn_idx) {
+      if (m_actionBtns[btn_idx] == btn)
+        break;
+    }
+    
+    if (btn_idx >= actions.size())
+      return;
+
+    // Update pot and stacks based on action
+    updatePotAndStacks(actions[btn_idx], action_node->get_player());
+
+    // Update display BEFORE transitioning to next node
+    std::string info = "Hero: " + std::to_string(m_p1_stack) + 
+                      " | Villain: " + std::to_string(m_p2_stack) + 
+                      " | Pot: " + std::to_string(m_current_pot);
+    m_potInfo->copy_label(info.c_str());
+    m_potInfo->redraw();
+
+    // Navigate to next node
+    m_current_node = action_node->get_child(btn_idx);
+    
+    if (m_current_node->get_node_type() == NodeType::CHANCE_NODE) {
+      // Show card selection dropdown
+      m_cardChoice->clear();
+      
+      // Add valid turn/river cards
+      std::set<std::string> used_cards;
+      for (const auto &card : m_data.board) {
+        used_cards.insert(card);
+      }
+      
+      // Add all possible cards that aren't on the board
+      for (const auto &rank : RANKS) {
+        for (const auto &suit : SUITS) {
+          std::string card = rank + std::string(1, suit);
+          if (used_cards.find(card) == used_cards.end()) {
+            m_cardChoice->add(card.c_str());
+          }
+        }
+      }
+
+      // Update title based on chance type
+      auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
+      std::string prompt = "Please Select ";
+      prompt += (chance_node->get_type() == ChanceNode::DEAL_TURN ? "Turn" : "River");
+      prompt += " Card";
+      m_lblStrategy->copy_label(prompt.c_str());
+      
+      m_cardChoice->show();
+    } else {
+      m_cardChoice->hide();
+      updateStrategyDisplay();
+      updateActionButtons();
+    }
+  }
+
+  void doCardSelect() {
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::CHANCE_NODE)
+      return;
+
+    auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
+    int selected_card = m_cardChoice->value();
+    
+    // Navigate to selected card's node
+    m_current_node = chance_node->get_child(selected_card);
+    m_cardChoice->hide();
+    
+    updateStrategyDisplay();
+    updateActionButtons();
+  }
+
+  void doBack6() {
+    m_pg6->hide();
+    m_pg4->show();  // Go back to range selection
   }
 
 public:
@@ -485,6 +844,131 @@ public:
     m_lblWait->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
     m_pg5->end();
     m_pg5->hide();
+
+    // Page6 - Strategy Display
+    m_pg6 = new Fl_Group(0, 0, W, H);
+    m_pg6->box(FL_FLAT_BOX);
+    m_pg6->color(fl_rgb_color(240, 240, 240));  // Light gray background
+
+    // Title area with more spacing
+    int titleY = 30;
+    int titleH = 25;
+    int infoSpacing = 20;
+    
+    // Player turn - large bold title
+    m_lblStrategy = new Fl_Box(0, titleY, W, titleH);
+    m_lblStrategy->labelsize(28);
+    m_lblStrategy->labelfont(FL_HELVETICA_BOLD);
+    m_lblStrategy->align(FL_ALIGN_CENTER);
+
+    // Board info - medium size
+    m_boardInfo = new Fl_Box(0, titleY + titleH + 5, W, titleH);
+    m_boardInfo->labelsize(16);
+    m_boardInfo->labelfont(FL_HELVETICA);
+    m_boardInfo->align(FL_ALIGN_CENTER);
+
+    // Stack and pot info - smaller size
+    m_potInfo = new Fl_Box(0, titleY + 2*titleH + 10, W, titleH);
+    m_potInfo->labelsize(14);
+    m_potInfo->labelfont(FL_HELVETICA);
+    m_potInfo->align(FL_ALIGN_CENTER);
+
+    int headerHeight = titleY + 3*titleH + 30;
+
+    // Grid on left side (2/3 of width)
+    int gridX = 40;
+    int gridY = headerHeight;
+    int gridW = (W * 2) / 3 - 80;
+    int gridH = H - gridY - 100;
+    
+    // Calculate cell size for circular buttons - 7.5% smaller
+    int cellSize = std::min(gridW / 13, gridH / 13);
+    cellSize = static_cast<int>(cellSize * 0.925);  // 7.5% smaller instead of 0.85
+    int cellPadding = 6;
+    
+    // Center the grid
+    gridX = (((W * 2) / 3) - (13 * (cellSize + cellPadding))) / 2;
+    
+    // Create grid buttons
+    for (int r = 0; r < 13; r++) {
+        for (int c = 0; c < 13; c++) {
+            int x = gridX + c * (cellSize + cellPadding);
+            int y = gridY + r * (cellSize + cellPadding);
+            
+            auto *btn = new CardButton(x, y, cellSize, cellSize, FL_BACKGROUND_COLOR);
+            btn->box(FL_ROUND_DOWN_BOX);
+            btn->labelsize(14);
+            btn->labelfont(FL_HELVETICA_BOLD);
+            btn->callback(cbStrategy, this);
+            m_strategyBtns.push_back(btn);
+        }
+    }
+
+    // Strategy info box on right side
+    int infoX = (W * 2) / 3 + 20;
+    int infoY = headerHeight;
+    int infoW = (W / 3) - 40;
+    int infoH = H - infoY - 100;
+    
+    // Info box title
+    m_infoTitle = new Fl_Box(infoX, infoY - 30, infoW, 25, "Hand Analysis");
+    m_infoTitle->labelsize(24);
+    m_infoTitle->labelfont(FL_HELVETICA_BOLD);
+    m_infoTitle->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+    
+    // Create text buffer and display for scrollable info
+    m_infoBuffer = new Fl_Text_Buffer();
+    m_infoDisplay = new Fl_Text_Display(infoX, infoY, infoW, infoH);
+    m_infoDisplay->buffer(m_infoBuffer);
+    m_infoDisplay->textsize(22);
+    m_infoDisplay->textfont(FL_HELVETICA);
+    m_infoDisplay->box(FL_FLAT_BOX);
+    m_infoDisplay->color(fl_rgb_color(230, 230, 230));
+    m_infoDisplay->selection_color(fl_rgb_color(200, 200, 200));
+    m_infoDisplay->scrollbar_width(15);
+    m_infoDisplay->scrollbar_align(FL_ALIGN_RIGHT);
+
+    // Action buttons at bottom
+    int btnY = H - 70;
+    int btnW = 100;
+    int btnH = 35;
+    int btnSpacing = 15;
+    
+    // Back button on far left with more spacing
+    int backBtnW = 70;
+    int backBtnH = 30;
+    int backBtnY = btnY + (btnH - backBtnH)/2;
+    auto *backBtn = new Fl_Button(40, backBtnY, backBtnW, backBtnH, "Back");
+    backBtn->labelsize(12);
+    backBtn->labelfont(FL_HELVETICA_BOLD);
+    backBtn->box(FL_FLAT_BOX);
+    backBtn->color(fl_rgb_color(200, 200, 200));
+    backBtn->callback(cbBack, this);
+
+    // Action buttons on right
+    int actionBtnX = W - (4 * btnW + 3 * btnSpacing + 40);
+    for (int i = 0; i < 4; i++) {
+        auto *btn = new Fl_Button(actionBtnX + i * (btnW + btnSpacing), btnY, btnW, btnH);
+        btn->labelsize(14);
+        btn->labelfont(FL_HELVETICA_BOLD);
+        btn->box(FL_FLAT_BOX);
+        btn->color(fl_rgb_color(220, 220, 220));
+        btn->callback(cbAction, this);
+        m_actionBtns.push_back(btn);
+    }
+
+    // Card choice dropdown - position to the left of action buttons
+    int dropdownX = actionBtnX - btnW * 2 - btnSpacing;
+    m_cardChoice = new Fl_Choice(dropdownX, btnY, btnW * 1.5, btnH);
+    m_cardChoice->labelsize(14);
+    m_cardChoice->labelfont(FL_HELVETICA);
+    m_cardChoice->callback([](Fl_Widget* w, void* v) {
+        ((Wizard*)v)->doCardSelect();
+    }, this);
+    m_cardChoice->hide();
+
+    m_pg6->end();
+    m_pg6->hide();
 
     end();
   }
