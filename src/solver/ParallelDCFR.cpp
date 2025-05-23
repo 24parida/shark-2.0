@@ -1,8 +1,6 @@
 #include "Solver.hh"
 #include "hands/PreflopCombo.hh"
 #include "tree/Nodes.hh"
-#include <chrono>
-#include <iostream>
 #include <oneapi/tbb/task_group.h>
 #include <tbb/global_control.h>
 
@@ -23,12 +21,12 @@ void ParallelDCFR::load_trainer_modules(Node *const node) {
   }
 }
 
-void ParallelDCFR::train(Node *root, const int iterations) {
-  tbb::global_control c{tbb::global_control::max_allowed_parallelism, 8};
+void ParallelDCFR::train(Node *root, const int iterations,
+                         const float min_exploit) {
+  tbb::global_control c{tbb::global_control::max_allowed_parallelism,
+                        std::thread::hardware_concurrency()};
 
   load_trainer_modules(root);
-
-  const auto start = std::chrono::high_resolution_clock::now();
 
   auto hero_preflop_combos{m_prm.get_preflop_combos(1)};
   auto villain_preflop_combos{m_prm.get_preflop_combos(2)};
@@ -41,16 +39,13 @@ void ParallelDCFR::train(Node *root, const int iterations) {
     cfr(2, 1, root, i, villain_preflop_combos, hero_preflop_combos,
         villain_reach_probs, hero_reach_probs);
 
-    if (i % static_cast<int>(iterations / 3) == 0 && i != 0) {
-      m_brm.print_exploitability(root, i, m_init_board, m_init_pot,
-                                 m_in_position_player);
+    if (i % static_cast<int>(iterations / 5) == 0 && i != 0) {
+      float exploit = m_brm.get_exploitability(
+          root, i, m_init_board, m_init_pot, m_in_position_player);
+      if (exploit < min_exploit)
+        return;
     }
   }
-
-  const auto end = std::chrono::high_resolution_clock::now();
-  const auto duration =
-      std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-  std::cout << "process took " << duration << '\n';
 }
 
 void ParallelDCFR::cfr(const int hero, const int villain, Node *root,

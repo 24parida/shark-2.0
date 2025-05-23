@@ -7,6 +7,7 @@ class PreflopRangeManager {
   std::vector<PreflopCombo> m_p2_preflop_combos;
 
 public:
+  PreflopRangeManager() = default;
   PreflopRangeManager(const std::vector<PreflopCombo> &p1_preflop_combos,
                       const std::vector<PreflopCombo> &p2_preflop_combos,
                       const std::vector<Card> &init_board)

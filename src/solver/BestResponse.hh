@@ -22,9 +22,9 @@ public:
                              const std::vector<Card> &board,
                              const std::vector<int> &hero_to_villain);
 
-  void print_exploitability(Node *node, int iteration_count,
-                            const std::vector<Card> &board, int init_pot,
-                            int in_position_player);
+  float get_exploitability(Node *node, int iteration_count,
+                           const std::vector<Card> &board, int init_pot,
+                           int in_position_player);
 
   auto
   get_unblocked_combo_counts(const std::vector<PreflopCombo> &hero_combos,

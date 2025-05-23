@@ -1,4 +1,3 @@
-
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Button.H>
@@ -11,14 +10,15 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 #include <numeric>
 #include <random>
 #include <string>
-#include <thread>
 #include <vector>
 
 // Solver headers
 #include "hands/PreflopRange.hh"
+#include "hands/PreflopRangeManager.hh"
 #include "solver/Solver.hh"
 #include "tree/GameTree.hh"
 #include "tree/Nodes.hh"
@@ -26,6 +26,7 @@
 static const std::vector<std::string> RANKS = {
     "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
 static const std::vector<char> SUITS = {'h', 'd', 'c', 's'};
+constexpr float SCALE = 1.6f;
 
 class CardButton : public Fl_Button {
   Fl_Color m_base;
@@ -39,6 +40,7 @@ public:
     labelcolor(FL_WHITE);
     labelsize(18);
     color(m_base);
+    visible_focus(false);
   }
   void toggle() {
     m_sel = !m_sel;
@@ -50,6 +52,13 @@ public:
       toggle();
   }
   bool selected() const { return m_sel; }
+
+protected:
+  int handle(int event) override {
+    if (event == FL_FOCUS || event == FL_UNFOCUS)
+      return 0;
+    return Fl_Button::handle(event);
+  }
 };
 const Fl_Color CardButton::HIGHLIGHT = fl_rgb_color(255, 200, 0);
 
@@ -61,13 +70,18 @@ class Wizard : public Fl_Window {
     std::vector<std::string> board;
     std::vector<std::string> heroRange;
     std::vector<std::string> villainRange;
+    float min_exploitability{};
   } m_data;
+
+  Node *m_current_node;
+  PreflopRangeManager m_prm;
+  std::unique_ptr<Node> m_root;
 
   Fl_Group *m_pg1, *m_pg2, *m_pg3, *m_pg4, *m_pg5;
 
   // Page1
   Fl_Input *m_inpStack, *m_inpPot, *m_inpMinBet, *m_inpIters;
-  Fl_Float_Input *m_inpAllIn;
+  Fl_Float_Input *m_inpAllIn, *m_inpMinExploit;
   Fl_Choice *m_choPotType, *m_choYourPos, *m_choTheirPos;
   Fl_Button *m_btn1Next;
 
@@ -110,7 +124,7 @@ class Wizard : public Fl_Window {
   void do1Next() {
     if (!*m_inpStack->value() || !*m_inpPot->value() ||
         !*m_inpMinBet->value() || !*m_inpAllIn->value() ||
-        !*m_inpIters->value()) {
+        !*m_inpIters->value() || !*m_inpMinExploit->value()) {
       fl_message("Please fill out all fields.");
       return;
     }
@@ -123,9 +137,12 @@ class Wizard : public Fl_Window {
     m_data.minBet = std::atoi(m_inpMinBet->value());
     m_data.allInThreshold = std::atof(m_inpAllIn->value());
     m_data.iterations = std::atoi(m_inpIters->value());
+    m_data.min_exploitability = std::atof(m_inpMinExploit->value());
+
     m_data.potType = m_choPotType->text();
     m_data.yourPos = m_choYourPos->text();
     m_data.theirPos = m_choTheirPos->text();
+
     m_pg1->hide();
     m_pg2->show();
   }
@@ -206,21 +223,70 @@ class Wizard : public Fl_Window {
     m_pg4->hide();
     m_pg3->show();
   }
+
   // Page4 villain range
   void do4Next() {
+    // 1) collect villain‐range selections
     m_data.villainRange.clear();
     for (auto *b : m_villainBtns)
       if (b->selected())
         m_data.villainRange.push_back(b->label());
-
     if (m_data.villainRange.empty()) {
       fl_message("Please select at least one hand for the villain's range.");
       return;
     }
 
-    // move to waiting page
+    // 2) flip to the waiting page
     m_pg4->hide();
     m_pg5->show();
+    Fl::check(); // ensure UI redraws immediately
+
+    // 3) helper to turn vector<string> → comma‑list
+    auto join = [](const std::vector<std::string> &v) {
+      std::string s;
+      for (size_t i = 0; i < v.size(); ++i) {
+        if (i)
+          s += ",";
+        s += v[i];
+      }
+      return s;
+    };
+
+    // 4) build PreflopRange from your & villain selections
+    PreflopRange range1{join(m_data.heroRange)};
+    PreflopRange range2{join(m_data.villainRange)};
+
+    // 5) convert board labels into Cards
+    std::vector<Card> board;
+    for (auto &lbl : m_data.board)
+      board.emplace_back(lbl.c_str());
+
+    // 6) figure out who is in‐position (choice index)
+    int heroPos = m_choYourPos->value();
+    int villainPos = m_choTheirPos->value();
+    int ip = (heroPos > villainPos ? 1 : 2);
+
+    // 7) assemble settings
+    TreeBuilderSettings settings{range1,
+                                 range2,
+                                 ip,
+                                 board,
+                                 m_data.stackSize,
+                                 m_data.startingPot,
+                                 m_data.minBet,
+                                 m_data.allInThreshold};
+
+    // 8) build manager + tree + trainer
+    m_prm = PreflopRangeManager(range1.preflop_combos, range2.preflop_combos,
+                                settings.initial_board);
+    GameTree game_tree{settings};
+    ParallelDCFR trainer{m_prm, settings.initial_board, settings.starting_pot,
+                         settings.in_position_player};
+
+    // 9) run it
+    m_root = game_tree.build();
+    trainer.train(m_root.get(), m_data.iterations, m_data.min_exploitability);
+    std::cout << "completed";
   }
 
 public:
@@ -257,6 +323,7 @@ public:
     y += h + sp;
     addLbl("All-In Thresh:");
     addFlt(m_inpAllIn);
+    m_inpAllIn->value("0.67");
     y += h + sp;
     addLbl("Type of pot:");
     addCh(m_choPotType);
@@ -276,6 +343,12 @@ public:
     addLbl("Iterations:");
     addInp(m_inpIters);
     y += h + sp * 2;
+    m_inpIters->value("100");
+    addLbl("Min Exploitability (%):");
+    addFlt(m_inpMinExploit);
+    m_inpMinExploit->value("1.0");
+    y += h + sp * 2;
+
     m_btn1Next = new Fl_Button((W - 300) / 2, y, 300, 70, "Next");
     m_btn1Next->labelsize(24);
     m_btn1Next->callback(cb1Next, this);
@@ -287,8 +360,9 @@ public:
     m_lblBoard->labelsize(28);
     m_lblBoard->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
     int cols = 4, rows = 13, GX = 50, GY = 100, GW = W - 100, GH = H - 900;
-    int bw = GW / cols - 10, bh = GH / rows - 10, cardH = (bh * 3) / 2,
-        rowSp = cardH + 8;
+    int bw = int((static_cast<float>(GW) / cols - 10)),
+        bh = int((static_cast<float>(GH) / rows - 10) * SCALE),
+        cardH = (bh * 3) / 2, rowSp = cardH + 8;
     for (int r = 0; r < rows; ++r)
       for (int s = 0; s < cols; ++s) {
         int x = GX + s * (bw + 10), y0 = GY + r * rowSp;
@@ -335,7 +409,11 @@ public:
     m_lblRange->labelsize(28);
     m_lblRange->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
     int RGX = 50, RGY = 100, RGW = W - 100, RGH = H - 900;
-    int rbw = RGW / 13 - 10, rbh = (RGH / 13 - 10) * 3 / 2, rsp = rbh + 8;
+
+    int rbw = int((static_cast<float>(RGW) / 13 - 10)),
+        rbh = int(((static_cast<float>(RGH) / 13 - 10) * 3 / 2) * SCALE),
+        rsp = rbh + 8;
+
     for (int i = 0; i < 13; ++i)
       for (int j = 0; j < 13; ++j) {
         int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
@@ -353,6 +431,7 @@ public:
         auto *btn = new CardButton(x, y0, rbw, rbh, base);
         btn->copy_label(lbl.c_str());
         btn->callback(cbRange, this);
+        btn->clear_visible_focus();
         m_rangeBtns.push_back(btn);
       }
     m_btn3Back = new Fl_Button(50, yBtn, 300, 100, "Back");
@@ -387,6 +466,7 @@ public:
         auto *btn = new CardButton(x, y0, rbw, rbh, base);
         btn->copy_label(lbl.c_str());
         btn->callback(cbRange, this);
+        btn->clear_visible_focus();
         m_villainBtns.push_back(btn);
       }
     m_btn4Back = new Fl_Button(50, yBtn, 300, 100, "Back");
@@ -397,6 +477,7 @@ public:
     m_btn4Next->callback(cb4Next, this);
     m_pg4->end();
     m_pg4->hide();
+
     // Page5
     m_pg5 = new Fl_Group(0, 0, W, H);
     m_lblWait = new Fl_Box(0, 0, W, H, "Please wait...");
@@ -410,6 +491,8 @@ public:
 };
 
 int main(int argc, char **argv) {
+  fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 3);
+  fl_message_hotspot(1);
   Wizard wiz(2000, 1375, "Wizard");
   wiz.show(argc, argv);
   return Fl::run();

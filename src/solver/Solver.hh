@@ -26,7 +26,7 @@ public:
         m_in_position_player(in_position_player) {}
 
   void load_trainer_modules(Node *const node);
-  void train(Node *root, const int iterations);
+  void train(Node *root, const int iterations, const float min_explot = -1.0);
 
   void cfr(const int hero, const int villain, Node *root,
            const int iteration_count,

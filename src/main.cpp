@@ -2,7 +2,6 @@
 #include "solver/Solver.hh"
 #include "tree/GameTree.hh"
 #include "tree/Nodes.hh"
-#include <fstream>
 #include <iostream>
 
 int main() {
@@ -22,10 +21,7 @@ int main() {
                        settings.in_position_player};
 
   std::unique_ptr<Node> root{game_tree.build()};
-  trainer.train(root.get(), 500);
-
-  std::ofstream file{"strat.json"};
-  file << game_tree.jsonify_tree(root.get(), prm).dump(4);
+  trainer.train(root.get(), 100, 1.0);
 
   std::cout << "successfully completed" << '\n';
   return 0;

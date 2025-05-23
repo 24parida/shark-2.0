@@ -33,9 +33,9 @@ float BestResponse::get_best_response_ev(
   return ev;
 }
 
-void BestResponse::print_exploitability(Node *node, int iteration_count,
-                                        const std::vector<Card> &board,
-                                        int init_pot, int in_position_player) {
+float BestResponse::get_exploitability(Node *node, int iteration_count,
+                                       const std::vector<Card> &board,
+                                       int init_pot, int in_position_player) {
 
   const int p1{in_position_player == 2 ? 1 : 2};
   const int p2{in_position_player == 2 ? 2 : 1};
@@ -76,12 +76,13 @@ void BestResponse::print_exploitability(Node *node, int iteration_count,
                                    p2_to_p1)};
 
   float exploitability{(oop_ev + ip_ev) / 2 / init_pot * 100};
-  std::cout << "-------------------------------------------" << '\n';
-  std::cout << "OOP BEST RESPONSE EV: " << oop_ev << '\n';
-  std::cout << "IP BEST RESPONSE EV: " << ip_ev << '\n';
-  std::cout << "exploitability at iteration " << iteration_count << " is "
-            << exploitability << "% of the pot per hand" << '\n';
-  std::cout << "-------------------------------------------" << '\n';
+  // std::cout << "-------------------------------------------" << '\n';
+  // std::cout << "OOP BEST RESPONSE EV: " << oop_ev << '\n';
+  // std::cout << "IP BEST RESPONSE EV: " << ip_ev << '\n';
+  // std::cout << "exploitability at iteration " << iteration_count << " is "
+  //           << exploitability << "% of the pot per hand" << '\n';
+  // std::cout << "-------------------------------------------" << '\n';
+  return exploitability;
 }
 
 auto BestResponse::get_unblocked_combo_counts(
