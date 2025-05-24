@@ -1,3 +1,6 @@
 [submodule "include/PokerHandEvaluator"]
 	path = include/PokerHandEvaluator
 	url = https://github.com/HenryRLee/PokerHandEvaluator.git
+[submodule "include/include/PokerHandEvaluator"]
+	path = include/include/PokerHandEvaluator
+	url = https://github.com/HenryRLee/PokerHandEvaluator.git
