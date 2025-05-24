@@ -132,6 +132,7 @@ class CardButton : public Fl_Button {
   bool m_sel = false;
   bool m_strategy_sel = false;  // New: separate tracking for strategy selection
   static const Fl_Color HIGHLIGHT;
+  static const Fl_Color UNCOLORED_BG;  // New: background color for uncolored cards
   std::vector<std::pair<Fl_Color, float>> m_strategy_colors; // Color and percentage pairs
 
 public:
@@ -228,7 +229,18 @@ protected:
         fl_line_style(0);  // Reset line style
       }
     } else {
-      Fl_Button::draw();  // Use default drawing if no strategy colors
+      // For non-strategy buttons, draw shaded background if uncolored
+      if (m_base == FL_BACKGROUND_COLOR) {
+        int x = this->x();
+        int y = this->y();
+        int w = this->w();
+        int h = this->h();
+        
+        // Draw shaded background
+        fl_color(UNCOLORED_BG);
+        fl_rectf(x, y, w, h);
+      }
+      Fl_Button::draw();  // Use default drawing
     }
   }
 
@@ -240,6 +252,7 @@ protected:
 };
 
 const Fl_Color CardButton::HIGHLIGHT = fl_rgb_color(255, 200, 0);
+const Fl_Color CardButton::UNCOLORED_BG = fl_rgb_color(80, 80, 80);  // Changed to match range picker gray
 
 class Wizard : public Fl_Window {
   struct UserInputs {
@@ -1326,7 +1339,7 @@ public:
         for (int j = 0; j < 13; ++j) {
             int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
             std::string lbl;
-            Fl_Color base = FL_BACKGROUND_COLOR;
+            Fl_Color base;
             if (i == j) {
                 lbl = RANKS[i] + RANKS[j];
                 base = fl_rgb_color(100, 200, 100);
@@ -1335,6 +1348,7 @@ public:
                 base = fl_rgb_color(100, 100, 200);
             } else {
                 lbl = RANKS[j] + RANKS[i] + "o";
+                base = fl_rgb_color(80, 80, 80);  // Changed from FL_BACKGROUND_COLOR to a medium gray
             }
             auto *btn = new CardButton(x, y0, rbw, rbh, base);
             btn->copy_label(lbl.c_str());
@@ -1367,7 +1381,7 @@ public:
         for (int j = 0; j < 13; ++j) {
             int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
             std::string lbl;
-            Fl_Color base = FL_BACKGROUND_COLOR;
+            Fl_Color base;
             if (i == j) {
                 lbl = RANKS[i] + RANKS[j];
                 base = fl_rgb_color(100, 200, 100);
@@ -1376,6 +1390,7 @@ public:
                 base = fl_rgb_color(100, 100, 200);
             } else {
                 lbl = RANKS[j] + RANKS[i] + "o";
+                base = fl_rgb_color(80, 80, 80);  // Changed from FL_BACKGROUND_COLOR to a medium gray
             }
             auto *btn = new CardButton(x, y0, rbw, rbh, base);
             btn->copy_label(lbl.c_str());
