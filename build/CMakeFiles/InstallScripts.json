@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/aparida/projects/shark-2.0/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

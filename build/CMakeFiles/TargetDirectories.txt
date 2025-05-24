@@ -1,0 +1,3 @@
+/home/aparida/projects/shark-2.0/build/CMakeFiles/poker_gui.dir
+/home/aparida/projects/shark-2.0/build/CMakeFiles/edit_cache.dir
+/home/aparida/projects/shark-2.0/build/CMakeFiles/rebuild_cache.dir
