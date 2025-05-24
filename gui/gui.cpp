@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <map>
 
 // Solver headers
 #include "hands/PreflopRange.hh"
@@ -35,28 +36,66 @@ class CardButton : public Fl_Button {
   Fl_Color m_base;
   bool m_sel = false;
   static const Fl_Color HIGHLIGHT;
+  std::vector<std::pair<Fl_Color, float>> m_strategy_colors;  // Color and percentage pairs
 
 public:
   CardButton(int X, int Y, int W, int H, Fl_Color baseColor)
       : Fl_Button(X, Y, W, H, ""), m_base(baseColor) {
-    box(FL_ROUND_UP_BOX);
+    box(FL_FLAT_BOX);  // Change to flat box for square shape
     labelcolor(FL_WHITE);
     labelsize(18);
     color(m_base);
     visible_focus(false);
   }
+
   void toggle() {
     m_sel = !m_sel;
     color(m_sel ? HIGHLIGHT : m_base);
     redraw();
   }
+
   void select(bool s) {
     if (s != m_sel)
       toggle();
   }
+
   bool selected() const { return m_sel; }
 
+  // Set strategy colors with their percentages
+  void setStrategyColors(const std::vector<std::pair<Fl_Color, float>>& colors) {
+    m_strategy_colors = colors;
+    redraw();
+  }
+
 protected:
+  void draw() override {
+    // Draw base button
+    Fl_Button::draw();
+    
+    if (!m_strategy_colors.empty()) {
+      int x = this->x();
+      int y = this->y();
+      int w = this->w();
+      int h = this->h();
+      
+      // Draw strategy color bars
+      int current_y = y;
+      for (const auto& [color, percentage] : m_strategy_colors) {
+        if (percentage > 0.001f) {  // Only draw if > 0.1%
+          int bar_height = static_cast<int>(h * percentage);
+          fl_color(color);
+          fl_rectf(x, current_y, w, bar_height);
+          current_y += bar_height;
+        }
+      }
+      
+      // Redraw label on top
+      fl_color(labelcolor());
+      fl_font(labelfont(), labelsize());
+      fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
+    }
+  }
+
   int handle(int event) override {
     if (event == FL_FOCUS || event == FL_UNFOCUS)
       return 0;
@@ -125,6 +164,18 @@ class Wizard : public Fl_Window {
   Fl_Box *m_boardInfo;  // Display for board information
   Fl_Box *m_infoTitle;  // Info box title
 
+  // Add undo history tracking
+  struct GameState {
+    Node* node;
+    int p1_stack;
+    int p2_stack;
+    int current_pot;
+    int p1_wager;
+    int p2_wager;
+    std::vector<std::string> board;
+  };
+  std::vector<GameState> m_history;
+
   // Callbacks
   static void cb1Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do1Next(); }
   static void cbCard(Fl_Widget *w, void *d) {
@@ -143,6 +194,7 @@ class Wizard : public Fl_Window {
   static void cbStrategy(Fl_Widget *w, void *d) { ((Wizard *)d)->doStrategy((CardButton *)w); }
   static void cbAction(Fl_Widget *w, void *d) { ((Wizard *)d)->doAction((Fl_Button *)w); }
   static void cbBack(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack6(); }
+  static void cbUndo(Fl_Widget *w, void *d) { ((Wizard *)d)->doUndo(); }
 
   // Page1 -> Page2
   void do1Next() {
@@ -377,7 +429,6 @@ class Wizard : public Fl_Window {
   }
 
   void updateStrategyDisplay() {
-    // Clear title for terminal nodes
     if (m_current_node && m_current_node->get_node_type() == NodeType::TERMINAL_NODE) {
       m_lblStrategy->copy_label("Terminal Node - Hand Complete");
       
@@ -393,6 +444,8 @@ class Wizard : public Fl_Window {
 
     auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
     const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
+    const auto &strategy = action_node->get_average_strat();
+    const auto &actions = action_node->get_actions();
     
     // Update title
     std::string title = (action_node->get_player() == 1 ? "Hero's" : "Villain's") + std::string(" Turn");
@@ -411,38 +464,119 @@ class Wizard : public Fl_Window {
                       " | Pot: " + std::to_string(m_current_pot);
     m_potInfo->copy_label(info.c_str());
 
-    // Update grid
+    // Create map to store aggregated strategies for each hand type
+    std::map<std::string, std::vector<float>> handTypeStrategies;
+    std::map<std::string, int> handTypeCounts;
+
+    // First pass: Aggregate all strategies for each hand type
+    size_t num_hands = hands.size();
+    for (size_t i = 0; i < num_hands; ++i) {
+      const auto &h = hands[i];
+      std::string hand_str = h.to_string();
+      
+      // Convert hand string format from "(Ah, Ad)" to "AhAd"
+      hand_str = hand_str.substr(1, hand_str.length() - 2);
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ' '), hand_str.end());
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ','), hand_str.end());
+      
+      // Get the rank+suit format (e.g., "AKs" from "AhKh")
+      std::string rank1 = hand_str.substr(0, 1);
+      std::string rank2 = hand_str.substr(2, 1);
+      bool suited = hand_str[1] == hand_str[3];
+      std::string hand_format = rank1 + rank2 + (suited ? "s" : "o");
+      if (rank1 == rank2) hand_format = rank1 + rank2;
+
+      // Check if combo overlaps with board
+      bool overlaps = false;
+      for (const auto &board_card : m_data.board) {
+        Card card(board_card.c_str());
+        if (h.hand1 == card || h.hand2 == card) {
+          overlaps = true;
+          break;
+        }
+      }
+      
+      if (!overlaps) {
+        // Initialize strategy vector if needed
+        if (handTypeStrategies.find(hand_format) == handTypeStrategies.end()) {
+          handTypeStrategies[hand_format] = std::vector<float>(actions.size(), 0.0f);
+          handTypeCounts[hand_format] = 0;
+        }
+        
+        // Add this combo's strategy - using correct indexing
+        for (size_t a = 0; a < actions.size(); ++a) {
+          size_t strat_idx = i + a * num_hands;  // Correct indexing: hand_idx + action_idx * num_hands
+          if (strat_idx < strategy.size()) {
+            handTypeStrategies[hand_format][a] += strategy[strat_idx];
+          }
+        }
+        handTypeCounts[hand_format]++;
+      }
+    }
+
+    // Update grid - now show all hands as boxes
     for (int r = 0; r < 13; r++) {
       for (int c = 0; c < 13; c++) {
         auto *btn = m_strategyBtns[r * 13 + c];
         std::string hand;
         
         if (r == c) {
-          // Pocket pair
-          hand = RANKS[r] + RANKS[r];
+          hand = RANKS[r] + RANKS[r];  // Pocket pair
         } else if (c > r) {
-          // Suited
-          hand = RANKS[r] + RANKS[c] + "s";
+          hand = RANKS[r] + RANKS[c] + "s";  // Suited
         } else {
-          // Offsuit
-          hand = RANKS[c] + RANKS[r] + "o";
+          hand = RANKS[c] + RANKS[r] + "o";  // Offsuit
         }
         
         btn->copy_label(hand.c_str());
+        btn->box(FL_FLAT_BOX);  // Always show as box
         
-        // Find if this hand is in the range
-        bool in_range = false;
-        for (const auto &h : hands) {
-          if (h.to_string() == hand) {
-            in_range = true;
-            break;
+        // Check if this hand is in the current range
+        if (handTypeStrategies.find(hand) != handTypeStrategies.end()) {
+          // Average the strategies
+          std::vector<float> avgStrategy = handTypeStrategies[hand];
+          int count = handTypeCounts[hand];
+          for (float& prob : avgStrategy) {
+            prob /= count;
           }
-        }
-        
-        if (in_range) {
-          btn->color(fl_rgb_color(100, 200, 100));  // Green for available
+          
+          // Convert strategies to colors
+          std::vector<std::pair<Fl_Color, float>> colors;
+          
+          // Aggregate probabilities by action type
+          float checkProb = 0.0f;
+          float foldProb = 0.0f;
+          float betProb = 0.0f;
+          float raiseProb = 0.0f;
+          
+          for (size_t i = 0; i < actions.size(); ++i) {
+            const auto& action = actions[i];
+            float prob = avgStrategy[i];
+            
+            switch (action.type) {
+              case Action::CHECK: checkProb += prob; break;
+              case Action::FOLD: foldProb += prob; break;
+              case Action::BET: betProb += prob; break;
+              case Action::CALL: checkProb += prob; break;  // Group call with check
+              case Action::RAISE: raiseProb += prob; break;
+            }
+          }
+          
+          // Add colors in order (they will be drawn from top to bottom)
+          if (foldProb > 0.001f) 
+            colors.emplace_back(fl_rgb_color(255, 50, 50), foldProb);  // Red for fold
+          if (checkProb > 0.001f)
+            colors.emplace_back(fl_rgb_color(50, 255, 50), checkProb);  // Green for check/call
+          if (betProb > 0.001f)
+            colors.emplace_back(fl_rgb_color(50, 50, 255), betProb);    // Blue for bet
+          if (raiseProb > 0.001f)
+            colors.emplace_back(fl_rgb_color(200, 50, 200), raiseProb); // Purple for raise
+            
+          btn->setStrategyColors(colors);
         } else {
-          btn->color(FL_BACKGROUND_COLOR);  // White for unavailable
+          // Hand not in range - show empty box
+          btn->setStrategyColors({});
+          btn->color(FL_BACKGROUND_COLOR);
         }
       }
     }
@@ -483,6 +617,15 @@ class Wizard : public Fl_Window {
     const auto &strategy = action_node->get_average_strat();
     const auto &actions = action_node->get_actions();
     const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
+    size_t num_hands = hands.size();
+    
+    // Debug info string
+    std::string info = "\n" + hand + " Analysis:\n\n";
+    info += "Board: ";
+    for (const auto &card : m_data.board) {
+      info += card + " ";
+    }
+    info += "\n\nValid Combos:\n\n";
     
     // Get all specific combos for this hand
     std::vector<std::pair<std::string, size_t>> combos;
@@ -503,41 +646,66 @@ class Wizard : public Fl_Window {
       if (rank1 == rank2) hand_format = rank1 + rank2;
       
       if (hand_format == hand) {
-        // Check if combo overlaps with board
+        // Check if combo overlaps with board or is impossible
         bool overlaps = false;
+        std::string reason;
+        
+        // First check if either card in the combo is on the board
         for (const auto &board_card : m_data.board) {
           Card card(board_card.c_str());
-          if (h.hand1 == card || h.hand2 == card) {
+          if (h.hand1 == card) {
             overlaps = true;
+            reason = "Card " + h.hand1.describeCard() + " is on board";
+            break;
+          }
+          if (h.hand2 == card) {
+            overlaps = true;
+            reason = "Card " + h.hand2.describeCard() + " is on board";
             break;
           }
         }
+        
+        std::string combo = h.hand1.describeCard() + h.hand2.describeCard();
         if (!overlaps) {
-          std::string combo = h.hand1.describeCard() + h.hand2.describeCard();
           combos.emplace_back(combo, i);
+          info += combo + " (index: " + std::to_string(i) + ")\n";
+        } else {
+          info += combo + " (blocked: " + reason + ")\n";
         }
       }
     }
     
-    if (combos.empty()) return;
-
-    // Build strategy info string with better formatting and bigger text
-    std::string info = "\n" + hand + " Combos:\n\n";
+    info += "\nStrategy for Valid Combos:\n\n";
+    
     for (const auto &combo : combos) {
-      info += combo.first + ":\n\n";
+      info += combo.first + ":\n";
       
-      bool has_actions = false;
-      std::string action_info;
+      // First calculate total cumulative strategy for this hand
+      float total = 0.0f;
+      for (size_t i = 0; i < actions.size(); ++i) {
+        size_t strat_idx = combo.second + i * num_hands;
+        if (strat_idx < strategy.size()) {
+          total += strategy[strat_idx];
+        }
+      }
       
+      info += "  Total cumulative strategy: " + std::to_string(total) + "\n\n";
+      
+      // Then calculate and display probabilities
       for (size_t i = 0; i < actions.size(); ++i) {
         const auto &action = actions[i];
-        size_t strat_idx = combo.second + i * hands.size();
+        size_t strat_idx = combo.second + i * num_hands;
         
         if (strat_idx < strategy.size()) {
-          float prob = strategy[strat_idx] * 100.0f;
-          if (prob < 0.1f) continue;
+          float raw_strat = strategy[strat_idx];
+          float prob;
+          if (total > 0) {
+            prob = raw_strat / total * 100.0f;
+          } else {
+            // If no cumulative strategy, use uniform distribution as per DCFR implementation
+            prob = 100.0f / actions.size();
+          }
           
-          has_actions = true;
           std::string action_str;
           switch (action.type) {
             case Action::FOLD: action_str = "Fold"; break;
@@ -546,13 +714,12 @@ class Wizard : public Fl_Window {
             case Action::BET: action_str = "Bet " + std::to_string(action.amount); break;
             case Action::RAISE: action_str = "Raise to " + std::to_string(action.amount); break;
           }
-          action_info += "      " + action_str + ": " + std::to_string(int(prob + 0.5f)) + "%\n\n";
+          info += "      " + action_str + ": " + 
+                  std::to_string(int(prob + 0.5f)) + "% (raw: " + 
+                  std::to_string(raw_strat) + ")\n";
         }
       }
-      
-      if (has_actions) {
-        info += action_info + "\n";
-      }
+      info += "\n";
     }
     
     m_infoBuffer->text(info.c_str());
@@ -566,6 +733,18 @@ class Wizard : public Fl_Window {
   void doAction(Fl_Button *btn) {
     if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
       return;
+
+    // Save current state before action
+    GameState state{
+      m_current_node,
+      m_p1_stack,
+      m_p2_stack,
+      m_current_pot,
+      m_p1_wager,
+      m_p2_wager,
+      m_data.board
+    };
+    m_history.push_back(state);
 
     auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
     const auto &actions = action_node->get_actions();
@@ -590,7 +769,7 @@ class Wizard : public Fl_Window {
     m_potInfo->copy_label(info.c_str());
     m_potInfo->redraw();
 
-    // Navigate to next node
+    // Navigate to next node using the action index
     m_current_node = action_node->get_child(btn_idx);
     
     if (m_current_node->get_node_type() == NodeType::CHANCE_NODE) {
@@ -616,7 +795,7 @@ class Wizard : public Fl_Window {
       // Update title based on chance type
       auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
       std::string prompt = "Please Select ";
-      prompt += (chance_node->get_type() == ChanceNode::DEAL_TURN ? "Turn" : "River");
+      prompt += (chance_node->get_type() == ChanceNode::ChanceType::DEAL_TURN ? "Turn" : "River");
       prompt += " Card";
       m_lblStrategy->copy_label(prompt.c_str());
       
@@ -632,11 +811,41 @@ class Wizard : public Fl_Window {
     if (!m_current_node || m_current_node->get_node_type() != NodeType::CHANCE_NODE)
       return;
 
+    // Save current state before adding card
+    GameState state{
+      m_current_node,
+      m_p1_stack,
+      m_p2_stack,
+      m_current_pot,
+      m_p1_wager,
+      m_p2_wager,
+      m_data.board
+    };
+    m_history.push_back(state);
+
     auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
-    int selected_card = m_cardChoice->value();
+    
+    // Get selected card text
+    std::string selected_card_str = m_cardChoice->text();
+    m_data.board.push_back(selected_card_str);
+
+    // Find the correct child index by creating cards the same way the solver does
+    int found_idx = -1;
+    for (int i = 0; i < 52; i++) {
+      Card test_card{i};  // Create card the same way solver does
+      if (test_card.describeCard() == selected_card_str) {
+        found_idx = i;
+        break;
+      }
+    }
+    
+    if (found_idx == -1) {
+      std::cerr << "Error: Could not find matching card index for " << selected_card_str << std::endl;
+      return;
+    }
     
     // Navigate to selected card's node
-    m_current_node = chance_node->get_child(selected_card);
+    m_current_node = chance_node->get_child(found_idx);
     m_cardChoice->hide();
     
     updateStrategyDisplay();
@@ -644,8 +853,101 @@ class Wizard : public Fl_Window {
   }
 
   void doBack6() {
+    // Reset all game state
+    m_current_node = nullptr;
+    m_p1_stack = m_data.stackSize;
+    m_p2_stack = m_data.stackSize;
+    m_current_pot = m_data.startingPot;
+    m_p1_wager = m_p2_wager = 0;
+    
+    // Reset board to original flop/turn selection
+    std::vector<std::string> original_board;
+    for (size_t i = 0; i < std::min(size_t(4), m_data.board.size()); i++) {
+        original_board.push_back(m_data.board[i]);
+    }
+    m_data.board = original_board;
+    
+    // Clear history
+    m_history.clear();
+    
     m_pg6->hide();
     m_pg4->show();  // Go back to range selection
+  }
+
+  void doUndo() {
+    if (m_history.empty()) return;
+
+    // Restore previous state
+    auto state = m_history.back();
+    m_history.pop_back();
+
+    m_current_node = state.node;
+    m_p1_stack = state.p1_stack;
+    m_p2_stack = state.p2_stack;
+    m_current_pot = state.current_pot;
+    m_p1_wager = state.p1_wager;
+    m_p2_wager = state.p2_wager;
+    m_data.board = state.board;  // This will restore the previous board state
+
+    // Check if we're returning to a chance node
+    if (m_current_node->get_node_type() == NodeType::CHANCE_NODE) {
+      auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
+      
+      // Show card selection dropdown
+      m_cardChoice->clear();
+      
+      // Add valid turn/river cards
+      std::set<std::string> used_cards;
+      for (const auto &card : m_data.board) {
+        used_cards.insert(card);
+      }
+      
+      // Add all possible cards that aren't on the board
+      for (const auto &rank : RANKS) {
+        for (const auto &suit : SUITS) {
+          std::string card = rank + std::string(1, suit);
+          if (used_cards.find(card) == used_cards.end()) {
+            m_cardChoice->add(card.c_str());
+          }
+        }
+      }
+      
+      if (m_cardChoice->size() > 0) {
+        m_cardChoice->value(0);  // Select first card by default
+      }
+
+      // Update title based on chance type
+      std::string prompt = "Please Select ";
+      prompt += (chance_node->get_type() == ChanceNode::DEAL_TURN ? "Turn" : "River");
+      prompt += " Card";
+      m_lblStrategy->copy_label(prompt.c_str());
+      
+      m_cardChoice->show();
+      
+      // Hide action buttons when showing card choice
+      for (auto *btn : m_actionBtns) {
+        btn->hide();
+      }
+    } else {
+      m_cardChoice->hide();
+      updateStrategyDisplay();
+      updateActionButtons();
+    }
+
+    // Update pot/stack display
+    std::string info = "Hero: " + std::to_string(m_p1_stack) + 
+                      " | Villain: " + std::to_string(m_p2_stack) + 
+                      " | Pot: " + std::to_string(m_current_pot);
+    m_potInfo->copy_label(info.c_str());
+    m_potInfo->redraw();
+
+    // Update board display
+    std::string board = "Board: ";
+    for (const auto &card : m_data.board) {
+      board += card + " ";
+    }
+    m_boardInfo->copy_label(board.c_str());
+    m_boardInfo->redraw();
   }
 
 public:
@@ -945,6 +1247,14 @@ public:
     backBtn->color(fl_rgb_color(200, 200, 200));
     backBtn->callback(cbBack, this);
 
+    // Add undo button next to back button
+    auto *undoBtn = new Fl_Button(40 + backBtnW + 10, backBtnY, backBtnW, backBtnH, "Undo");
+    undoBtn->labelsize(12);
+    undoBtn->labelfont(FL_HELVETICA_BOLD);
+    undoBtn->box(FL_FLAT_BOX);
+    undoBtn->color(fl_rgb_color(200, 200, 200));
+    undoBtn->callback(cbUndo, this);
+
     // Action buttons on right
     int actionBtnX = W - (4 * btnW + 3 * btnSpacing + 40);
     for (int i = 0; i < 4; i++) {
@@ -981,3 +1291,5 @@ int main(int argc, char **argv) {
   wiz.show(argc, argv);
   return Fl::run();
 }
+
+

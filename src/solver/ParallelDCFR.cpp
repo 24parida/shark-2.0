@@ -54,30 +54,10 @@ void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
                        std::vector<PreflopCombo> &villain_preflop_combos,
                        std::vector<float> &hero_reach_probs,
                        std::vector<float> &villain_reach_probs) {
-  std::vector<int> hero_to_villain(hero_preflop_combos.size(), -1);
-  for (int h = 0; h < hero_preflop_combos.size(); ++h) {
-    auto &hc = hero_preflop_combos[h];
-
-    for (int v = 0; v < villain_preflop_combos.size(); ++v) {
-      auto &vc = villain_preflop_combos[v];
-
-      if (hc == vc) {
-        hero_to_villain[h] = v;
-        break;
-      }
-    }
-  }
-
-  CFRHelper rec{root,
-                hero,
-                villain,
-                hero_preflop_combos,
-                villain_preflop_combos,
-                hero_reach_probs,
-                villain_reach_probs,
-                m_init_board,
-                iteration_count,
-                m_rrm,
-                hero_to_villain};
-  rec.compute();
+  std::vector<Card> board = m_init_board;
+  
+  CFRHelper helper(root, hero, villain, hero_preflop_combos, villain_preflop_combos,
+                   hero_reach_probs, villain_reach_probs, board, iteration_count,
+                   m_rrm, m_prm);
+  helper.compute();
 }

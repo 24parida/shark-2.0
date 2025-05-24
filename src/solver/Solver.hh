@@ -52,7 +52,20 @@ class CFRHelper {
   DCFR m_dcfr_module;
 
   RiverRangeManager &m_rrm;
-  std::vector<int> &m_hero_to_villain;
+  const PreflopRangeManager &m_prm;
+  RangeIntersection m_range_intersection;
+
+  float compute_reach_probability(size_t hero_combo_idx,
+                                const std::vector<float>& villain_reach_pr) const {
+    float total_reach = 0.0f;
+    const auto& matching_combos = m_range_intersection.hand_to_combos[hero_combo_idx];
+    
+    for (int villain_idx : matching_combos) {
+      total_reach += villain_reach_pr[villain_idx] * 
+                    m_range_intersection.combo_weights[hero_combo_idx];
+    }
+    return total_reach;
+  }
 
 public:
   CFRHelper(Node *node, const int hero_id, const int villain_id,
@@ -61,16 +74,7 @@ public:
             std::vector<float> &hero_reach_pr,
             std::vector<float> &villain_reach_pr, std::vector<Card> &board,
             int iteration_count, RiverRangeManager &rrm,
-            std::vector<int> &hero_to_villain)
-      : m_hero(hero_id), m_villain(villain_id), m_node(node),
-        m_hero_reach_probs(hero_reach_pr),
-        m_villain_reach_probs(villain_reach_pr), m_board(board),
-        m_hero_preflop_combos(hero_preflop_combos),
-        m_villain_preflop_combos(villain_preflop_combos),
-        m_num_hero_hands(hero_preflop_combos.size()),
-        m_num_villain_hands(villain_preflop_combos.size()),
-        m_iteration_count(iteration_count), m_result(m_num_hero_hands),
-        m_rrm(rrm), m_hero_to_villain(hero_to_villain) {};
+            const PreflopRangeManager &prm);
 
   void compute();
   auto get_result() const -> std::vector<float> { return m_result; };
