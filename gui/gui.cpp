@@ -833,9 +833,9 @@ class Wizard : public Fl_Window {
 
           btn->setStrategyColors(colors);
         } else {
-          // Hand not in range - show empty box
+          // Hand not in range - show gray background
           btn->setStrategyColors({});
-          btn->color(FL_BACKGROUND_COLOR);
+          btn->color(fl_rgb_color(80, 80, 80));
         }
       }
     }
@@ -1465,7 +1465,7 @@ public:
             int x = gridX + c * (cellSize + cellPadding);
             int y = gridY + r * (cellSize + cellPadding);
 
-            auto *btn = new CardButton(x, y, cellSize, cellSize, FL_BACKGROUND_COLOR);
+            auto *btn = new CardButton(x, y, cellSize, cellSize, fl_rgb_color(80, 80, 80));  // Default to gray
             btn->box(FL_ROUND_DOWN_BOX);
             btn->labelsize(14);
             btn->labelfont(FL_HELVETICA_BOLD);
