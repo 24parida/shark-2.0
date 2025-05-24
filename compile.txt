@@ -10,3 +10,6 @@ clang++ -O3 -ffast-math \
   -ltbb \
   -o poker_gui
 
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+
