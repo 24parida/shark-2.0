@@ -149,66 +149,38 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
 auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
                                  const std::vector<Card> &board)
     -> std::vector<float> {
-  constexpr int NC = 52;
+  std::vector<float> card_weights(m_num_hero_hands * 52, 0.0f);
 
-  int combo_index[NC][NC];
-  for (int i = 0; i < NC; ++i)
-    for (int j = 0; j < NC; ++j)
-      combo_index[i][j] = -1;
-
-  for (int v = 0; v < m_num_villain_hands; ++v) {
-    auto &vc = m_villain_preflop_combos[v];
-    combo_index[vc.hand1][vc.hand2] = v;
-    combo_index[vc.hand2][vc.hand1] = v;
-  }
-
-  float p_total = 0.0f;
-  std::array<float, NC> p_card{};
-  for (int v = 0; v < m_num_villain_hands; ++v) {
-    const auto &vc = m_villain_preflop_combos[v];
-    if (CardUtility::overlap(vc, board))
-      continue;
-    float pr = villain_reach_pr[v];
-    p_total += pr;
-    p_card[vc.hand1] += pr;
-    p_card[vc.hand2] += pr;
-  }
-
-  std::array<bool, NC> board_mask{};
-  for (Card c : board)
-    board_mask[c] = true;
-
-  std::vector<float> card_weights(m_num_hero_hands * NC, 0.0f);
-  for (size_t h = 0; h < m_num_hero_hands; ++h) {
+  for (std::size_t h = 0; h < m_num_hero_hands; ++h) {
     const auto &hc = m_hero_preflop_combos[h];
-    int h1 = hc.hand1, h2 = hc.hand2;
-    if (board_mask[h1] || board_mask[h2])
+    if (CardUtility::overlap(hc, board))
       continue;
 
-    int v_self = m_hero_to_villain[h];
-    float self_pr = (v_self >= 0 ? villain_reach_pr[v_self] : 0.0f);
-    float S_h = p_total - p_card[h1] - p_card[h2] + self_pr;
-
+    // 1) accumulate unnormalized weight w(h,c) = ∑_{v valid} P(v)
     float total_w = 0.0f;
-    for (int c = 0; c < NC; ++c) {
-      if (board_mask[c] || c == h1 || c == h2)
+    for (int c = 0; c < 52; ++c) {
+      if (CardUtility::overlap(c, board) || CardUtility::overlap(hc, c))
         continue;
 
-      float excl = 0.0f;
-      int idx = combo_index[c][h1];
-      if (idx >= 0)
-        excl += villain_reach_pr[idx];
-      idx = combo_index[c][h2];
-      if (idx >= 0)
-        excl += villain_reach_pr[idx];
+      float w = 0.0f;
+      for (std::size_t v = 0; v < m_num_villain_hands; ++v) {
+        const auto &vc = m_villain_preflop_combos[v];
+        if (CardUtility::overlap(vc, board))
+          continue;
+        if (CardUtility::overlap(vc, hc))
+          continue;
+        if (vc.hand1 == c || vc.hand2 == c)
+          continue;
+        w += villain_reach_pr[v];
+      }
 
-      float w = S_h - (p_card[c] - excl);
       card_weights[h + c * m_num_hero_hands] = w;
       total_w += w;
     }
 
+    // 2) normalize into a distribution over c
     if (total_w > 0.0f) {
-      for (int c = 0; c < NC; ++c) {
+      for (int c = 0; c < 52; ++c) {
         float &cw = card_weights[h + c * m_num_hero_hands];
         if (cw > 0.0f)
           cw /= total_w;
@@ -331,37 +303,30 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
 
   return utils;
 }
+
 auto CFRHelper::get_uncontested_utils(
     const TerminalNode *node, const std::vector<float> &villain_reach_pr,
     const std::vector<Card> &board) -> std::vector<float> {
   const bool hero_last = (m_hero == node->get_last_to_act());
   const float value =
-      hero_last ? -0.5f * node->get_pot() : 0.5f * node->get_pot();
-
-  float p_total = 0.0f;
-  std::array<float, 52> sum_with_card{};
-  for (size_t v = 0; v < m_num_villain_hands; ++v) {
-    const auto &vc = m_villain_preflop_combos[v];
-    if (CardUtility::overlap(vc, board))
-      continue;
-    float pr = villain_reach_pr[v];
-    p_total += pr;
-    sum_with_card[vc.hand1] += pr;
-    sum_with_card[vc.hand2] += pr;
-  }
+      hero_last ? -node->get_pot() * 0.5f : node->get_pot() * 0.5f;
 
   std::vector<float> utils(m_num_hero_hands, 0.0f);
-  for (size_t h = 0; h < m_num_hero_hands; ++h) {
+
+  for (std::size_t h = 0; h < m_num_hero_hands; ++h) {
     const auto &hc = m_hero_preflop_combos[h];
     if (CardUtility::overlap(hc, board))
       continue;
 
-    int h1 = hc.hand1, h2 = hc.hand2;
-    int v_self = m_hero_to_villain[h];
-    float self_pr = (v_self >= 0 ? villain_reach_pr[v_self] : 0.0f);
-
-    float p_disjoint =
-        p_total - sum_with_card[h1] - sum_with_card[h2] + self_pr;
+    float p_disjoint = 0.0f;
+    for (std::size_t v = 0; v < m_num_villain_hands; ++v) {
+      const auto &vc = m_villain_preflop_combos[v];
+      if (CardUtility::overlap(vc, board))
+        continue;
+      if (CardUtility::overlap(vc, hc))
+        continue;
+      p_disjoint += villain_reach_pr[v];
+    }
 
     utils[h] = value * p_disjoint;
   }

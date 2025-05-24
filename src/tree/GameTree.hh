@@ -1,7 +1,11 @@
+#include "../../include/json.hpp"
 #include "../game/State.hh"
+#include "../hands/PreflopRangeManager.hh"
 #include "Nodes.hh"
 #include "TreeBuilderSettings.hh"
 #include <memory>
+
+using json = nlohmann::json;
 
 class GameTree {
   TreeBuilderSettings m_settings;
@@ -33,4 +37,7 @@ public:
       -> std::unique_ptr<Node>;
   auto build_term_nodes(const Node *parent, const GameState &state)
       -> std::unique_ptr<Node>;
+  json jsonify_tree(const Node *root) const;
+
+  json jsonify_tree(const Node *root, const PreflopRangeManager &prm) const;
 };

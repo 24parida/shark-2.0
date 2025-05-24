@@ -1177,6 +1177,9 @@ class Wizard : public Fl_Window {
 public:
   Wizard(int W, int H, const char *L = 0) : Fl_Window(W, H, L) {
     position((Fl::w() - W) / 2, (Fl::h() - H) / 2);
+    
+    // Enable the window's title bar and close button
+    border(1);
 
     // Page1
     m_pg1 = new Fl_Group(0, 0, W, H);
@@ -1242,11 +1245,11 @@ public:
     m_inpMinExploit->value("1.0");
     y += h + sp;
 
-    // Add auto-import checkbox
-    m_chkAutoImport = new Fl_Check_Button(xL, y, W - 100, 60, "Auto-import ranges based on positions");
-    m_chkAutoImport->labelsize(32);  // Reduced text size
+    // Add auto-import checkbox with medium size
+    m_chkAutoImport = new Fl_Check_Button(xL, y, W - 100, 60, "Auto-import ranges based on positions");  // Height 60 instead of 80 or 40
+    m_chkAutoImport->labelsize(30);  // Size 30 instead of 40 or 20
     m_chkAutoImport->value(1);  // Checked by default
-    y += 60 + sp;  // Adjusted spacing for smaller checkbox
+    y += 60 + sp;  // Adjusted spacing for medium checkbox
 
     m_btn1Next = new Fl_Button((W - 300) / 2, y, 300, 70, "Next");
     m_btn1Next->labelsize(24);
