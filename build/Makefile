@@ -85,6 +85,51 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/aparida/projects/shark-2.0/build/CMakeFiles /home/aparida/projects/shark-2.0/build//CMakeFiles/progress.marks
@@ -117,24 +162,37 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named poker_gui
+# Target rules for targets named shark
 
 # Build rule for target.
-poker_gui: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 poker_gui
-.PHONY : poker_gui
+shark: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 shark
+.PHONY : shark
 
 # fast build rule for target.
-poker_gui/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/build
-.PHONY : poker_gui/fast
+shark/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/build
+.PHONY : shark/fast
+
+#=============================================================================
+# Target rules for targets named pheval
+
+# Build rule for target.
+pheval: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 pheval
+.PHONY : pheval
+
+# fast build rule for target.
+pheval/fast:
+	$(MAKE) $(MAKESILENT) -f pheval_build/CMakeFiles/pheval.dir/build.make pheval_build/CMakeFiles/pheval.dir/build
+.PHONY : pheval/fast
 
 gui/gui.o: gui/gui.cpp.o
 .PHONY : gui/gui.o
 
 # target to build an object file
 gui/gui.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/gui/gui.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/gui/gui.cpp.o
 .PHONY : gui/gui.cpp.o
 
 gui/gui.i: gui/gui.cpp.i
@@ -142,7 +200,7 @@ gui/gui.i: gui/gui.cpp.i
 
 # target to preprocess a source file
 gui/gui.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/gui/gui.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/gui/gui.cpp.i
 .PHONY : gui/gui.cpp.i
 
 gui/gui.s: gui/gui.cpp.s
@@ -150,7 +208,7 @@ gui/gui.s: gui/gui.cpp.s
 
 # target to generate assembly for a file
 gui/gui.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/gui/gui.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/gui/gui.cpp.s
 .PHONY : gui/gui.cpp.s
 
 src/hands/PreflopRange.o: src/hands/PreflopRange.cpp.o
@@ -158,7 +216,7 @@ src/hands/PreflopRange.o: src/hands/PreflopRange.cpp.o
 
 # target to build an object file
 src/hands/PreflopRange.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRange.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRange.cpp.o
 .PHONY : src/hands/PreflopRange.cpp.o
 
 src/hands/PreflopRange.i: src/hands/PreflopRange.cpp.i
@@ -166,7 +224,7 @@ src/hands/PreflopRange.i: src/hands/PreflopRange.cpp.i
 
 # target to preprocess a source file
 src/hands/PreflopRange.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRange.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRange.cpp.i
 .PHONY : src/hands/PreflopRange.cpp.i
 
 src/hands/PreflopRange.s: src/hands/PreflopRange.cpp.s
@@ -174,7 +232,7 @@ src/hands/PreflopRange.s: src/hands/PreflopRange.cpp.s
 
 # target to generate assembly for a file
 src/hands/PreflopRange.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRange.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRange.cpp.s
 .PHONY : src/hands/PreflopRange.cpp.s
 
 src/hands/PreflopRangeManager.o: src/hands/PreflopRangeManager.cpp.o
@@ -182,7 +240,7 @@ src/hands/PreflopRangeManager.o: src/hands/PreflopRangeManager.cpp.o
 
 # target to build an object file
 src/hands/PreflopRangeManager.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRangeManager.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRangeManager.cpp.o
 .PHONY : src/hands/PreflopRangeManager.cpp.o
 
 src/hands/PreflopRangeManager.i: src/hands/PreflopRangeManager.cpp.i
@@ -190,7 +248,7 @@ src/hands/PreflopRangeManager.i: src/hands/PreflopRangeManager.cpp.i
 
 # target to preprocess a source file
 src/hands/PreflopRangeManager.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRangeManager.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRangeManager.cpp.i
 .PHONY : src/hands/PreflopRangeManager.cpp.i
 
 src/hands/PreflopRangeManager.s: src/hands/PreflopRangeManager.cpp.s
@@ -198,7 +256,7 @@ src/hands/PreflopRangeManager.s: src/hands/PreflopRangeManager.cpp.s
 
 # target to generate assembly for a file
 src/hands/PreflopRangeManager.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/PreflopRangeManager.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/PreflopRangeManager.cpp.s
 .PHONY : src/hands/PreflopRangeManager.cpp.s
 
 src/hands/RiverRangeManager.o: src/hands/RiverRangeManager.cpp.o
@@ -206,7 +264,7 @@ src/hands/RiverRangeManager.o: src/hands/RiverRangeManager.cpp.o
 
 # target to build an object file
 src/hands/RiverRangeManager.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/RiverRangeManager.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/RiverRangeManager.cpp.o
 .PHONY : src/hands/RiverRangeManager.cpp.o
 
 src/hands/RiverRangeManager.i: src/hands/RiverRangeManager.cpp.i
@@ -214,7 +272,7 @@ src/hands/RiverRangeManager.i: src/hands/RiverRangeManager.cpp.i
 
 # target to preprocess a source file
 src/hands/RiverRangeManager.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/RiverRangeManager.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/RiverRangeManager.cpp.i
 .PHONY : src/hands/RiverRangeManager.cpp.i
 
 src/hands/RiverRangeManager.s: src/hands/RiverRangeManager.cpp.s
@@ -222,7 +280,7 @@ src/hands/RiverRangeManager.s: src/hands/RiverRangeManager.cpp.s
 
 # target to generate assembly for a file
 src/hands/RiverRangeManager.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/hands/RiverRangeManager.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/hands/RiverRangeManager.cpp.s
 .PHONY : src/hands/RiverRangeManager.cpp.s
 
 src/solver/BestResponse.o: src/solver/BestResponse.cpp.o
@@ -230,7 +288,7 @@ src/solver/BestResponse.o: src/solver/BestResponse.cpp.o
 
 # target to build an object file
 src/solver/BestResponse.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/BestResponse.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/BestResponse.cpp.o
 .PHONY : src/solver/BestResponse.cpp.o
 
 src/solver/BestResponse.i: src/solver/BestResponse.cpp.i
@@ -238,7 +296,7 @@ src/solver/BestResponse.i: src/solver/BestResponse.cpp.i
 
 # target to preprocess a source file
 src/solver/BestResponse.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/BestResponse.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/BestResponse.cpp.i
 .PHONY : src/solver/BestResponse.cpp.i
 
 src/solver/BestResponse.s: src/solver/BestResponse.cpp.s
@@ -246,7 +304,7 @@ src/solver/BestResponse.s: src/solver/BestResponse.cpp.s
 
 # target to generate assembly for a file
 src/solver/BestResponse.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/BestResponse.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/BestResponse.cpp.s
 .PHONY : src/solver/BestResponse.cpp.s
 
 src/solver/CFRHelper.o: src/solver/CFRHelper.cpp.o
@@ -254,7 +312,7 @@ src/solver/CFRHelper.o: src/solver/CFRHelper.cpp.o
 
 # target to build an object file
 src/solver/CFRHelper.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/CFRHelper.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/CFRHelper.cpp.o
 .PHONY : src/solver/CFRHelper.cpp.o
 
 src/solver/CFRHelper.i: src/solver/CFRHelper.cpp.i
@@ -262,7 +320,7 @@ src/solver/CFRHelper.i: src/solver/CFRHelper.cpp.i
 
 # target to preprocess a source file
 src/solver/CFRHelper.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/CFRHelper.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/CFRHelper.cpp.i
 .PHONY : src/solver/CFRHelper.cpp.i
 
 src/solver/CFRHelper.s: src/solver/CFRHelper.cpp.s
@@ -270,7 +328,7 @@ src/solver/CFRHelper.s: src/solver/CFRHelper.cpp.s
 
 # target to generate assembly for a file
 src/solver/CFRHelper.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/CFRHelper.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/CFRHelper.cpp.s
 .PHONY : src/solver/CFRHelper.cpp.s
 
 src/solver/ParallelDCFR.o: src/solver/ParallelDCFR.cpp.o
@@ -278,7 +336,7 @@ src/solver/ParallelDCFR.o: src/solver/ParallelDCFR.cpp.o
 
 # target to build an object file
 src/solver/ParallelDCFR.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/ParallelDCFR.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/ParallelDCFR.cpp.o
 .PHONY : src/solver/ParallelDCFR.cpp.o
 
 src/solver/ParallelDCFR.i: src/solver/ParallelDCFR.cpp.i
@@ -286,7 +344,7 @@ src/solver/ParallelDCFR.i: src/solver/ParallelDCFR.cpp.i
 
 # target to preprocess a source file
 src/solver/ParallelDCFR.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/ParallelDCFR.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/ParallelDCFR.cpp.i
 .PHONY : src/solver/ParallelDCFR.cpp.i
 
 src/solver/ParallelDCFR.s: src/solver/ParallelDCFR.cpp.s
@@ -294,7 +352,7 @@ src/solver/ParallelDCFR.s: src/solver/ParallelDCFR.cpp.s
 
 # target to generate assembly for a file
 src/solver/ParallelDCFR.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/solver/ParallelDCFR.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/solver/ParallelDCFR.cpp.s
 .PHONY : src/solver/ParallelDCFR.cpp.s
 
 src/trainer/DCFR.o: src/trainer/DCFR.cpp.o
@@ -302,7 +360,7 @@ src/trainer/DCFR.o: src/trainer/DCFR.cpp.o
 
 # target to build an object file
 src/trainer/DCFR.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/trainer/DCFR.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/trainer/DCFR.cpp.o
 .PHONY : src/trainer/DCFR.cpp.o
 
 src/trainer/DCFR.i: src/trainer/DCFR.cpp.i
@@ -310,7 +368,7 @@ src/trainer/DCFR.i: src/trainer/DCFR.cpp.i
 
 # target to preprocess a source file
 src/trainer/DCFR.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/trainer/DCFR.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/trainer/DCFR.cpp.i
 .PHONY : src/trainer/DCFR.cpp.i
 
 src/trainer/DCFR.s: src/trainer/DCFR.cpp.s
@@ -318,7 +376,7 @@ src/trainer/DCFR.s: src/trainer/DCFR.cpp.s
 
 # target to generate assembly for a file
 src/trainer/DCFR.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/trainer/DCFR.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/trainer/DCFR.cpp.s
 .PHONY : src/trainer/DCFR.cpp.s
 
 src/tree/GameTree.o: src/tree/GameTree.cpp.o
@@ -326,7 +384,7 @@ src/tree/GameTree.o: src/tree/GameTree.cpp.o
 
 # target to build an object file
 src/tree/GameTree.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/tree/GameTree.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/tree/GameTree.cpp.o
 .PHONY : src/tree/GameTree.cpp.o
 
 src/tree/GameTree.i: src/tree/GameTree.cpp.i
@@ -334,7 +392,7 @@ src/tree/GameTree.i: src/tree/GameTree.cpp.i
 
 # target to preprocess a source file
 src/tree/GameTree.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/tree/GameTree.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/tree/GameTree.cpp.i
 .PHONY : src/tree/GameTree.cpp.i
 
 src/tree/GameTree.s: src/tree/GameTree.cpp.s
@@ -342,7 +400,7 @@ src/tree/GameTree.s: src/tree/GameTree.cpp.s
 
 # target to generate assembly for a file
 src/tree/GameTree.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker_gui.dir/build.make CMakeFiles/poker_gui.dir/src/tree/GameTree.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shark.dir/build.make CMakeFiles/shark.dir/src/tree/GameTree.cpp.s
 .PHONY : src/tree/GameTree.cpp.s
 
 # Help Target
@@ -352,8 +410,13 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
 	@echo "... rebuild_cache"
-	@echo "... poker_gui"
+	@echo "... pheval"
+	@echo "... shark"
 	@echo "... gui/gui.o"
 	@echo "... gui/gui.i"
 	@echo "... gui/gui.s"

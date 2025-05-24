@@ -1,0 +1,41 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/pheval.dir/src/7462.c.o"
+  "CMakeFiles/pheval.dir/src/7462.c.o.d"
+  "CMakeFiles/pheval.dir/src/card_sampler.cc.o"
+  "CMakeFiles/pheval.dir/src/card_sampler.cc.o.d"
+  "CMakeFiles/pheval.dir/src/dptables.c.o"
+  "CMakeFiles/pheval.dir/src/dptables.c.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator5.c.o"
+  "CMakeFiles/pheval.dir/src/evaluator5.c.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator5.cc.o"
+  "CMakeFiles/pheval.dir/src/evaluator5.cc.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator6.c.o"
+  "CMakeFiles/pheval.dir/src/evaluator6.c.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator6.cc.o"
+  "CMakeFiles/pheval.dir/src/evaluator6.cc.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator7.c.o"
+  "CMakeFiles/pheval.dir/src/evaluator7.c.o.d"
+  "CMakeFiles/pheval.dir/src/evaluator7.cc.o"
+  "CMakeFiles/pheval.dir/src/evaluator7.cc.o.d"
+  "CMakeFiles/pheval.dir/src/hash.c.o"
+  "CMakeFiles/pheval.dir/src/hash.c.o.d"
+  "CMakeFiles/pheval.dir/src/hashtable.c.o"
+  "CMakeFiles/pheval.dir/src/hashtable.c.o.d"
+  "CMakeFiles/pheval.dir/src/hashtable5.c.o"
+  "CMakeFiles/pheval.dir/src/hashtable5.c.o.d"
+  "CMakeFiles/pheval.dir/src/hashtable6.c.o"
+  "CMakeFiles/pheval.dir/src/hashtable6.c.o.d"
+  "CMakeFiles/pheval.dir/src/hashtable7.c.o"
+  "CMakeFiles/pheval.dir/src/hashtable7.c.o.d"
+  "CMakeFiles/pheval.dir/src/rank.c.o"
+  "CMakeFiles/pheval.dir/src/rank.c.o.d"
+  "CMakeFiles/pheval.dir/src/tables_bitwise.c.o"
+  "CMakeFiles/pheval.dir/src/tables_bitwise.c.o.d"
+  "libpheval.a"
+  "libpheval.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang C CXX)
+  include(CMakeFiles/pheval.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

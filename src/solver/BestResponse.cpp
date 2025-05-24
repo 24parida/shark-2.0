@@ -121,9 +121,10 @@ auto BestResponse::best_response(Node *node,
     return chance_best_response(dynamic_cast<ChanceNode *>(node),
                                 villain_reach_probs, board);
   case NodeType::TERMINAL_NODE:
-
     return terminal_best_response(dynamic_cast<TerminalNode *>(node),
                                   villain_reach_probs, board);
+  default:
+    assert("incorrect nodetype best_response");
   }
 }
 
