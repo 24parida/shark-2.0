@@ -1,0 +1,59 @@
+name: CMake CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 1) checkout including submodules
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      # 2) install FLTK & TBB
+      - name: Install dependencies (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$(uname)" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
+          else
+            brew update
+            brew install fltk tbb cmake
+          fi
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake fltk tbb --yes
+
+      # 3) configure & build
+      - name: Configure with CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release
+
+      # 5) Upload the compiled binary
+      - name: Upload shark binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: shark-${{ matrix.os }}
+          path: |
+            build/shark*
