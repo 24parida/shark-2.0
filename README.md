@@ -76,7 +76,7 @@ Use **Back** to return to inputs and solve a different game.
 > macOS is more strict with unsigned apps
 
 1. Go to the [Releases tab](https://github.com/your-repo-name/releases) and download the mac `.zip` file
-2. Unzip and try to open `shark` — it will say the app is untrusted
+2. Download and try to open `shark` — it will say the app is untrusted
 3. Go to **System Settings** → **Privacy & Security**
 4. Scroll down and click **Open Anyway** under *"shark wants to run"*
 5. Confirm to run the app
