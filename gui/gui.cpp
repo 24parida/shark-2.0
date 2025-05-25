@@ -312,6 +312,8 @@ class Wizard : public Fl_Window {
   Fl_Text_Buffer *m_infoBuffer;             // Buffer for info display
   std::vector<Fl_Button *> m_actionBtns;    // Bottom action buttons
   Fl_Choice *m_cardChoice;                  // Turn/river card selector
+  Fl_Choice *m_rankChoice;                  // New: Rank selector
+  Fl_Choice *m_suitChoice;                  // New: Suit selector
   Fl_Box *m_potInfo;                        // Display for pot and stack sizes
   Fl_Box *m_boardInfo;                      // Display for board information
   Fl_Box *m_infoTitle;                      // Info box title
@@ -652,9 +654,14 @@ class Wizard : public Fl_Window {
   }
 
   void updateStrategyDisplay() {
+    // Always hide the card selection dropdowns by default
+    m_rankChoice->hide();
+    m_suitChoice->hide();
+
     if (m_current_node &&
         m_current_node->get_node_type() == NodeType::TERMINAL_NODE) {
       m_lblStrategy->copy_label("Terminal Node - Hand Complete");
+      m_lblStrategy->labelsize(static_cast<int>(28 * m_scale));
 
       // Hide action buttons at terminal nodes
       for (auto *btn : m_actionBtns) {
@@ -689,37 +696,69 @@ class Wizard : public Fl_Window {
         m_lblStrategy->copy_label(prompt.c_str());
         m_lblStrategy->labelsize(static_cast<int>(36 * m_scale));  // Larger text for prompt
 
-        // Center and show the dropdown with increased size
-        int dropdownWidth = static_cast<int>(300 * m_scale);  // Fixed width
-        int dropdownHeight = static_cast<int>(50 * m_scale);  // Taller height
-        int dropdownX = (this->w() - dropdownWidth) / 2;
+        // Center and show the dropdowns with increased size
+        int dropdownWidth = static_cast<int>(150 * m_scale);  // Smaller width for each dropdown
+        int dropdownHeight = static_cast<int>(50 * m_scale);
+        int dropdownSpacing = static_cast<int>(20 * m_scale);
+        int totalWidth = (2 * dropdownWidth) + dropdownSpacing;
+        int dropdownX = (this->w() - totalWidth) / 2;
         int dropdownY = (this->h() - dropdownHeight) / 2;
         
-        m_cardChoice->resize(dropdownX, dropdownY, dropdownWidth, dropdownHeight);
-        m_cardChoice->textsize(static_cast<int>(24 * m_scale));  // Larger text
-        m_cardChoice->show();
+        // Position and show rank dropdown
+        m_rankChoice->resize(dropdownX, dropdownY, dropdownWidth, dropdownHeight);
+        m_rankChoice->textsize(static_cast<int>(24 * m_scale));
+        m_rankChoice->clear();
+        // Add empty first option
+        m_rankChoice->add("Select Rank");
+        for (const auto& rank : RANKS) {
+            m_rankChoice->add(rank.c_str());
+        }
+        m_rankChoice->value(0);  // Select the "Select Rank" option
+        m_rankChoice->show();
         
-        // Update board info position to be above dropdown
+        // Position and show suit dropdown
+        m_suitChoice->resize(dropdownX + dropdownWidth + dropdownSpacing, dropdownY, dropdownWidth, dropdownHeight);
+        m_suitChoice->textsize(static_cast<int>(24 * m_scale));
+        m_suitChoice->clear();
+        // Add empty first option
+        m_suitChoice->add("Select Suit");
+        for (const auto& suit : SUITS) {
+            std::string suit_str(1, suit);
+            m_suitChoice->add(suit_str.c_str());
+        }
+        m_suitChoice->value(0);  // Select the "Select Suit" option
+        m_suitChoice->show();
+        
+        // Update board info position to be above dropdowns
         m_boardInfo->position(0, dropdownY - static_cast<int>(60 * m_scale));
         m_boardInfo->labelsize(static_cast<int>(24 * m_scale));
         
-        // Update pot info position to be below dropdown
+        // Update pot info position to be below dropdowns
         m_potInfo->position(0, dropdownY + dropdownHeight + static_cast<int>(20 * m_scale));
         m_potInfo->labelsize(static_cast<int>(24 * m_scale));
       }
       return;
     }
 
+    // For action nodes, show proper title and enable strategy display
     auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
     const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
     const auto &strategy = action_node->get_average_strat();
     const auto &actions = action_node->get_actions();
 
-    // Update title
-    std::string title =
-        (action_node->get_player() == 1 ? "Hero's" : "Villain's") +
-        std::string(" Turn");
+    std::string title = (action_node->get_player() == 1 ? "Hero's" : "Villain's") + std::string(" Turn");
     m_lblStrategy->copy_label(title.c_str());
+    m_lblStrategy->labelsize(static_cast<int>(28 * m_scale));
+
+    // Show strategy grid and make buttons clickable
+    for (auto *btn : m_strategyBtns) {
+      btn->show();
+      btn->activate();
+    }
+
+    // Show info display and title
+    m_infoDisplay->show();
+    m_infoTitle->show();
 
     // Update board info
     std::string board = "Board: ";
@@ -1089,6 +1128,11 @@ class Wizard : public Fl_Window {
         m_current_node->get_node_type() != NodeType::CHANCE_NODE)
       return;
 
+    // Check if either dropdown is still showing placeholder text
+    if (m_rankChoice->value() <= 0 || m_suitChoice->value() <= 0) {
+      return;  // Don't proceed if either hasn't been selected
+    }
+
     // Save current state before adding card
     GameState state{m_current_node, m_p1_stack, m_p2_stack,  m_current_pot,
                     m_p1_wager,     m_p2_wager, m_data.board};
@@ -1096,12 +1140,13 @@ class Wizard : public Fl_Window {
 
     auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
 
-    // Get selected card text
-    std::string selected_card_str = m_cardChoice->text();
+    // Get selected rank and suit (now guaranteed to not be placeholder text)
+    std::string selected_rank = m_rankChoice->text();
+    std::string selected_suit = m_suitChoice->text();
+    std::string selected_card_str = selected_rank + selected_suit;
     m_data.board.push_back(selected_card_str);
 
-    // Find the correct child index by creating cards the same way the solver
-    // does
+    // Find the correct child index by creating cards the same way the solver does
     int found_idx = -1;
     for (int i = 0; i < 52; i++) {
       Card test_card{i}; // Create card the same way solver does
@@ -1119,14 +1164,22 @@ class Wizard : public Fl_Window {
 
     // Navigate to selected card's node
     m_current_node = chance_node->get_child(found_idx);
-    m_cardChoice->hide();
 
-    // Show all elements that were hidden during card selection
-    m_infoDisplay->show();
-    m_infoTitle->show();
+    // Hide card selection UI
+    m_rankChoice->hide();
+    m_suitChoice->hide();
+
+    // Reset display state
+    m_lblStrategy->labelsize(static_cast<int>(28 * m_scale));  // Reset to normal size
+
+    // Show strategy grid
     for (auto *btn : m_strategyBtns) {
       btn->show();
     }
+
+    // Show info display and title
+    m_infoDisplay->show();
+    m_infoTitle->show();
 
     // Update the display with the new state
     updateStrategyDisplay();
@@ -1175,6 +1228,10 @@ class Wizard : public Fl_Window {
     m_p2_wager = state.p2_wager;
     m_data.board = state.board;
 
+    // Hide card selection dropdowns by default
+    m_rankChoice->hide();
+    m_suitChoice->hide();
+
     // Show all elements that might have been hidden
     m_infoDisplay->show();
     m_infoTitle->show();
@@ -1182,39 +1239,9 @@ class Wizard : public Fl_Window {
       btn->show();
     }
 
-    // Check if we're returning to a chance node
-    if (m_current_node->get_node_type() == NodeType::CHANCE_NODE) {
-      auto *chance_node = dynamic_cast<const ChanceNode *>(m_current_node);
-
-      // Show card selection dropdown
-      m_cardChoice->clear();
-
-      // Add valid turn/river cards
-      std::set<std::string> used_cards;
-      for (const auto &card : m_data.board) {
-        used_cards.insert(card);
-      }
-
-      // Add all possible cards that aren't on the board
-      for (const auto &rank : RANKS) {
-        for (const auto &suit : SUITS) {
-          std::string card = rank + std::string(1, suit);
-          if (used_cards.find(card) == used_cards.end()) {
-            m_cardChoice->add(card.c_str());
-          }
-        }
-      }
-
-      if (m_cardChoice->size() > 0) {
-        m_cardChoice->value(0);
-      }
-
-      updateStrategyDisplay();  // This will now handle showing the card selection view
-    } else {
-      m_cardChoice->hide();
-      updateStrategyDisplay();
-      updateActionButtons();
-    }
+    // Update displays based on current node type
+    updateStrategyDisplay();
+    updateActionButtons();
 
     // Update pot/stack display
     std::string info = "Hero: " + std::to_string(m_p1_stack) +
@@ -1777,6 +1804,25 @@ private:
 
     // Adjust info display height to match grid
     m_infoDisplay->size(m_infoDisplay->w(), gridH - m_infoTitle->h() - 5);
+
+    // Create rank and suit choice dropdowns
+    m_rankChoice = new Fl_Choice(0, 0, 100, 30);  // Position and size will be set in updateStrategyDisplay
+    m_rankChoice->labelsize(static_cast<int>(18 * m_scale));
+    m_rankChoice->textsize(static_cast<int>(18 * m_scale));
+    m_rankChoice->textfont(FL_HELVETICA_BOLD);
+    m_rankChoice->box(FL_UP_BOX);
+    m_rankChoice->color(fl_rgb_color(240, 240, 240));
+    m_rankChoice->callback([](Fl_Widget *w, void *v) { ((Wizard *)v)->doCardSelect(); }, this);
+    m_rankChoice->hide();
+
+    m_suitChoice = new Fl_Choice(0, 0, 100, 30);  // Position and size will be set in updateStrategyDisplay
+    m_suitChoice->labelsize(static_cast<int>(18 * m_scale));
+    m_suitChoice->textsize(static_cast<int>(18 * m_scale));
+    m_suitChoice->textfont(FL_HELVETICA_BOLD);
+    m_suitChoice->box(FL_UP_BOX);
+    m_suitChoice->color(fl_rgb_color(240, 240, 240));
+    m_suitChoice->callback([](Fl_Widget *w, void *v) { ((Wizard *)v)->doCardSelect(); }, this);
+    m_suitChoice->hide();
 
     m_pg6->end();
     m_pg6->hide();
