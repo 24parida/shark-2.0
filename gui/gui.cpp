@@ -1187,37 +1187,109 @@ class Wizard : public Fl_Window {
     m_boardInfo->redraw();
   }
 
+  // Revert to original design dimensions
+  static constexpr float TARGET_WIDTH = 2000.0f;
+  static constexpr float TARGET_HEIGHT = 1375.0f;
+  float m_scale;
+
 public:
-  Wizard(int W, int H, const char *L = 0) : Fl_Window(W, H, L) {
-    position((Fl::w() - W) / 2, (Fl::h() - H) / 2);
-    
+  Wizard(const char *L = 0) : Fl_Window(100, 100, L) {
+    init();
+  }
+
+private:
+  void init() {
+    // Get primary screen work area (accounts for taskbar/menubar and Retina displays)
+    int sx, sy, sw, sh;
+    Fl::screen_work_area(sx, sy, sw, sh, 0);  // 0 for primary screen
+
+    // Get screen scale factor (important for Retina displays)
+    float screen_scale = 1.0f;
+#ifdef __APPLE__
+    // On Mac, check if we're on a Retina display
+    float h, v;
+    Fl::screen_scale(0, h, v);  // Get screen scale factors
+    screen_scale = h;  // Use horizontal scale (usually same as vertical)
+#endif
+
+    // Adjust screen dimensions for Retina
+    sw = static_cast<int>(sw * screen_scale);
+    sh = static_cast<int>(sh * screen_scale);
+
+    // Calculate base scale based on screen size
+    float height_scale = (sh * 0.85f) / TARGET_HEIGHT;
+    float width_scale = (sw * 0.95f) / TARGET_WIDTH;
+    float base_scale = std::min(height_scale, width_scale);
+
+    // Calculate screen size factor relative to common resolutions
+    float screen_size_factor;
+    if (sh <= 900) {  // Common MacBook Air resolution (1440x900)
+        screen_size_factor = 0.8f;
+    } else if (sh <= 1080) {  // Standard 1080p
+        screen_size_factor = 0.9f;
+    } else if (sh <= 1200) {  // Common MacBook Pro resolution
+        screen_size_factor = 1.0f;
+    } else {  // Larger displays
+        screen_size_factor = std::min(1.2f, std::sqrt((float)(sw * sh) / (1920.0f * 1080.0f)));
+    }
+
+    // Apply scaling with screen-size-aware adjustment
+    float scale_multiplier = std::min(0.8f, std::max(0.4f, 0.6f * screen_size_factor));
+    m_scale = base_scale * scale_multiplier;
+
+    // Ensure minimum usable scale with screen-size consideration
+    float min_scale = (sh <= 900) ? 0.25f : 0.3f;  // Lower minimum for very small screens
+    m_scale = std::max(m_scale, min_scale);
+
+    // Calculate new window dimensions
+    int new_w = static_cast<int>(TARGET_WIDTH * m_scale);
+    int new_h = static_cast<int>(TARGET_HEIGHT * m_scale);
+
+    // Additional check to ensure window fits on screen
+    if (new_w > sw || new_h > sh) {
+        float extra_scale = std::min((float)sw / new_w, (float)sh / new_h);
+        m_scale *= extra_scale;
+        new_w = static_cast<int>(TARGET_WIDTH * m_scale);
+        new_h = static_cast<int>(TARGET_HEIGHT * m_scale);
+    }
+
+    // Resize and center window
+    size(new_w, new_h);
+    position((sw/screen_scale - new_w) / 2 + sx, (sh/screen_scale - new_h) / 2 + sy);
+
     // Enable the window's title bar and close button
     border(1);
 
     // Page1
-    m_pg1 = new Fl_Group(0, 0, W, H);
+    m_pg1 = new Fl_Group(0, 0, new_w, new_h);
     
-    int xL = 37, xI = 225, y = 37, h = 45, sp = 18;
-    int wL = 187, wI = W - xI - 75;
+    // Scale all dimensions based on m_scale
+    int xL = static_cast<int>(50 * m_scale);
+    int xI = static_cast<int>(300 * m_scale);
+    int y = static_cast<int>(50 * m_scale);
+    int h = static_cast<int>(60 * m_scale);
+    int sp = static_cast<int>(25 * m_scale);
+    int wL = static_cast<int>(250 * m_scale);
+    int wI = new_w - xI - static_cast<int>(100 * m_scale);
     
     auto addLbl = [&](const char *t) {
       auto f = new Fl_Box(xL, y, wL, h, t);
-      f->labelsize(18);
+      f->labelsize(static_cast<int>(24 * m_scale));
     };
     
     auto addInp = [&](Fl_Input *&w) {
       w = new Fl_Input(xI, y, wI, h);
-      w->textsize(18);
+      w->textsize(static_cast<int>(24 * m_scale));
     };
     
     auto addFlt = [&](Fl_Float_Input *&w) {
       w = new Fl_Float_Input(xI, y, wI, h);
-      w->textsize(18);
+      w->textsize(static_cast<int>(24 * m_scale));
     };
     
     auto addCh = [&](Fl_Choice *&w) {
       w = new Fl_Choice(xI, y, wI, h);
-      w->textsize(18);
+      w->textsize(static_cast<int>(24 * m_scale));
     };
 
     // Create all page 1 elements
@@ -1259,31 +1331,45 @@ public:
     y += h + sp;
 
     // Add auto-import checkbox with medium size
-    m_chkAutoImport = new Fl_Check_Button(xL, y, W - 75, 45, "Auto-import ranges based on positions");
-    m_chkAutoImport->labelsize(22);
+    m_chkAutoImport = new Fl_Check_Button(xL, y, new_w - static_cast<int>(100 * m_scale), 
+                                         static_cast<int>(60 * m_scale), 
+                                         "Auto-import ranges based on positions");
+    m_chkAutoImport->labelsize(static_cast<int>(30 * m_scale));
     m_chkAutoImport->value(1);
-    y += 45 + sp;
+    y += static_cast<int>(60 * m_scale) + sp;
 
-    m_btn1Next = new Fl_Button((W - 225) / 2, y, 225, 52, "Next");
+    m_btn1Next = new Fl_Button((new_w - 225) / 2, y, 225, 52, "Next");
     m_btn1Next->labelsize(18);
     m_btn1Next->callback(cb1Next, this);
     m_pg1->end();
 
     // Page2
-    m_pg2 = new Fl_Group(0, 0, W, H);
+    m_pg2 = new Fl_Group(0, 0, new_w, new_h);
     
-    m_lblBoard = new Fl_Box(0, 15, W, 37, "Init Board (3-5 Cards)");
+    m_lblBoard = new Fl_Box(0, 15, new_w, 37, "Init Board (3-5 Cards)");
     m_lblBoard->labelfont(FL_BOLD);
     m_lblBoard->labelsize(21);
     m_lblBoard->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
 
-    // Card grid layout
-    int cols = 4, rows = 13, GX = 37, GY = 75, GW = W - 75, GH = H - 675;
-    int bw = int((static_cast<float>(GW) / cols - 7)),
-        bh = int((static_cast<float>(GH) / rows - 7) * SCALE),
-        cardH = (bh * 3) / 2, rowSp = cardH + 6;
+    // Card grid layout - REDUCE SIZE BUT NOT AS AGGRESSIVELY
+    int cols = 4, rows = 13;
+    int GX, GY = 75;
+    int GW = new_w - 75, GH = new_h - 675;
+    
+    // Use a separate scale factor for buttons that's less aggressive
+    float button_scale = std::min(1.0f, m_scale / 0.5f);  // Limit how small buttons can get
+    
+    // Calculate base button sizes using the original proportions but with modified scaling
+    int bw = int((static_cast<float>(GW) / cols - 7) * 0.5f * button_scale),
+        bh = int((static_cast<float>(GH) / rows - 7) * 0.5f * SCALE * button_scale),
+        cardH = (bh * 3) / 2, 
+        rowSp = cardH + 6;
 
-    // Create card grid
+    // Calculate total grid width and center it
+    int totalGridWidth = cols * (bw + 10) - 10;
+    GX = (new_w - totalGridWidth) / 2;
+
+    // Create card grid with adjusted sizes
     for (int r = 0; r < rows; ++r) {
         for (int s = 0; s < cols; ++s) {
             int x = GX + s * (bw + 10), y0 = GY + r * rowSp;
@@ -1297,25 +1383,37 @@ public:
             auto *cb = new CardButton(x, y0, bw, cardH, base);
             std::string lbl = RANKS[r] + std::string(1, SUITS[s]);
             cb->copy_label(lbl.c_str());
+            cb->labelsize(static_cast<int>(14 * button_scale));  // Adjusted label size
             cb->callback(cbCard, this);
             m_cards.push_back(cb);
         }
     }
 
-    m_selDisplay = new Fl_Input(25, GY + rows * rowSp + 10, W - 200, 30);
+    // Center the input display and random button
+    int inputWidth = static_cast<int>(new_w * 0.6);  // Make input width relative to window
+    int buttonWidth = 160;
+    int spacing = 20;
+    int totalWidth = inputWidth + buttonWidth + spacing;
+    int startX = (new_w - totalWidth) / 2;
+
+    m_selDisplay = new Fl_Input(startX, GY + rows * rowSp + 10, inputWidth, 30);
     m_selDisplay->textsize(12);
     m_selDisplay->readonly(1);
 
-    m_btnRand = new Fl_Button(W - 175, m_selDisplay->y(), 160, 30, "Generate Random Flop");
+    m_btnRand = new Fl_Button(m_selDisplay->x() + m_selDisplay->w() + spacing, m_selDisplay->y(), buttonWidth, 30, "Generate Random Flop");
     m_btnRand->labelsize(12);
     m_btnRand->callback(cbRand, this);
 
-    int yBtn = H - 100;
-    m_btn2Back = new Fl_Button(25, yBtn, 150, 50, "Back");
+    // Position back/next buttons at bottom of window with proper spacing
+    int navButtonHeight = static_cast<int>(50 * m_scale);
+    int navButtonMargin = static_cast<int>(25 * m_scale);
+    int yBtn = new_h - navButtonHeight - navButtonMargin;  // Position from bottom of window
+
+    m_btn2Back = new Fl_Button(25, yBtn, 150, navButtonHeight, "Back");
     m_btn2Back->labelsize(12);
     m_btn2Back->callback(cb2Back, this);
 
-    m_btn2Next = new Fl_Button(W - 175, yBtn, 150, 50, "Next");
+    m_btn2Next = new Fl_Button(new_w - 175, yBtn, 150, navButtonHeight, "Next");
     m_btn2Next->labelsize(12);
     m_btn2Next->callback(cb2Next, this);
 
@@ -1323,30 +1421,52 @@ public:
     m_pg2->hide();
 
     // Page3
-    m_pg3 = new Fl_Group(0, 0, W, H);
+    m_pg3 = new Fl_Group(0, 0, new_w, new_h);
     
-    m_lblRange = new Fl_Box(0, 20, W, 50, "Range Editor (you)");
+    m_lblRange = new Fl_Box(0, 20, new_w, 50, "Range Editor (you)");
     m_lblRange->labelfont(FL_BOLD);
     m_lblRange->labelsize(28);
     m_lblRange->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
 
-    int RGX = 50, RGY = 100;
-    int RGW = W - 100;
-    int RGH = H - 250;
+    // Range grid - use less aggressive scaling
+    int RGX = 50;
+    int RGY = 90;  // Start grid higher up to avoid overlap
+    int RGW = GW - 100;
+    int RGH = GH - 250;
     
-    int rbw = (RGW - (13 * 10)) / 13;
-    int rbh = (RGH - (13 * 10)) / 13;
-    rbh = std::min(rbh, rbw);
-    rbw = rbh;
+    // Calculate range button sizes with minimal scaling
+    float range_button_scale = std::min(1.0f, m_scale / 0.4f);
     
-    int rsp = rbh + 10;
+    // Calculate base size for range buttons - start with larger base size
+    int grid_size = 13;  // 13x13 grid
+    int available_width = new_w - 100;  // Leave some margin
+    int available_height = new_h - 250;  // Reduced from 300 to give more vertical space
     
-    RGX = (W - (13 * (rbw + 10))) / 2;
+    // Calculate button size based on available space
+    int base_button_size = std::min(
+        (available_width - (grid_size * 10)) / grid_size,  // Width-based size
+        (available_height - (grid_size * 10)) / grid_size  // Height-based size
+    );
     
+    // Apply scaling but keep buttons relatively large
+    int rbw = static_cast<int>(base_button_size * range_button_scale);
+    int rbh = rbw;  // Keep square
+    
+    // Ensure minimum size
+    rbw = std::max(rbw, static_cast<int>(40 * m_scale));
+    rbh = rbw;
+    
+    int rsp = rbh + 8;  // Slightly reduce spacing between buttons
+    
+    // Center the range grid
+    RGX = (new_w - (13 * (rbw + 8))) / 2;  // Use same reduced spacing
+    RGY = 90;  // Fixed position below title
+    
+    // Create range buttons with adjusted sizes
     for (int i = 0; i < 13; ++i) {
         for (int j = 0; j < 13; ++j) {
-            int x = RGX + j * (rbw + 10);
-            int y0 = RGY + i * (rbh + 10);
+            int x = RGX + j * (rbw + 8);
+            int y0 = RGY + i * (rbh + 8);
             std::string lbl;
             Fl_Color base;
             if (i == j) {
@@ -1361,36 +1481,43 @@ public:
             }
             auto *btn = new CardButton(x, y0, rbw, rbh, base);
             btn->copy_label(lbl.c_str());
-            btn->labelsize(16);
+            btn->labelsize(static_cast<int>(20 * range_button_scale));  // Larger base font size
             btn->callback(cbRange, this);
             btn->clear_visible_focus();
             m_rangeBtns.push_back(btn);
         }
     }
 
-    m_btn3Back = new Fl_Button(50, yBtn, 300, 100, "Back");
-    m_btn3Back->labelsize(24);
+    // Position back/next buttons for range pages with proper sizing
+    int rangeNavButtonHeight = static_cast<int>(40 * m_scale);  // Smaller height for range page nav buttons
+    int rangeNavButtonWidth = static_cast<int>(120 * m_scale);  // Proportional width
+    int rangeNavMargin = static_cast<int>(20 * m_scale);  // Smaller margin
+    int rangeNavY = new_h - rangeNavButtonHeight - rangeNavMargin;
+
+    // Range page navigation buttons
+    m_btn3Back = new Fl_Button(25, rangeNavY, rangeNavButtonWidth, rangeNavButtonHeight, "Back");
+    m_btn3Back->labelsize(static_cast<int>(16 * m_scale));
     m_btn3Back->callback(cb3Back, this);
 
-    m_btn3Next = new Fl_Button(W - 350, yBtn, 300, 100, "Next");
-    m_btn3Next->labelsize(24);
+    m_btn3Next = new Fl_Button(new_w - rangeNavButtonWidth - 25, rangeNavY, rangeNavButtonWidth, rangeNavButtonHeight, "Next");
+    m_btn3Next->labelsize(static_cast<int>(16 * m_scale));
     m_btn3Next->callback(cb3Next, this);
 
     m_pg3->end();
     m_pg3->hide();
 
     // Page4
-    m_pg4 = new Fl_Group(0, 0, W, H);
+    m_pg4 = new Fl_Group(0, 0, new_w, new_h);
     
-    m_lblVillain = new Fl_Box(0, 20, W, 50, "Range Editor (villain)");
+    m_lblVillain = new Fl_Box(0, 20, new_w, 50, "Range Editor (villain)");
     m_lblVillain->labelfont(FL_BOLD);
     m_lblVillain->labelsize(28);
     m_lblVillain->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
 
     for (int i = 0; i < 13; ++i) {
         for (int j = 0; j < 13; ++j) {
-            int x = RGX + j * (rbw + 10);
-            int y0 = RGY + i * (rbh + 10);
+            int x = RGX + j * (rbw + 8);
+            int y0 = RGY + i * (rbh + 8);
             std::string lbl;
             Fl_Color base;
             if (i == j) {
@@ -1412,21 +1539,21 @@ public:
         }
     }
 
-    m_btn4Back = new Fl_Button(50, yBtn, 300, 100, "Back");
-    m_btn4Back->labelsize(24);
+    m_btn4Back = new Fl_Button(25, rangeNavY, rangeNavButtonWidth, rangeNavButtonHeight, "Back");
+    m_btn4Back->labelsize(static_cast<int>(16 * m_scale));
     m_btn4Back->callback(cb4Back, this);
 
-    m_btn4Next = new Fl_Button(W - 350, yBtn, 300, 100, "Next");
-    m_btn4Next->labelsize(24);
+    m_btn4Next = new Fl_Button(new_w - rangeNavButtonWidth - 25, rangeNavY, rangeNavButtonWidth, rangeNavButtonHeight, "Next");
+    m_btn4Next->labelsize(static_cast<int>(16 * m_scale));
     m_btn4Next->callback(cb4Next, this);
 
     m_pg4->end();
     m_pg4->hide();
 
     // Page5
-    m_pg5 = new Fl_Group(0, 0, W, H);
+    m_pg5 = new Fl_Group(0, 0, new_w, new_h);
     
-    m_lblWait = new Fl_Box(0, 0, W, H, "Please wait...");
+    m_lblWait = new Fl_Box(0, 0, new_w, new_h, "Please wait...");
     m_lblWait->labelsize(36);
     m_lblWait->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
     
@@ -1434,42 +1561,55 @@ public:
     m_pg5->hide();
 
     // Page6 - Strategy Display
-    m_pg6 = new Fl_Group(0, 0, W, H);
+    m_pg6 = new Fl_Group(0, 0, new_w, new_h);
     m_pg6->box(FL_FLAT_BOX);
     m_pg6->color(fl_rgb_color(240, 240, 240));
 
-    // Title area
+    // Title area - INCREASE TEXT SIZES AND ADJUST SPACING
     int titleY = 15;
-    int titleH = 12;
+    int titleH = static_cast<int>(30 * m_scale);  // Increased from 12 to accommodate larger text
 
-    m_lblStrategy = new Fl_Box(0, titleY, W, titleH);
-    m_lblStrategy->labelsize(14);
+    // Strategy text (Hero's/Villain's Turn)
+    m_lblStrategy = new Fl_Box(0, titleY, new_w, titleH);
+    m_lblStrategy->labelsize(static_cast<int>(28 * m_scale));
     m_lblStrategy->labelfont(FL_HELVETICA_BOLD);
     m_lblStrategy->align(FL_ALIGN_CENTER);
 
-    m_boardInfo = new Fl_Box(0, titleY + titleH + 2, W, titleH);
-    m_boardInfo->labelsize(8);
+    // Board info text
+    int boardY = titleY + titleH + static_cast<int>(10 * m_scale);
+    int boardH = static_cast<int>(25 * m_scale);
+    m_boardInfo = new Fl_Box(0, boardY, new_w, boardH);
+    m_boardInfo->labelsize(static_cast<int>(16 * m_scale));
     m_boardInfo->labelfont(FL_HELVETICA);
     m_boardInfo->align(FL_ALIGN_CENTER);
 
-    m_potInfo = new Fl_Box(0, titleY + 2 * titleH + 5, W, titleH);
-    m_potInfo->labelsize(7);
+    // Pot/stack info text
+    int potY = boardY + boardH + static_cast<int>(5 * m_scale);
+    int potH = static_cast<int>(25 * m_scale);
+    m_potInfo = new Fl_Box(0, potY, new_w, potH);
+    m_potInfo->labelsize(static_cast<int>(14 * m_scale));
     m_potInfo->labelfont(FL_HELVETICA);
     m_potInfo->align(FL_ALIGN_CENTER);
 
-    int headerHeight = titleY + 3 * titleH + 15;
+    int headerHeight = potY + potH + static_cast<int>(15 * m_scale);
 
     // Strategy grid
     int gridX = 20;
     int gridY = headerHeight;
-    int gridW = (W * 2) / 3 - 40;
-    int gridH = H - gridY - 50;
+    int gridW = (new_w * 2) / 3 - 40;
+    
+    // Reserve space at bottom for buttons
+    int bottomButtonHeight = static_cast<int>(60 * m_scale);  // Space for buttons
+    int bottomMargin = static_cast<int>(20 * m_scale);       // Margin below grid
+    
+    // Adjust grid height to leave room for buttons
+    int gridH = new_h - gridY - bottomButtonHeight - bottomMargin;
 
     int cellSize = std::min(gridW / 13, gridH / 13);
     cellSize = static_cast<int>(cellSize * 0.925);
     int cellPadding = 3;
 
-    gridX = (((W * 2) / 3) - (13 * (cellSize + cellPadding))) / 2;
+    gridX = (((new_w * 2) / 3) - (13 * (cellSize + cellPadding))) / 2;
 
     // Create strategy grid buttons
     for (int r = 0; r < 13; r++) {
@@ -1487,20 +1627,23 @@ public:
     }
 
     // Info display
-    int infoX = (W * 2) / 3 + 10;
+    int infoX = (new_w * 2) / 3 + 10;
     int infoY = headerHeight;
-    int infoW = (W / 3) - 20;
-    int infoH = H - infoY - 50;
+    int infoW = (new_w / 3) - 20;
+    int infoH = new_h - infoY - 50;
 
-    m_infoTitle = new Fl_Box(infoX, infoY - 15, infoW, 12, "Hand Analysis");
-    m_infoTitle->labelsize(12);
+    // Info title with proper spacing
+    int infoTitleH = static_cast<int>(30 * m_scale);  // Increased height for title
+    m_infoTitle = new Fl_Box(infoX, infoY, infoW, infoTitleH, "Hand Analysis");
+    m_infoTitle->labelsize(static_cast<int>(24 * m_scale));
     m_infoTitle->labelfont(FL_HELVETICA_BOLD);
     m_infoTitle->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
 
+    // Adjust info display position to account for title
     m_infoBuffer = new Fl_Text_Buffer();
-    m_infoDisplay = new Fl_Text_Display(infoX, infoY, infoW, infoH);
+    m_infoDisplay = new Fl_Text_Display(infoX, infoY + infoTitleH + 5, infoW, infoH - infoTitleH - 5);
     m_infoDisplay->buffer(m_infoBuffer);
-    m_infoDisplay->textsize(11);
+    m_infoDisplay->textsize(static_cast<int>(22 * m_scale));
     m_infoDisplay->textfont(FL_HELVETICA);
     m_infoDisplay->box(FL_FLAT_BOX);
     m_infoDisplay->color(fl_rgb_color(230, 230, 230));
@@ -1508,34 +1651,36 @@ public:
     m_infoDisplay->scrollbar_width(7);
     m_infoDisplay->scrollbar_align(FL_ALIGN_RIGHT);
 
-    // Action buttons
-    int btnY = H - 52;
-    int btnW = 75;
-    int btnH = 25;
+    // Action buttons - Position them below the grid with proper spacing
+    int btnY = new_h - bottomButtonHeight + bottomMargin/2;  // Position from bottom with some margin
+    int btnW = 150;  // Doubled from 75
+    int btnH = 50;   // Doubled from 25
     int btnSpacing = 10;
 
-    int backBtnW = 52;
-    int backBtnH = 22;
-    int backBtnY = btnY + (btnH - backBtnH) / 2;
+    // Back/Undo buttons
+    int backBtnW = 104;  // Doubled from 52
+    int backBtnH = 44;   // Doubled from 22
+    int backBtnY = btnY + (btnH - backBtnH) / 2;  // Center vertically with action buttons
 
-    auto *backBtn = new Fl_Button(20, backBtnY, backBtnW, backBtnH, "Back");
-    backBtn->labelsize(6);
+    auto *backBtn = new Fl_Button(gridX, backBtnY, backBtnW, backBtnH, "Back");
+    backBtn->labelsize(static_cast<int>(12 * m_scale));
     backBtn->labelfont(FL_HELVETICA_BOLD);
     backBtn->box(FL_FLAT_BOX);
     backBtn->color(fl_rgb_color(200, 200, 200));
     backBtn->callback(cbBack, this);
 
-    auto *undoBtn = new Fl_Button(20 + backBtnW + 5, backBtnY, backBtnW, backBtnH, "Undo");
-    undoBtn->labelsize(6);
+    auto *undoBtn = new Fl_Button(gridX + backBtnW + 5, backBtnY, backBtnW, backBtnH, "Undo");
+    undoBtn->labelsize(static_cast<int>(12 * m_scale));
     undoBtn->labelfont(FL_HELVETICA_BOLD);
     undoBtn->box(FL_FLAT_BOX);
     undoBtn->color(fl_rgb_color(200, 200, 200));
     undoBtn->callback(cbUndo, this);
 
-    int actionBtnX = W - (4 * btnW + 3 * btnSpacing + 20);
+    // Position action buttons on the right side
+    int actionBtnX = new_w - (4 * btnW + 3 * btnSpacing + gridX);
     for (int i = 0; i < 4; i++) {
         auto *btn = new Fl_Button(actionBtnX + i * (btnW + btnSpacing), btnY, btnW, btnH);
-        btn->labelsize(7);
+        btn->labelsize(static_cast<int>(14 * m_scale));
         btn->labelfont(FL_HELVETICA_BOLD);
         btn->box(FL_FLAT_BOX);
         btn->color(fl_rgb_color(220, 220, 220));
@@ -1543,11 +1688,16 @@ public:
         m_actionBtns.push_back(btn);
     }
 
-    m_cardChoice = new Fl_Choice(actionBtnX - btnW * 2 - btnSpacing, btnY, btnW * 1.5, btnH);
-    m_cardChoice->labelsize(7);
+    // Position card choice dropdown more to the left
+    int dropdownX = gridX + (2 * backBtnW) + static_cast<int>(50 * m_scale);  // Start after Back/Undo buttons with some spacing
+    m_cardChoice = new Fl_Choice(dropdownX, btnY, btnW * 1.5, btnH);
+    m_cardChoice->labelsize(static_cast<int>(14 * m_scale));
     m_cardChoice->labelfont(FL_HELVETICA);
     m_cardChoice->callback([](Fl_Widget *w, void *v) { ((Wizard *)v)->doCardSelect(); }, this);
     m_cardChoice->hide();
+
+    // Adjust info display height to match grid
+    m_infoDisplay->size(m_infoDisplay->w(), gridH - m_infoTitle->h() - 5);
 
     m_pg6->end();
     m_pg6->hide();
@@ -1559,7 +1709,7 @@ public:
 int main(int argc, char **argv) {
   fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 2);
   fl_message_hotspot(1);
-  Wizard wiz(1500, 1031, "Wizard");
+  Wizard wiz("Wizard");  // No need to specify size here anymore
   wiz.show(argc, argv);
   return Fl::run();
 }
