@@ -1,3 +1,5 @@
+# File: .github/workflows/new_ci.yml
+
 name: new_ci
 
 on:
@@ -87,12 +89,14 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
           mingw32-make -j
 
-          # Bundle FLTK and TBB DLLs alongside shark.exe
-          cp /mingw64/bin/libfltk-1.4.dll        .
-          cp /mingw64/bin/libfltk_images-1.4.dll .
-          cp /mingw64/bin/libfltk_forms-1.4.dll .
-          cp /mingw64/bin/libfltk_gl-1.4.dll    .
-          cp /mingw64/bin/libtbb.dll            .
+          # Bundle FLTK DLLs alongside shark.exe
+          cp /mingw64/bin/libfltk-1.4.dll         .
+          cp /mingw64/bin/libfltk_images-1.4.dll  .
+          cp /mingw64/bin/libfltk_forms-1.4.dll   .
+          cp /mingw64/bin/libfltk_gl-1.4.dll      .
+
+          # Bundle any TBB DLL(s) matching libtbb*.dll
+          cp /mingw64/bin/libtbb*.dll             .
 
       - name: List build artifacts
         shell: msys2 {0}
@@ -105,4 +109,4 @@ jobs:
           path: |
             build/shark.exe
             build/libfltk-*.dll
-            build/libtbb.dll
+            build/libtbb*.dll
