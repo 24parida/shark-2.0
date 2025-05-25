@@ -1,8 +1,79 @@
+name: new_ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-nix:
+    name: Build on Linux & macOS
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install fltk tbb cmake
+
+      - name: Configure & build
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+          cmake --build build --config Release
+
+      - name: List build artifacts
+        run: ls -R build
+
+      - name: Upload shark binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-${{ matrix.os }}
+          path: build/shark*
+
   build-win:
     name: Build on Windows (MSYS2/MinGW)
     runs-on: windows-latest
     steps:
-      # … checkout, msys2/setup-msys2@v2 with mingw-w64-x86_64-tbb, etc. …
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up MSYS2 & toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: |
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-fltk
+            mingw-w64-x86_64-tbb
+            mingw-w64-x86_64-cmake
+
+      - name: Refresh package database
+        shell: msys2 {0}
+        run: pacman -Sy --noconfirm
 
       - name: Configure & build
         shell: msys2 {0}
@@ -16,12 +87,16 @@
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
           mingw32-make -j
 
-          # bundle FLTK + TBB DLLs next to shark.exe
+          # Bundle FLTK and TBB DLLs alongside shark.exe
           cp /mingw64/bin/libfltk-1.4.dll        .
           cp /mingw64/bin/libfltk_images-1.4.dll .
           cp /mingw64/bin/libfltk_forms-1.4.dll .
           cp /mingw64/bin/libfltk_gl-1.4.dll    .
           cp /mingw64/bin/libtbb.dll            .
+
+      - name: List build artifacts
+        shell: msys2 {0}
+        run: ls -R build
 
       - name: Upload Windows bundle
         uses: actions/upload-artifact@v4
