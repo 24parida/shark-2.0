@@ -121,7 +121,7 @@ Some future optimizations I would love to explore:
 - Hand isomorphism for 2–3x speed boost
 - Better GUI design and UX
 
-I’m currently too busy to implement these — but pull requests and forks are welcome!  
-If this project helped or interested you, please star the repo or reach out 🙌
+I’m currently too busy to implement these — but pull requests and forks are welcome! Or if this project gets enough traction I may revisit :)
+If this project helped or interested you, please star the repo or reach out 🙌. Currently building my resume so every download helps!
 
 **DM me** with questions about the implementation or poker solving in general. I'd love to chat.
