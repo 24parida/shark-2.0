@@ -38,16 +38,11 @@ jobs:
             exit 1
           } || echo "✅ Static linking confirmed"
 
-      - name: Zip macOS build
-        run: |
-          cd build
-          zip -r ../shark-macos.zip shark
-
-      - name: Upload macOS zip
+      - name: Upload macOS binary
         uses: actions/upload-artifact@v4
         with:
           name: shark-macos
-          path: shark-macos.zip
+          path: build/shark
 
   build-win:
     name: Build on Windows (MinGW)
@@ -123,30 +118,24 @@ jobs:
           done
           exit $FAIL
 
-      - name: Zip Windows build
-        shell: msys2 {0}
-        run: |
-          cd build
-          zip -r ../shark-windows.zip *
-
-      - name: Upload Windows zip
+      - name: Upload Windows bundle
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
-          path: shark-windows.zip
+          path: build/*
 
   release:
     name: Publish GitHub Release
     needs: [build-mac, build-win]
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS zip
+      - name: Download macOS binary
         uses: actions/download-artifact@v4
         with:
           name: shark-macos
           path: ./mac
 
-      - name: Download Windows zip
+      - name: Download Windows files
         uses: actions/download-artifact@v4
         with:
           name: shark-windows
@@ -163,22 +152,22 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload macOS zip to release
+      - name: Upload macOS binary to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./mac/shark-macos.zip
-          asset_name: shark-macos.zip
-          asset_content_type: application/zip
+          asset_path: ./mac/shark
+          asset_name: shark-macos
+          asset_content_type: application/octet-stream
 
-      - name: Upload Windows zip to release
+      - name: Upload Windows executable to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./win/shark-windows.zip
-          asset_name: shark-windows.zip
-          asset_content_type: application/zip
+          asset_path: ./win/shark.exe
+          asset_name: shark-windows.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
