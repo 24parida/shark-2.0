@@ -61,23 +61,19 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Setup MSYS2
+      - name: Setup MSYS2 & install packages
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-
-      - name: Update & install MSYS2 packages
-        shell: msys2 {0}
-        run: |
-          pacman -Syuu --noconfirm
-          pacman -S --noconfirm \
-            mingw-w64-x86_64-toolchain \
-            mingw-w64-x86_64-fltk \
-            mingw-w64-x86_64-tbb \
-            mingw-w64-x86_64-cmake \
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-fltk
+            mingw-w64-x86_64-tbb
+            mingw-w64-x86_64-cmake
             make
 
-      - name: Configure with CMake (MinGW)
+      - name: Configure & build
         shell: msys2 {0}
         run: |
           mkdir -p build
@@ -87,12 +83,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-
-      - name: Build
-        shell: msys2 {0}
-        run: |
-          cd build
-          make -j4
+          make -j
 
       - name: List build artifacts
         shell: msys2 {0}
