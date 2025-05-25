@@ -1,5 +1,3 @@
-# .github/workflows/ci.yml
-
 name: CMake CI
 
 on:
@@ -40,8 +38,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          cmake --build build --config Release
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"  # Strip symbols for smaller binaries
+          cmake --build build --config Release --parallel
 
       - name: List build artifacts
         run: ls -R build
@@ -53,7 +51,7 @@ jobs:
           path: build/shark*
 
   build-win:
-    name: Build on Windows (MSYS2/MinGW)
+    name: Build on Windows (MinGW)
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -62,22 +60,19 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Set up MSYS2 & toolchain
+      - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: false
+          update: true
           install: |
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ntldd  # Explicitly ensure ntldd is available
 
-      - name: Refresh package database
-        shell: msys2 {0}
-        run: pacman -Sy --noconfirm
-
-      - name: Configure, build & bundle DLLs
+      - name: Configure & build
         shell: msys2 {0}
         run: |
           mkdir -p build
@@ -86,18 +81,42 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          mingw32-make -j
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"  # Strip symbols
+          mingw32-make -j$(nproc)
 
-          # Bundle every DLL from the MinGW64 bin directory
-          cp /mingw64/bin/*.dll .
-
-      - name: List build artifacts
+      - name: Copy only required DLLs
         shell: msys2 {0}
-        run: ls -R build
+        run: |
+          cd build
+          # Find all executables and their dependencies
+          for exe in $(find . -name "*.exe"); do
+            echo "Processing $exe..."
+            /usr/bin/ntldd -R "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
+              if [ -f "$dll" ]; then
+                cp -v "$dll" .
+              fi
+            done
+          done
+
+          # Explicitly copy known runtime DLLs (if dynamically loaded)
+          cp -v /mingw64/bin/libfltk*.dll .
+          cp -v /mingw64/bin/libtbb*.dll .
+
+      - name: Verify DLLs
+        shell: msys2 {0}
+        run: |
+          cd build
+          echo "Final DLLs:"
+          ls -lh *.dll
+          echo "Checking dependencies:"
+          for exe in $(find . -name "*.exe"); do
+            echo "--- $exe ---"
+            /usr/bin/ntldd "$exe"
+          done
 
       - name: Upload Windows bundle
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
           path: build/*
+          compression-level: 9  # Max compression for smaller uploads
