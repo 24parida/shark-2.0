@@ -99,7 +99,11 @@ jobs:
           for exe in $(find . -maxdepth 1 -name "*.exe"); do
             echo "Scanning $exe for dependencies..."
             ntldd "$exe" | awk '{print $3}' | while read -r dll; do
-              [ -f "$dll" ] && cp -u -v "$dll" .
+              if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
+                cp -u -v "$dll" .
+              else
+                echo "Skipping system DLL: $dll"
+              fi
             done
           done
 
