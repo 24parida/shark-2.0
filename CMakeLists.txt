@@ -5,22 +5,26 @@ project(shark LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if (MSVC)
-  # /O2 fine
-else()
+if (NOT MSVC)
   add_compile_options(-O3 -ffast-math)
 endif()
 
-# 2) Find external deps (dynamic on Windows, static only for FLTK if you choose)
+# 2) Find external dependencies
 find_package(FLTK REQUIRED)
 find_package(TBB   REQUIRED)
 
-# 3) PokerHandEvaluator
+# 3) Build PokerHandEvaluator subproject
 set(BUILD_CARD5    OFF CACHE BOOL "" FORCE)
-...
+set(BUILD_CARD6    OFF CACHE BOOL "" FORCE)
+set(BUILD_CARD7    OFF CACHE BOOL "" FORCE)
+set(BUILD_PLO4     OFF CACHE BOOL "" FORCE)
+set(BUILD_PLO5     OFF CACHE BOOL "" FORCE)
+set(BUILD_PLO6     OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(include/PokerHandEvaluator/cpp pheval_build)
 
-# 4) Sources & executable
+# 4) Gather your sources
 file(GLOB_RECURSE POKER_GUI_SRCS
   gui/gui.cpp
   src/hands/*.cpp
@@ -28,16 +32,18 @@ file(GLOB_RECURSE POKER_GUI_SRCS
   src/trainer/*.cpp
   src/tree/*.cpp
 )
+
+# 5) Create the executable
 add_executable(shark ${POKER_GUI_SRCS})
 
-# 5) Includes
+# 6) Include paths
 target_include_directories(shark PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/include
   ${FLTK_INCLUDE_DIR}
 )
 
-# 6) Link (dynamic TBB on all platforms)
+# 7) Link libraries (dynamic TBB on all platforms)
 target_link_libraries(shark PRIVATE
   ${FLTK_LIBRARIES}
   TBB::tbb
