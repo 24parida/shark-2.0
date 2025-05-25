@@ -1,10 +1,12 @@
+# .github/workflows/ci.yml
+
 name: CMake CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build-nix:
@@ -20,13 +22,13 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install deps (Linux)
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
 
-      - name: Install deps (macOS)
+      - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew update
@@ -60,20 +62,20 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Set up MSYS2 & toolchain
-        uses: msys2/setup-msys2@v2
+      - name: Setup MSYS2 & toolchain
+        uses: msys2/setup-msys2@v2.2.1
         with:
           msystem: MINGW64
-          update: false               # ← must be a bare boolean!
-          install: >                  # ← installs only these packages
+          update: false                  # ← must be a bare boolean
+          install: >                     # ← installs only these packages
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
 
-      - name: (Optional) Refresh DB only
+      - name: Refresh package database
         shell: msys2 {0}
-        run: pacman -Sy --noconfirm
+        run: pacman -Sy --noconfirm      # safe: does NOT upgrade system
 
       - name: Configure & build
         shell: msys2 {0}
@@ -85,7 +87,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          mingw32-make -j            # ← use mingw32-make on Windows
+          mingw32-make -j               # ← use mingw32-make on Windows
 
       - name: List build artifacts
         shell: msys2 {0}
