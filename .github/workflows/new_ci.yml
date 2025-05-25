@@ -1,3 +1,5 @@
+# .github/workflows/ci.yml
+
 name: CMake CI
 
 on:
@@ -61,20 +63,20 @@ jobs:
           fetch-depth: 0
 
       - name: Set up MSYS2 & toolchain
-        uses: msys2/setup-msys2@v2.2.1
+        uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: false               # skip the fatal full upgrade
-          install: >
+          update: false               # skip the full pacman -Syuu
+          install: >                  # install exactly these packages
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb      # Intel TBB
             mingw-w64-x86_64-cmake
-            make                       # provides make / mingw32-make
+            make                       # provides mingw32-make
 
       - name: Refresh package database
         shell: msys2 {0}
-        run: pacman -Sy --noconfirm      # safe: updates DB only
+        run: pacman -Sy --noconfirm
 
       - name: Configure & build
         shell: msys2 {0}
@@ -86,7 +88,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          mingw32-make -j               # build with make
+          mingw32-make -j
 
       - name: List build artifacts
         shell: msys2 {0}
