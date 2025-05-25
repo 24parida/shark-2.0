@@ -106,7 +106,7 @@ Huge thanks to [Fossana's original solver](https://github.com/Fossana/discounted
 - Fully functional **GUI**
 - Numerous quality-of-life and performance enhancements
 
-## Base Algorithm:
+### Base Algorithm:
  - Discounted Counter Factual Regret Minimization
  - Full multithreading support
 
