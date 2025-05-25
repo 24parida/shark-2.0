@@ -94,7 +94,7 @@ The `.zip` file build process is located in `.github/workflows/new_ci.yml`.
 Huge thanks to [Fossana's original solver](https://github.com/Fossana/discounted-cfr-poker-solver), which served as the foundation for this project.
 
 ### Key Improvements:
-- Ported to **C++** for 10–40x speed boost with `-O3` optimizations
+- Ported to **C++** for 10–40x speed boost with `-O3` optimizations allowing auto SIMD vectorization
 - **Bug fixes** (e.g., proper chance node updates)
 - Support for **asymmetric ranges** (Fossana required hero = villain)
 - Added support for **flop** solving (not just turn)
