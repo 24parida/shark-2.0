@@ -89,10 +89,7 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
           mingw32-make -j
 
-          # Copy shark.exe
-          cp shark.exe .
-
-          # Bundle every DLL in MSYS2's mingw64/bin
+          # Bundle every DLL from the MinGW64 bin directory
           cp /mingw64/bin/*.dll .
 
       - name: List build artifacts
