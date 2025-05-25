@@ -116,12 +116,17 @@ Also uses [HenryRLee’s PokerHandEvaluator](https://github.com/HenryRLee/PokerH
 
 ## 👋 About Me
 
-I'm a college student and built this as a side project because I wanted to learn C++ better and love Poker!  
-Some future optimizations I would love to explore:
-- Hand isomorphism for 2–3x speed boost
-- Better GUI design and UX
+### About This Project
 
-I’m currently too busy to implement these — but pull requests and forks are welcome! Or if this project gets enough traction I may revisit :)
-If this project helped or interested you, please star the repo or reach out 🙌. Currently building my resume so every download helps!
+I’m a college student who built this as a side project to deepen my C++ skills—and because I love poker!  
+
+### Future Optimizations I’d Like to Explore
+
+- Hand isomorphism for a 2–3× speed boost  
+- Improved GUI design and overall UX  
+
+*I’m currently too busy to implement these myself, but pull requests and forks are very welcome. If this project gains enough traction, I may revisit these ideas!*  
+
+If you found this project helpful or interesting, please star the repo or reach out 🙌
 
 **DM me** with questions about the implementation or poker solving in general. I'd love to chat.
