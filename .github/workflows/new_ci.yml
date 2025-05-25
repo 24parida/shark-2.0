@@ -77,7 +77,7 @@ jobs:
         shell: msys2 {0}
         run: pacman -Sy --noconfirm
 
-      - name: Configure, build & bundle runtimes
+      - name: Configure, build & bundle DLLs
         shell: msys2 {0}
         run: |
           mkdir -p build
@@ -89,18 +89,11 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
           mingw32-make -j
 
-          # Bundle FLTK DLLs
-          cp /mingw64/bin/libfltk-1.4.dll         .
-          cp /mingw64/bin/libfltk_images-1.4.dll  .
-          cp /mingw64/bin/libfltk_forms-1.4.dll   .
-          cp /mingw64/bin/libfltk_gl-1.4.dll      .
+          # Copy shark.exe
+          cp shark.exe .
 
-          # Bundle TBB DLL
-          cp /mingw64/bin/libtbb*.dll             .
-
-          # Bundle GCC runtime DLLs
-          cp /mingw64/bin/libgcc_s_seh-1.dll      .
-          cp /mingw64/bin/libstdc++-6.dll         .
+          # Bundle every DLL in MSYS2's mingw64/bin
+          cp /mingw64/bin/*.dll .
 
       - name: List build artifacts
         shell: msys2 {0}
@@ -110,9 +103,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
-          path: |
-            build/shark.exe
-            build/libfltk-*.dll
-            build/libtbb*.dll
-            build/libgcc_s_seh-1.dll
-            build/libstdc++-6.dll
+          path: build/*
