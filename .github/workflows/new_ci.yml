@@ -38,11 +38,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"  # Strip symbols for smaller binaries
-          cmake --build build --config Release --parallel
-
-      - name: List build artifacts
-        run: ls -R build
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
+          cmake --build build --config Release --parallel $(nproc)
 
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
@@ -65,12 +62,12 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: |
+          install: >-
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ntldd  # Explicitly ensure ntldd is available
+            mingw-w64-x86_64-ntldd-git
 
       - name: Configure & build
         shell: msys2 {0}
@@ -81,37 +78,35 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"  # Strip symbols
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
           mingw32-make -j$(nproc)
 
-      - name: Copy only required DLLs
+      - name: Copy required DLLs
         shell: msys2 {0}
         run: |
           cd build
-          # Find all executables and their dependencies
           for exe in $(find . -name "*.exe"); do
-            echo "Processing $exe..."
-            /usr/bin/ntldd -R "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
+            echo "Checking dependencies for $exe"
+            ntldd -R "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
               if [ -f "$dll" ]; then
                 cp -v "$dll" .
               fi
             done
           done
-
-          # Explicitly copy known runtime DLLs (if dynamically loaded)
+          # Explicitly copy known runtime DLLs
           cp -v /mingw64/bin/libfltk*.dll .
           cp -v /mingw64/bin/libtbb*.dll .
 
-      - name: Verify DLLs
+      - name: Verify binaries
         shell: msys2 {0}
         run: |
           cd build
-          echo "Final DLLs:"
-          ls -lh *.dll
-          echo "Checking dependencies:"
+          echo "Final files:"
+          ls -lh
+          echo "Dependencies:"
           for exe in $(find . -name "*.exe"); do
             echo "--- $exe ---"
-            /usr/bin/ntldd "$exe"
+            ntldd "$exe"
           done
 
       - name: Upload Windows bundle
@@ -119,4 +114,4 @@ jobs:
         with:
           name: shark-windows
           path: build/*
-          compression-level: 9  # Max compression for smaller uploads
+          compression-level: 9
