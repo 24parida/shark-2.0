@@ -53,6 +53,7 @@ Auto-imported ranges are conservative (few 4-bet bluffs), so feel free to tune b
 ---
 
 ### Page 5: Results
+NOTE: results may take anywhere from 2s-4minutes based on range size, num iterations, and whether you are solving flop, turn, or river.
 - View PIO-style strategy coloring
 - Click a hand to see strategy for each combo
 - Use dropdown to choose an action (check, bet, fold, etc.)
