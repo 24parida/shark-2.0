@@ -21,7 +21,7 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      # 2) Install FLTK & TBB on Linux/macOS
+      # 2) Linux/macOS deps
       - name: Install deps (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
@@ -33,52 +33,51 @@ jobs:
             brew install fltk tbb cmake
           fi
 
-      # 3) Bootstrap & install via vcpkg on Windows
-      - name: Cache vcpkg (Windows)
+      # 3) Bootstrap vcpkg on Windows
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        uses: lukka/get-vcpkg@v29
+
+      # 4) Cache vcpkg build artifacts (Windows)
+      - name: Cache vcpkg packages (Windows)
         if: runner.os == 'Windows'
         uses: actions/cache@v3
         with:
-          path: vcpkg
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          path: |
+            vcpkg/installed
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg/archives
+            vcpkg/downloads
+          key: ${{ runner.os }}-vcpkg-cache
           restore-keys: |
-            vcpkg-${{ runner.os }}-
-      - name: Bootstrap vcpkg (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (-not (Test-Path vcpkg/bootstrap-vcpkg.bat)) {
-            git clone https://github.com/microsoft/vcpkg.git vcpkg
-          }
-          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+            ${{ runner.os }}-vcpkg-cache
+
+      # 5) Install FLTK & TBB via vcpkg (Windows)
       - name: Install deps (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
 
-      # 4) Cleanup old build directory
-      - name: Cleanup build dir (Linux/macOS)
+      # 6) Configure: Linux/macOS
+      - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
-        run: rm -rf build
-      - name: Cleanup build dir (Windows)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      # 7) Configure: Windows (with vcpkg toolchain)
+      - name: Configure (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: Remove-Item build -Recurse -Force -ErrorAction SilentlyContinue
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
+             `-DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
 
-      # 5) Configure with CMake
-      - name: Configure with CMake
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-            $([[ "${{ runner.os }}" == "Windows" ]] && echo "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows" || echo "")
-
-      # 6) Build
+      # 8) Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 7) Inspect outputs
+      # 9) Inspect outputs
       - name: List build dir
         run: ls -R build
 
-      # 8) Upload the binary
+      # 10) Upload the binary
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
         with:
