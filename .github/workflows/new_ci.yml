@@ -85,12 +85,33 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
+
+          # Helper to safely copy DLLs once
+          copy_if_exists() {
+            if [ -f "$1" ]; then
+              echo "Copying $1"
+              cp -u -v "$1" .
+            else
+              echo "Missing $1"
+            fi
+          }
+
+          # Explicitly copy known DLLs commonly missed by ntldd
+          for lib in \
+            /mingw64/bin/libgcc_s_seh-1.dll \
+            /mingw64/bin/libstdc++-6.dll \
+            /mingw64/bin/libwinpthread-1.dll \
+            /mingw64/bin/libfltk*.dll \
+            /mingw64/bin/libtbb*.dll; do
+            copy_if_exists "$lib"
+          done
+
+          # Use ntldd to scan each .exe and copy dependencies
           for exe in $(find . -maxdepth 1 -name "*.exe"); do
-            echo "Processing $exe"
-            ntldd "$exe" | awk '{if ($3 ~ "/mingw64/") print $3}' | while read -r dll; do
+            echo "Scanning $exe for dependencies..."
+            ntldd "$exe" | awk '{print $3}' | while read -r dll; do
               if [ -f "$dll" ]; then
-                echo "Copying $dll"
-                cp -v "$dll" .
+                cp -u -v "$dll" .
               fi
             done
           done
@@ -99,10 +120,17 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
+          FAIL=0
           for exe in $(find . -maxdepth 1 -name "*.exe"); do
             echo "Verifying $exe"
-            ntldd "$exe" | grep "not found" && echo "❌ Missing DLLs!" && exit 1 || echo "✅ All DLLs present."
+            if ntldd "$exe" | grep "not found"; then
+              echo "❌ Missing DLLs in $exe"
+              FAIL=1
+            else
+              echo "✅ All DLLs found for $exe"
+            fi
           done
+          exit $FAIL
 
       - name: Upload Windows bundle
         uses: actions/upload-artifact@v4
