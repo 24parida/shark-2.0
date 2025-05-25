@@ -32,8 +32,9 @@ You’ll also be asked for:
 - Villain’s position
 - Pot type (e.g. single raised, 3-bet)
 
+There is almost **NO** input checking, program will crash with nonsensical inputs
+
 > ✅ Based on this, ranges are **auto-imported**. Uncheck the box to input them manually.
-> There is almost NO input checking, program will crash with nonsensical inputs
 
 ---
 
