@@ -19,6 +19,8 @@ These trade-offs were made to maintain a clean user experience.
 ## 🎮 How to Use Shark
 
 ### Page 1: Initial Setup
+NOTE: There is almost **NO** input checking, program will crash with nonsensical inputs
+
 Input the following:
 - Starting stack
 - Starting pot size
@@ -32,10 +34,7 @@ You’ll also be asked for:
 - Villain’s position
 - Pot type (e.g. single raised, 3-bet)
 
-
 > ✅ Based on this, ranges are **auto-imported**. Uncheck the box to input them manually.
-There is almost **NO** input checking, program will crash with nonsensical inputs
-
 ---
 
 ### Page 2: Board Selection
