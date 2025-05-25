@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
           fetch-depth: 0
 
       # 2) Install FLTK & TBB on Linux/macOS
@@ -33,35 +33,45 @@ jobs:
             brew install fltk tbb cmake
           fi
 
-      # 3) Setup vcpkg on Windows and install FLTK & TBB
-      - name: Setup vcpkg & install deps (Windows)
+      # 3) Bootstrap & cache vcpkg on Windows
+      - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Cache vcpkg directory (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v3
         with:
-          # install FLTK and TBB for the x64 toolchain
-          packages: fltk tbb
-          triplet: x64-windows
+          path: vcpkg
+          key: windows-vcpkg-${{ hashFiles('vcpkg/**') }}
+          restore-keys: windows-vcpkg-
+
+      - name: Install deps via vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
 
       # 4) Configure with CMake (Linux/macOS)
       - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      # 5) Configure with CMake (Windows + vcpkg toolchain)
+      # 5) Configure with CMake (Windows + vcpkg)
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
-             `-DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+             `-DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 
       # 6) Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 7) Inspect build outputs
+      # 7) Inspect output
       - name: List build dir
         run: ls -R build
 
-      # 8) Upload the compiled binary
+      # 8) Upload the binary
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
         with:
