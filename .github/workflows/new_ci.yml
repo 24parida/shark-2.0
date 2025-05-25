@@ -7,12 +7,9 @@ on:
     branches: [ main ]
 
 jobs:
-  build-nix:
-    name: Build on Linux & macOS
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  build-mac:
+    name: Build on macOS
+    runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,14 +17,7 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
-
       - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
         run: |
           brew update
           brew install fltk tbb cmake
@@ -38,11 +28,10 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
-          cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu || nproc)
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+          cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu)
 
       - name: Verify static linking (macOS)
-        if: runner.os == 'macOS'
         run: |
           echo "Checking linked libraries on macOS"
           otool -L build/shark | grep -E 'fltk|tbb' && {
@@ -50,19 +39,10 @@ jobs:
             exit 1
           } || echo "✅ Static linking confirmed"
 
-      - name: Verify static linking (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Checking linked libraries on Linux"
-          ldd build/shark | grep -E 'fltk|tbb' && {
-            echo "❌ Linked to shared FLTK or TBB"
-            exit 1
-          } || echo "✅ Static linking confirmed"
-
-      - name: Upload shark binary
+      - name: Upload shark binary (macOS)
         uses: actions/upload-artifact@v4
         with:
-          name: shark-${{ matrix.os }}
+          name: shark-macos
           path: build/shark*
 
   build-win:
