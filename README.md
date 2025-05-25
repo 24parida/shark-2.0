@@ -85,7 +85,7 @@ Use **Back** to return to inputs and solve a different game.
 ---
 
 ## 🔐 Security Note
-The reason for having to trust the file is b/c to get a developer license is around $100/year for both platforms which I currently can't afford for just a side project :(.    
+The reason for having to trust the file is b/c to get a developer license is around $100/year for each platforms which I currently can't afford for just a side project :(.    
 For anyone wrorried about security: this project is fully open source — feel free to inspect the code yourself.   
 The build process is located in `.github/workflows/new_ci.yml`.
 
