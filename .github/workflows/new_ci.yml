@@ -39,7 +39,25 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
-          cmake --build build --config Release --parallel $(nproc)
+          cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu || nproc)
+
+      - name: Verify static linking (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Checking linked libraries on macOS"
+          otool -L build/shark | grep -E 'fltk|tbb' && {
+            echo "❌ Linked to shared FLTK or TBB"
+            exit 1
+          } || echo "✅ Static linking confirmed"
+
+      - name: Verify static linking (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Checking linked libraries on Linux"
+          ldd build/shark | grep -E 'fltk|tbb' && {
+            echo "❌ Linked to shared FLTK or TBB"
+            exit 1
+          } || echo "✅ Static linking confirmed"
 
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
@@ -85,8 +103,6 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-
-          # Helper to safely copy DLLs once
           copy_if_exists() {
             if [ -f "$1" ]; then
               echo "Copying $1"
@@ -96,7 +112,6 @@ jobs:
             fi
           }
 
-          # Explicitly copy known DLLs commonly missed by ntldd
           for lib in \
             /mingw64/bin/libgcc_s_seh-1.dll \
             /mingw64/bin/libstdc++-6.dll \
@@ -106,7 +121,6 @@ jobs:
             copy_if_exists "$lib"
           done
 
-          # Use ntldd to scan each .exe and copy dependencies
           for exe in $(find . -maxdepth 1 -name "*.exe"); do
             echo "Scanning $exe for dependencies..."
             ntldd "$exe" | awk '{print $3}' | while read -r dll; do
