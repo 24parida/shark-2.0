@@ -85,17 +85,19 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          for exe in $(find . -name "*.exe"); do
+          # First copy known runtime DLLs
+          cp -v /mingw64/bin/libfltk*.dll .
+          cp -v /mingw64/bin/libtbb*.dll .
+          
+          # Only process actual application executables (skip test/CMake files)
+          for exe in $(find . -name "*.exe" -not -path "./CMakeFiles/*" -not -path "./Testing/*"); do
             echo "Checking dependencies for $exe"
-            ntldd -R "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
+            ntldd "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
               if [ -f "$dll" ]; then
                 cp -v "$dll" .
               fi
             done
           done
-          # Explicitly copy known runtime DLLs
-          cp -v /mingw64/bin/libfltk*.dll .
-          cp -v /mingw64/bin/libtbb*.dll .
 
       - name: Verify binaries
         shell: msys2 {0}
