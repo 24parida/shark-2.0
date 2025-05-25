@@ -1,6 +1,6 @@
-# File: .github/workflows/new_ci.yml
+# .github/workflows/ci.yml
 
-name: new_ci
+name: CMake CI
 
 on:
   push:
@@ -77,7 +77,7 @@ jobs:
         shell: msys2 {0}
         run: pacman -Sy --noconfirm
 
-      - name: Configure & build
+      - name: Configure, build & bundle runtimes
         shell: msys2 {0}
         run: |
           mkdir -p build
@@ -89,14 +89,18 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
           mingw32-make -j
 
-          # Bundle FLTK DLLs alongside shark.exe
+          # Bundle FLTK DLLs
           cp /mingw64/bin/libfltk-1.4.dll         .
           cp /mingw64/bin/libfltk_images-1.4.dll  .
           cp /mingw64/bin/libfltk_forms-1.4.dll   .
           cp /mingw64/bin/libfltk_gl-1.4.dll      .
 
-          # Bundle any TBB DLL(s) matching libtbb*.dll
+          # Bundle TBB DLL
           cp /mingw64/bin/libtbb*.dll             .
+
+          # Bundle GCC runtime DLLs
+          cp /mingw64/bin/libgcc_s_seh-1.dll      .
+          cp /mingw64/bin/libstdc++-6.dll         .
 
       - name: List build artifacts
         shell: msys2 {0}
@@ -110,3 +114,5 @@ jobs:
             build/shark.exe
             build/libfltk-*.dll
             build/libtbb*.dll
+            build/libgcc_s_seh-1.dll
+            build/libstdc++-6.dll
