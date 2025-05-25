@@ -32,7 +32,7 @@
 static const std::vector<std::string> RANKS = {
     "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
 static const std::vector<char> SUITS = {'h', 'd', 'c', 's'};
-constexpr float SCALE = 1.6f;
+constexpr float SCALE = 1.2f;
 
 // Range definitions
 struct PositionRanges {
@@ -1197,27 +1197,27 @@ public:
     // Page1
     m_pg1 = new Fl_Group(0, 0, W, H);
     
-    int xL = 50, xI = 300, y = 50, h = 60, sp = 25;
-    int wL = 250, wI = W - xI - 100;
+    int xL = 37, xI = 225, y = 37, h = 45, sp = 18;
+    int wL = 187, wI = W - xI - 75;
     
     auto addLbl = [&](const char *t) {
       auto f = new Fl_Box(xL, y, wL, h, t);
-      f->labelsize(24);
+      f->labelsize(18);
     };
     
     auto addInp = [&](Fl_Input *&w) {
       w = new Fl_Input(xI, y, wI, h);
-      w->textsize(24);
+      w->textsize(18);
     };
     
     auto addFlt = [&](Fl_Float_Input *&w) {
       w = new Fl_Float_Input(xI, y, wI, h);
-      w->textsize(24);
+      w->textsize(18);
     };
     
     auto addCh = [&](Fl_Choice *&w) {
       w = new Fl_Choice(xI, y, wI, h);
-      w->textsize(24);
+      w->textsize(18);
     };
 
     // Create all page 1 elements
@@ -1259,29 +1259,29 @@ public:
     y += h + sp;
 
     // Add auto-import checkbox with medium size
-    m_chkAutoImport = new Fl_Check_Button(xL, y, W - 100, 60, "Auto-import ranges based on positions");  // Height 60 instead of 80 or 40
-    m_chkAutoImport->labelsize(30);  // Size 30 instead of 40 or 20
-    m_chkAutoImport->value(1);  // Checked by default
-    y += 60 + sp;  // Adjusted spacing for medium checkbox
+    m_chkAutoImport = new Fl_Check_Button(xL, y, W - 75, 45, "Auto-import ranges based on positions");
+    m_chkAutoImport->labelsize(22);
+    m_chkAutoImport->value(1);
+    y += 45 + sp;
 
-    m_btn1Next = new Fl_Button((W - 300) / 2, y, 300, 70, "Next");
-    m_btn1Next->labelsize(24);
+    m_btn1Next = new Fl_Button((W - 225) / 2, y, 225, 52, "Next");
+    m_btn1Next->labelsize(18);
     m_btn1Next->callback(cb1Next, this);
     m_pg1->end();
 
     // Page2
     m_pg2 = new Fl_Group(0, 0, W, H);
     
-    m_lblBoard = new Fl_Box(0, 20, W, 50, "Init Board (3-5 Cards)");
+    m_lblBoard = new Fl_Box(0, 15, W, 37, "Init Board (3-5 Cards)");
     m_lblBoard->labelfont(FL_BOLD);
-    m_lblBoard->labelsize(28);
+    m_lblBoard->labelsize(21);
     m_lblBoard->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
 
     // Card grid layout
-    int cols = 4, rows = 13, GX = 50, GY = 100, GW = W - 100, GH = H - 900;
-    int bw = int((static_cast<float>(GW) / cols - 10)),
-        bh = int((static_cast<float>(GH) / rows - 10) * SCALE),
-        cardH = (bh * 3) / 2, rowSp = cardH + 8;
+    int cols = 4, rows = 13, GX = 37, GY = 75, GW = W - 75, GH = H - 675;
+    int bw = int((static_cast<float>(GW) / cols - 7)),
+        bh = int((static_cast<float>(GH) / rows - 7) * SCALE),
+        cardH = (bh * 3) / 2, rowSp = cardH + 6;
 
     // Create card grid
     for (int r = 0; r < rows; ++r) {
@@ -1302,21 +1302,21 @@ public:
         }
     }
 
-    m_selDisplay = new Fl_Input(50, GY + rows * rowSp + 20, W - 400, 60);
-    m_selDisplay->textsize(24);
+    m_selDisplay = new Fl_Input(25, GY + rows * rowSp + 10, W - 200, 30);
+    m_selDisplay->textsize(12);
     m_selDisplay->readonly(1);
 
-    m_btnRand = new Fl_Button(W - 350, m_selDisplay->y(), 320, 60, "Generate Random Flop");
-    m_btnRand->labelsize(24);
+    m_btnRand = new Fl_Button(W - 175, m_selDisplay->y(), 160, 30, "Generate Random Flop");
+    m_btnRand->labelsize(12);
     m_btnRand->callback(cbRand, this);
 
-    int yBtn = H - 200;
-    m_btn2Back = new Fl_Button(50, yBtn, 300, 100, "Back");
-    m_btn2Back->labelsize(24);
+    int yBtn = H - 100;
+    m_btn2Back = new Fl_Button(25, yBtn, 150, 50, "Back");
+    m_btn2Back->labelsize(12);
     m_btn2Back->callback(cb2Back, this);
 
-    m_btn2Next = new Fl_Button(W - 350, yBtn, 300, 100, "Next");
-    m_btn2Next->labelsize(24);
+    m_btn2Next = new Fl_Button(W - 175, yBtn, 150, 50, "Next");
+    m_btn2Next->labelsize(12);
     m_btn2Next->callback(cb2Next, this);
 
     m_pg2->end();
@@ -1330,14 +1330,23 @@ public:
     m_lblRange->labelsize(28);
     m_lblRange->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
 
-    int RGX = 50, RGY = 100, RGW = W - 100, RGH = H - 900;
-    int rbw = int((static_cast<float>(RGW) / 13 - 10)),
-        rbh = int(((static_cast<float>(RGH) / 13 - 10) * 3 / 2) * SCALE),
-        rsp = rbh + 8;
-
+    int RGX = 50, RGY = 100;
+    int RGW = W - 100;
+    int RGH = H - 250;
+    
+    int rbw = (RGW - (13 * 10)) / 13;
+    int rbh = (RGH - (13 * 10)) / 13;
+    rbh = std::min(rbh, rbw);
+    rbw = rbh;
+    
+    int rsp = rbh + 10;
+    
+    RGX = (W - (13 * (rbw + 10))) / 2;
+    
     for (int i = 0; i < 13; ++i) {
         for (int j = 0; j < 13; ++j) {
-            int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
+            int x = RGX + j * (rbw + 10);
+            int y0 = RGY + i * (rbh + 10);
             std::string lbl;
             Fl_Color base;
             if (i == j) {
@@ -1348,10 +1357,11 @@ public:
                 base = fl_rgb_color(100, 100, 200);
             } else {
                 lbl = RANKS[j] + RANKS[i] + "o";
-                base = fl_rgb_color(80, 80, 80);  // Changed from FL_BACKGROUND_COLOR to a medium gray
+                base = fl_rgb_color(80, 80, 80);
             }
             auto *btn = new CardButton(x, y0, rbw, rbh, base);
             btn->copy_label(lbl.c_str());
+            btn->labelsize(16);
             btn->callback(cbRange, this);
             btn->clear_visible_focus();
             m_rangeBtns.push_back(btn);
@@ -1379,7 +1389,8 @@ public:
 
     for (int i = 0; i < 13; ++i) {
         for (int j = 0; j < 13; ++j) {
-            int x = RGX + j * (rbw + 10), y0 = RGY + i * rsp;
+            int x = RGX + j * (rbw + 10);
+            int y0 = RGY + i * (rbh + 10);
             std::string lbl;
             Fl_Color base;
             if (i == j) {
@@ -1390,10 +1401,11 @@ public:
                 base = fl_rgb_color(100, 100, 200);
             } else {
                 lbl = RANKS[j] + RANKS[i] + "o";
-                base = fl_rgb_color(80, 80, 80);  // Changed from FL_BACKGROUND_COLOR to a medium gray
+                base = fl_rgb_color(80, 80, 80);
             }
             auto *btn = new CardButton(x, y0, rbw, rbh, base);
             btn->copy_label(lbl.c_str());
+            btn->labelsize(16);
             btn->callback(cbRange, this);
             btn->clear_visible_focus();
             m_villainBtns.push_back(btn);
@@ -1424,38 +1436,38 @@ public:
     // Page6 - Strategy Display
     m_pg6 = new Fl_Group(0, 0, W, H);
     m_pg6->box(FL_FLAT_BOX);
-    m_pg6->color(fl_rgb_color(240, 240, 240));  // Light gray background
+    m_pg6->color(fl_rgb_color(240, 240, 240));
 
     // Title area
-    int titleY = 30;
-    int titleH = 25;
+    int titleY = 15;
+    int titleH = 12;
 
     m_lblStrategy = new Fl_Box(0, titleY, W, titleH);
-    m_lblStrategy->labelsize(28);
+    m_lblStrategy->labelsize(14);
     m_lblStrategy->labelfont(FL_HELVETICA_BOLD);
     m_lblStrategy->align(FL_ALIGN_CENTER);
 
-    m_boardInfo = new Fl_Box(0, titleY + titleH + 5, W, titleH);
-    m_boardInfo->labelsize(16);
+    m_boardInfo = new Fl_Box(0, titleY + titleH + 2, W, titleH);
+    m_boardInfo->labelsize(8);
     m_boardInfo->labelfont(FL_HELVETICA);
     m_boardInfo->align(FL_ALIGN_CENTER);
 
-    m_potInfo = new Fl_Box(0, titleY + 2 * titleH + 10, W, titleH);
-    m_potInfo->labelsize(14);
+    m_potInfo = new Fl_Box(0, titleY + 2 * titleH + 5, W, titleH);
+    m_potInfo->labelsize(7);
     m_potInfo->labelfont(FL_HELVETICA);
     m_potInfo->align(FL_ALIGN_CENTER);
 
-    int headerHeight = titleY + 3 * titleH + 30;
+    int headerHeight = titleY + 3 * titleH + 15;
 
     // Strategy grid
-    int gridX = 40;
+    int gridX = 20;
     int gridY = headerHeight;
-    int gridW = (W * 2) / 3 - 80;
-    int gridH = H - gridY - 100;
+    int gridW = (W * 2) / 3 - 40;
+    int gridH = H - gridY - 50;
 
     int cellSize = std::min(gridW / 13, gridH / 13);
     cellSize = static_cast<int>(cellSize * 0.925);
-    int cellPadding = 6;
+    int cellPadding = 3;
 
     gridX = (((W * 2) / 3) - (13 * (cellSize + cellPadding))) / 2;
 
@@ -1475,55 +1487,55 @@ public:
     }
 
     // Info display
-    int infoX = (W * 2) / 3 + 20;
+    int infoX = (W * 2) / 3 + 10;
     int infoY = headerHeight;
-    int infoW = (W / 3) - 40;
-    int infoH = H - infoY - 100;
+    int infoW = (W / 3) - 20;
+    int infoH = H - infoY - 50;
 
-    m_infoTitle = new Fl_Box(infoX, infoY - 30, infoW, 25, "Hand Analysis");
-    m_infoTitle->labelsize(24);
+    m_infoTitle = new Fl_Box(infoX, infoY - 15, infoW, 12, "Hand Analysis");
+    m_infoTitle->labelsize(12);
     m_infoTitle->labelfont(FL_HELVETICA_BOLD);
     m_infoTitle->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
 
     m_infoBuffer = new Fl_Text_Buffer();
     m_infoDisplay = new Fl_Text_Display(infoX, infoY, infoW, infoH);
     m_infoDisplay->buffer(m_infoBuffer);
-    m_infoDisplay->textsize(22);
+    m_infoDisplay->textsize(11);
     m_infoDisplay->textfont(FL_HELVETICA);
     m_infoDisplay->box(FL_FLAT_BOX);
     m_infoDisplay->color(fl_rgb_color(230, 230, 230));
     m_infoDisplay->selection_color(fl_rgb_color(200, 200, 200));
-    m_infoDisplay->scrollbar_width(15);
+    m_infoDisplay->scrollbar_width(7);
     m_infoDisplay->scrollbar_align(FL_ALIGN_RIGHT);
 
     // Action buttons
-    int btnY = H - 70;
-    int btnW = 100;
-    int btnH = 35;
-    int btnSpacing = 15;
+    int btnY = H - 52;
+    int btnW = 75;
+    int btnH = 25;
+    int btnSpacing = 10;
 
-    int backBtnW = 70;
-    int backBtnH = 30;
+    int backBtnW = 52;
+    int backBtnH = 22;
     int backBtnY = btnY + (btnH - backBtnH) / 2;
 
-    auto *backBtn = new Fl_Button(40, backBtnY, backBtnW, backBtnH, "Back");
-    backBtn->labelsize(12);
+    auto *backBtn = new Fl_Button(20, backBtnY, backBtnW, backBtnH, "Back");
+    backBtn->labelsize(6);
     backBtn->labelfont(FL_HELVETICA_BOLD);
     backBtn->box(FL_FLAT_BOX);
     backBtn->color(fl_rgb_color(200, 200, 200));
     backBtn->callback(cbBack, this);
 
-    auto *undoBtn = new Fl_Button(40 + backBtnW + 10, backBtnY, backBtnW, backBtnH, "Undo");
-    undoBtn->labelsize(12);
+    auto *undoBtn = new Fl_Button(20 + backBtnW + 5, backBtnY, backBtnW, backBtnH, "Undo");
+    undoBtn->labelsize(6);
     undoBtn->labelfont(FL_HELVETICA_BOLD);
     undoBtn->box(FL_FLAT_BOX);
     undoBtn->color(fl_rgb_color(200, 200, 200));
     undoBtn->callback(cbUndo, this);
 
-    int actionBtnX = W - (4 * btnW + 3 * btnSpacing + 40);
+    int actionBtnX = W - (4 * btnW + 3 * btnSpacing + 20);
     for (int i = 0; i < 4; i++) {
         auto *btn = new Fl_Button(actionBtnX + i * (btnW + btnSpacing), btnY, btnW, btnH);
-        btn->labelsize(14);
+        btn->labelsize(7);
         btn->labelfont(FL_HELVETICA_BOLD);
         btn->box(FL_FLAT_BOX);
         btn->color(fl_rgb_color(220, 220, 220));
@@ -1532,7 +1544,7 @@ public:
     }
 
     m_cardChoice = new Fl_Choice(actionBtnX - btnW * 2 - btnSpacing, btnY, btnW * 1.5, btnH);
-    m_cardChoice->labelsize(14);
+    m_cardChoice->labelsize(7);
     m_cardChoice->labelfont(FL_HELVETICA);
     m_cardChoice->callback([](Fl_Widget *w, void *v) { ((Wizard *)v)->doCardSelect(); }, this);
     m_cardChoice->hide();
@@ -1545,9 +1557,9 @@ public:
 };
 
 int main(int argc, char **argv) {
-  fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 3);
+  fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 2);
   fl_message_hotspot(1);
-  Wizard wiz(2000, 1375, "Wizard");
+  Wizard wiz(1500, 1031, "Wizard");
   wiz.show(argc, argv);
   return Fl::run();
 }
