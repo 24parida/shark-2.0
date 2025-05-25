@@ -82,9 +82,6 @@ Use **Back** to return to inputs and solve a different game.
 3. Go to **System Settings** → **Privacy & Security**
 4. Scroll down and click **Open Anyway** under *"shark wants to run"*
 5. Confirm to run the app
-
-I’m working on getting a developer license to make this process easier in the future.
-
 ---
 
 ## 🔐 Security Note
