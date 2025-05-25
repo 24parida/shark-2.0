@@ -2,13 +2,13 @@ name: CMake CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-nix:
-    name: Build on Linux/macOS
+    name: Build on Linux & macOS
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -32,15 +32,14 @@ jobs:
           brew update
           brew install fltk tbb cmake
 
-      - name: Configure with CMake
-        run: cmake -S . -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_CXX_STANDARD=20 \
-          -DCMAKE_CXX_EXTENSIONS=OFF \
-          -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Configure & build
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+          cmake --build build --config Release
 
       - name: List build artifacts
         run: ls -R build
@@ -61,19 +60,18 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Set up MSYS2 + toolchain
+      - name: Set up MSYS2 & toolchain
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: false               # skip the fatal full upgrade
-          install: >                  # install exactly what we need
+          update: false               # ← must be a bare boolean!
+          install: >                  # ← installs only these packages
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
-            make                      # provides MSYS2 make (optional)
 
-      - name: (Optional) Refresh package DB only
+      - name: (Optional) Refresh DB only
         shell: msys2 {0}
         run: pacman -Sy --noconfirm
 
@@ -87,7 +85,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          mingw32-make -j           # ← use mingw32-make on Windows
+          mingw32-make -j            # ← use mingw32-make on Windows
 
       - name: List build artifacts
         shell: msys2 {0}
