@@ -14,14 +14,14 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # 1) Checkout (with submodules)
+      # 1) Checkout code + submodules
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
-      # 2) Linux/macOS deps
+      # 2) Install FLTK & TBB on Linux/macOS
       - name: Install deps (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
@@ -33,51 +33,35 @@ jobs:
             brew install fltk tbb cmake
           fi
 
-      # 3) Bootstrap vcpkg on Windows
-      - name: Setup vcpkg (Windows)
+      # 3) Setup vcpkg on Windows and install FLTK & TBB
+      - name: Setup vcpkg & install deps (Windows)
         if: runner.os == 'Windows'
-        uses: lukka/get-vcpkg@v29
-
-      # 4) Cache vcpkg build artifacts (Windows)
-      - name: Cache vcpkg packages (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v3
+        uses: lukka/run-vcpkg@v11
         with:
-          path: |
-            vcpkg/installed
-            vcpkg/buildtrees
-            vcpkg/packages
-            vcpkg/archives
-            vcpkg/downloads
-          key: ${{ runner.os }}-vcpkg-cache
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-cache
+          # install FLTK and TBB for the x64 toolchain
+          packages: fltk tbb
+          triplet: x64-windows
 
-      # 5) Install FLTK & TBB via vcpkg (Windows)
-      - name: Install deps (Windows)
-        if: runner.os == 'Windows'
-        run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
-
-      # 6) Configure: Linux/macOS
+      # 4) Configure with CMake (Linux/macOS)
       - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      # 7) Configure: Windows (with vcpkg toolchain)
+      # 5) Configure with CMake (Windows + vcpkg toolchain)
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
              `-DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
 
-      # 8) Build
+      # 6) Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 9) Inspect outputs
+      # 7) Inspect build outputs
       - name: List build dir
         run: ls -R build
 
-      # 10) Upload the binary
+      # 8) Upload the compiled binary
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
         with:
