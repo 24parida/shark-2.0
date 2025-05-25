@@ -12,6 +12,8 @@ Many features seen in other solvers have been intentionally omitted to reduce cl
 
 These trade-offs were made to maintain a clean user experience.
 
+> 🗂️ **Installers (.zip files) are available on the [Releases tab](https://github.com/your-repo-name/releases)**
+
 ---
 
 ## 🎮 How to Use Shark
@@ -63,7 +65,7 @@ Use **Back** to return to inputs and solve a different game.
 ---
 
 ## 🪟 Windows Installation
-1. Download the `shark.zip` for Windows
+1. Go to the [Releases tab](https://github.com/your-repo-name/releases) and download the `shark.zip` for Windows
 2. Unzip the folder
 3. Inside the folder, double-click `shark.exe`
 4. Windows may warn you about an untrusted app — click **More Options** → **Run Anyway**
@@ -73,8 +75,8 @@ Use **Back** to return to inputs and solve a different game.
 ## 🍎 macOS Installation
 > macOS is more strict with unsigned apps
 
-1. Download and unzip the mac `.zip` file
-2. Try to open `shark` — it will say the app is untrusted
+1. Go to the [Releases tab](https://github.com/your-repo-name/releases) and download the mac `.zip` file
+2. Unzip and try to open `shark` — it will say the app is untrusted
 3. Go to **System Settings** → **Privacy & Security**
 4. Scroll down and click **Open Anyway** under *"shark wants to run"*
 5. Confirm to run the app
@@ -118,5 +120,3 @@ I’m currently too busy to implement these — but pull requests and forks are 
 If this project helped or interested you, please star the repo or reach out 🙌
 
 **DM me** with questions about the implementation or poker solving in general. I'd love to chat.
-
----
