@@ -1199,63 +1199,38 @@ public:
 
 private:
   void init() {
-    // Get primary screen work area (accounts for taskbar/menubar and Retina displays)
+    // Get primary screen work area (accounts for taskbar/menubar)
     int sx, sy, sw, sh;
     Fl::screen_work_area(sx, sy, sw, sh, 0);  // 0 for primary screen
 
-    // Get screen scale factor (important for Retina displays)
-    float screen_scale = 1.0f;
-#ifdef __APPLE__
-    // On Mac, check if we're on a Retina display
-    float h, v;
-    Fl::screen_scale(0, h, v);  // Get screen scale factors
-    screen_scale = h;  // Use horizontal scale (usually same as vertical)
-#endif
-
-    // Adjust screen dimensions for Retina
-    sw = static_cast<int>(sw * screen_scale);
-    sh = static_cast<int>(sh * screen_scale);
-
-    // Calculate base scale based on screen size
+    // Calculate initial scale based on screen size
     float height_scale = (sh * 0.85f) / TARGET_HEIGHT;
     float width_scale = (sw * 0.95f) / TARGET_WIDTH;
     float base_scale = std::min(height_scale, width_scale);
 
-    // Calculate screen size factor relative to common resolutions
-    float screen_size_factor;
-    if (sh <= 900) {  // Common MacBook Air resolution (1440x900)
-        screen_size_factor = 0.8f;
-    } else if (sh <= 1080) {  // Standard 1080p
-        screen_size_factor = 0.9f;
-    } else if (sh <= 1200) {  // Common MacBook Pro resolution
-        screen_size_factor = 1.0f;
-    } else {  // Larger displays
-        screen_size_factor = std::min(1.2f, std::sqrt((float)(sw * sh) / (1920.0f * 1080.0f)));
-    }
-
-    // Apply scaling with screen-size-aware adjustment
+    // Apply additional scaling based on screen size
+    float screen_size_factor = std::sqrt((float)(sw * sh) / (1920.0f * 1080.0f));  // 1.0 at 1080p
     float scale_multiplier = std::min(0.8f, std::max(0.4f, 0.6f * screen_size_factor));
     m_scale = base_scale * scale_multiplier;
 
-    // Ensure minimum usable scale with screen-size consideration
-    float min_scale = (sh <= 900) ? 0.25f : 0.3f;  // Lower minimum for very small screens
-    m_scale = std::max(m_scale, min_scale);
+    // Ensure minimum usable scale
+    m_scale = std::max(m_scale, 0.3f);
 
     // Calculate new window dimensions
     int new_w = static_cast<int>(TARGET_WIDTH * m_scale);
     int new_h = static_cast<int>(TARGET_HEIGHT * m_scale);
 
-    // Additional check to ensure window fits on screen
+    // Final check to ensure window fits on screen
     if (new_w > sw || new_h > sh) {
         float extra_scale = std::min((float)sw / new_w, (float)sh / new_h);
-        m_scale *= extra_scale;
+        m_scale *= extra_scale * 0.95f;  // Add 5% margin
         new_w = static_cast<int>(TARGET_WIDTH * m_scale);
         new_h = static_cast<int>(TARGET_HEIGHT * m_scale);
     }
 
     // Resize and center window
     size(new_w, new_h);
-    position((sw/screen_scale - new_w) / 2 + sx, (sh/screen_scale - new_h) / 2 + sy);
+    position((sw - new_w) / 2 + sx, (sh - new_h) / 2 + sy);
 
     // Enable the window's title bar and close button
     border(1);
