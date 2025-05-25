@@ -7,78 +7,99 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build-nix:
+    name: Build on Linux/macOS
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-
     steps:
-      # 1) Checkout code + submodules
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      # 2) Install FLTK & TBB on Linux/macOS
-      - name: Install deps (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
         run: |
-          if [ "$(uname)" = "Linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
-          else
-            brew update
-            brew install fltk tbb cmake
-          fi
+          sudo apt-get update
+          sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
 
-      # 3) Bootstrap vcpkg on Windows
-      - name: Bootstrap vcpkg (Windows)
-        if: runner.os == 'Windows'
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
         run: |
-          git clone https://github.com/microsoft/vcpkg.git vcpkg
-          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          brew update
+          brew install fltk tbb cmake
 
-      # 4) Cache vcpkg build artifacts (Windows)
-      - name: Cache vcpkg directories (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v3
-        with:
-          path: |
-            vcpkg/installed
-            vcpkg/buildtrees
-            vcpkg/packages
-            vcpkg/downloads
-          key: windows-vcpkg
+      - name: Configure with CMake
+        run: cmake -S . -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_STANDARD=20 \
+          -DCMAKE_CXX_EXTENSIONS=OFF \
+          -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
 
-      # 5) Install FLTK & TBB via vcpkg (Windows)
-      - name: Install deps (Windows)
-        if: runner.os == 'Windows'
-        run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
-
-      # 6) Configure with CMake (Linux/macOS)
-      - name: Configure (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      # 7) Configure with CMake (Windows + vcpkg toolchain)
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
-             `-DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
-
-      # 8) Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 9) Debug output
-      - name: List build dir
+      - name: List build artifacts
         run: ls -R build
 
-      # 10) Upload the compiled binary
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
         with:
           name: shark-${{ matrix.os }}
           path: build/shark*
+
+  build-win:
+    name: Build on Windows (MSYS2/MinGW)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+
+      - name: Update & install MSYS2 packages
+        shell: msys2 {0}
+        run: |
+          pacman -Syuu --noconfirm
+          pacman -S --noconfirm \
+            mingw-w64-x86_64-toolchain \
+            mingw-w64-x86_64-fltk \
+            mingw-w64-x86_64-tbb \
+            mingw-w64-x86_64-cmake \
+            make
+
+      - name: Configure with CMake (MinGW)
+        shell: msys2 {0}
+        run: |
+          mkdir -p build
+          cd build
+          cmake -G "MinGW Makefiles" .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cd build
+          make -j4
+
+      - name: List build artifacts
+        shell: msys2 {0}
+        run: ls -R build
+
+      - name: Upload shark.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-windows-mingw
+          path: build/shark.exe
