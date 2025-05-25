@@ -1,0 +1,84 @@
+name: CMake CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 1) Checkout code + submodules
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # 2) Install FLTK & TBB on Linux/macOS
+      - name: Install deps (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$(uname)" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
+          else
+            brew update
+            brew install fltk tbb cmake
+          fi
+
+      # 3) Bootstrap vcpkg on Windows
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      # 4) Cache vcpkg build artifacts (Windows)
+      - name: Cache vcpkg directories (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v3
+        with:
+          path: |
+            vcpkg/installed
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg/downloads
+          key: windows-vcpkg
+
+      # 5) Install FLTK & TBB via vcpkg (Windows)
+      - name: Install deps (Windows)
+        if: runner.os == 'Windows'
+        run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
+
+      # 6) Configure with CMake (Linux/macOS)
+      - name: Configure (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      # 7) Configure with CMake (Windows + vcpkg toolchain)
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
+             `-DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+
+      # 8) Build
+      - name: Build
+        run: cmake --build build --config Release
+
+      # 9) Debug output
+      - name: List build dir
+        run: ls -R build
+
+      # 10) Upload the compiled binary
+      - name: Upload shark binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-${{ matrix.os }}
+          path: build/shark*
