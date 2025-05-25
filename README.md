@@ -109,7 +109,7 @@ Also uses [HenryRLee’s PokerHandEvaluator](https://github.com/HenryRLee/PokerH
 
 ## 👋 About Me
 
-I'm a college student and built this as a side project.  
+I'm a college student and built this as a side project because I wanted to learn C++ better and love Poker!  
 Some future optimizations I would love to explore:
 - Hand isomorphism for 2–3x speed boost
 - Better GUI design and UX
