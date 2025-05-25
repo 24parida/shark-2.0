@@ -12,7 +12,7 @@ Many features seen in other solvers have been intentionally omitted to reduce cl
 
 These trade-offs were made to maintain a clean user experience.
 
-> 🗂️ **Installers (.zip files) are available on the [Releases tab](https://github.com/your-repo-name/releases)**
+> 🗂️ **Installers (.zip files) are available on the [Releases tab](https://github.com/24parida/shark-2.0/releases)**
 
 ---
 
@@ -66,7 +66,7 @@ Use **Back** to return to inputs and solve a different game.
 ---
 
 ## 🪟 Windows Installation
-1. Go to the [Releases tab](https://github.com/your-repo-name/releases) and download the `shark.zip` for Windows
+1. Go to the [Releases tab](https://github.com/24parida/shark-2.0/releases) and download the `shark.zip` for Windows
 2. Unzip the folder
 3. Inside the folder, double-click `shark.exe`
 4. Windows may warn you about an untrusted app — click **More Options** → **Run Anyway**
@@ -76,7 +76,7 @@ Use **Back** to return to inputs and solve a different game.
 ## 🍎 macOS Installation
 > macOS is more strict with unsigned apps
 
-1. Go to the [Releases tab](https://github.com/your-repo-name/releases) and download the mac `.zip` file
+1. Go to the [Releases tab](https://github.com/24parida/shark-2.0/releases) and download the mac `.zip` file
 2. Download and try to open `shark` — it will say the app is untrusted
 3. Go to **System Settings** → **Privacy & Security**
 4. Scroll down and click **Open Anyway** under *"shark wants to run"*
