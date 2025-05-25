@@ -106,6 +106,10 @@ Huge thanks to [Fossana's original solver](https://github.com/Fossana/discounted
 - Fully functional **GUI**
 - Numerous quality-of-life and performance enhancements
 
+## Base Algorithm:
+ - Discounted Counter Factual Regret Minimization
+ - Full multithreading support
+
 Also uses [HenryRLee’s PokerHandEvaluator](https://github.com/HenryRLee/PokerHandEvaluator) for winner determination on showdowns.
 
 ---
