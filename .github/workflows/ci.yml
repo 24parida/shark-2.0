@@ -14,14 +14,14 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # 1) Checkout (with submodules)
+      # 1) Checkout code (with submodules)
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
-      # 2) Linux/macOS deps
+      # 2) Install FLTK & TBB on Linux/macOS
       - name: Install deps (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
@@ -38,46 +38,30 @@ jobs:
         if: runner.os == 'Windows'
         uses: lukka/get-vcpkg@v29
 
-      # 4) Cache vcpkg build artifacts (Windows)
-      - name: Cache vcpkg packages (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v3
-        with:
-          path: |
-            vcpkg/installed
-            vcpkg/buildtrees
-            vcpkg/packages
-            vcpkg/archives
-            vcpkg/downloads
-          key: ${{ runner.os }}-vcpkg-cache
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-cache
-
-      # 5) Install FLTK & TBB via vcpkg (Windows)
+      # 4) Install FLTK & TBB via vcpkg on Windows
       - name: Install deps (Windows)
         if: runner.os == 'Windows'
         run: .\vcpkg\vcpkg.exe install fltk tbb --triplet x64-windows
 
-      # 6) Configure: Linux/macOS
+      # 5) Configure with CMake on Linux/macOS
       - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      # 7) Configure: Windows (with vcpkg toolchain)
+      # 6) Configure with CMake on Windows
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release `
-             `-DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
 
-      # 8) Build
+      # 7) Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 9) Inspect outputs
+      # 8) Inspect build outputs
       - name: List build dir
         run: ls -R build
 
-      # 10) Upload the binary
+      # 9) Upload the compiled binary
       - name: Upload shark binary
         uses: actions/upload-artifact@v4
         with:
