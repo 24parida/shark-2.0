@@ -1204,17 +1204,17 @@ private:
     Fl::screen_work_area(sx, sy, sw, sh, 0);  // 0 for primary screen
 
     // Calculate initial scale based on screen size
-    float height_scale = (sh * 0.85f) / TARGET_HEIGHT;
+    float height_scale = (sh * 0.90f) / TARGET_HEIGHT;  // Increased from 0.85
     float width_scale = (sw * 0.95f) / TARGET_WIDTH;
     float base_scale = std::min(height_scale, width_scale);
 
-    // Apply additional scaling based on screen size
+    // Apply additional scaling based on screen size, but less aggressively
     float screen_size_factor = std::sqrt((float)(sw * sh) / (1920.0f * 1080.0f));  // 1.0 at 1080p
-    float scale_multiplier = std::min(0.8f, std::max(0.4f, 0.6f * screen_size_factor));
+    float scale_multiplier = std::min(1.2f, std::max(0.6f, 0.9f * screen_size_factor));  // Increased all scale values by ~50%
     m_scale = base_scale * scale_multiplier;
 
     // Ensure minimum usable scale
-    m_scale = std::max(m_scale, 0.3f);
+    m_scale = std::max(m_scale, 0.45f);  // Increased from 0.3
 
     // Calculate new window dimensions
     int new_w = static_cast<int>(TARGET_WIDTH * m_scale);
