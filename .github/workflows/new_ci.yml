@@ -85,18 +85,23 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          # Copy known dependencies first
-          cp -v /mingw64/bin/libfltk*.dll .
-          cp -v /mingw64/bin/libtbb*.dll .
-          
-          # Process only main executables (skip CMake test files)
-          for exe in $(find . -name "*.exe" -not -path "./CMakeFiles/*" -not -path "./Testing/*"); do
-            echo "Checking dependencies for $exe"
-            ntldd "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
+          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+            echo "Processing $exe"
+            ntldd "$exe" | awk '{if ($3 ~ "/mingw64/") print $3}' | while read -r dll; do
               if [ -f "$dll" ]; then
+                echo "Copying $dll"
                 cp -v "$dll" .
               fi
             done
+          done
+
+      - name: Verify no missing DLLs
+        shell: msys2 {0}
+        run: |
+          cd build
+          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+            echo "Verifying $exe"
+            ntldd "$exe" | grep "not found" && echo "❌ Missing DLLs!" && exit 1 || echo "✅ All DLLs present."
           done
 
       - name: Upload Windows bundle
