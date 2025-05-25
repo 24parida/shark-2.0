@@ -91,13 +91,12 @@ jobs:
             [ -f "$lib" ] && cp -u -v "$lib" .
           done
 
-          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+          # Also pick up any non-system deps
+          for exe in *.exe; do
             echo "Scanning $exe for dependencies..."
             ntldd "$exe" | awk '{print $3}' | while read -r dll; do
               if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
                 cp -u -v "$dll" .
-              else
-                echo "Skipping system DLL: $dll"
               fi
             done
           done
@@ -107,7 +106,7 @@ jobs:
         run: |
           cd build
           FAIL=0
-          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+          for exe in *.exe; do
             echo "Verifying $exe"
             if ntldd "$exe" | grep "not found"; then
               echo "❌ Missing DLLs in $exe"
@@ -118,11 +117,17 @@ jobs:
           done
           exit $FAIL
 
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          Write-Host "Creating shark-windows.zip..."
+          Compress-Archive -Path build\*.exe,build\*.dll -DestinationPath build\shark-windows.zip
+
       - name: Upload Windows bundle
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
-          path: build/*
+          path: build/shark-windows.zip
 
   release:
     name: Publish GitHub Release
@@ -135,7 +140,7 @@ jobs:
           name: shark-macos
           path: ./mac
 
-      - name: Download Windows files
+      - name: Download Windows zip
         uses: actions/download-artifact@v4
         with:
           name: shark-windows
@@ -162,12 +167,12 @@ jobs:
           asset_name: shark-macos
           asset_content_type: application/octet-stream
 
-      - name: Upload Windows executable to release
+      - name: Upload Windows ZIP to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./win/shark.exe
-          asset_name: shark-windows.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+          asset_path: ./win/shark-windows.zip
+          asset_name: shark-windows.zip
+          asset_content_type: application/zip
