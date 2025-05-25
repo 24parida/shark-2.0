@@ -65,12 +65,13 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: false               # ← IMPORTANT: skips the full pacman -Syuu
-          install: >                  # ← only installs these packages
+          update: false               # skip the fatal full upgrade
+          install: >                  # install exactly what we need
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-fltk
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
+            make                      # provides MSYS2 make (optional)
 
       - name: (Optional) Refresh package DB only
         shell: msys2 {0}
@@ -86,7 +87,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          make -j
+          mingw32-make -j           # ← use mingw32-make on Windows
 
       - name: List build artifacts
         shell: msys2 {0}
