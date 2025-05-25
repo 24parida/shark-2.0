@@ -85,11 +85,11 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          # First copy known runtime DLLs
+          # Copy known dependencies first
           cp -v /mingw64/bin/libfltk*.dll .
           cp -v /mingw64/bin/libtbb*.dll .
           
-          # Only process actual application executables (skip test/CMake files)
+          # Process only main executables (skip CMake test files)
           for exe in $(find . -name "*.exe" -not -path "./CMakeFiles/*" -not -path "./Testing/*"); do
             echo "Checking dependencies for $exe"
             ntldd "$exe" | grep -i mingw64 | awk '{print $3}' | while read -r dll; do
@@ -97,18 +97,6 @@ jobs:
                 cp -v "$dll" .
               fi
             done
-          done
-
-      - name: Verify binaries
-        shell: msys2 {0}
-        run: |
-          cd build
-          echo "Final files:"
-          ls -lh
-          echo "Dependencies:"
-          for exe in $(find . -name "*.exe"); do
-            echo "--- $exe ---"
-            ntldd "$exe"
           done
 
       - name: Upload Windows bundle
