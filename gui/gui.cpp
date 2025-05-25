@@ -330,6 +330,10 @@ class Wizard : public Fl_Window {
   };
   std::vector<GameState> m_history;
 
+  // Add new member variables for zoom controls
+  Fl_Button *m_zoomInBtn{}, *m_zoomOutBtn{};
+  float m_infoTextScale = 1.0f;  // Scale factor for info text size
+
   // Callbacks
   static void cb1Next(Fl_Widget *w, void *d) { ((Wizard *)d)->do1Next(); }
   static void cbCard(Fl_Widget *w, void *d) {
@@ -353,6 +357,8 @@ class Wizard : public Fl_Window {
   }
   static void cbBack(Fl_Widget *w, void *d) { ((Wizard *)d)->doBack6(); }
   static void cbUndo(Fl_Widget *w, void *d) { ((Wizard *)d)->doUndo(); }
+  static void cbZoomIn(Fl_Widget*, void* v) { ((Wizard*)v)->zoomIn(); }
+  static void cbZoomOut(Fl_Widget*, void* v) { ((Wizard*)v)->zoomOut(); }
 
   // Helper function to auto-fill range buttons based on position and pot type
   void autoFillRange(const std::vector<CardButton*>& buttons, const std::string& position, bool isHero) {
@@ -961,6 +967,27 @@ class Wizard : public Fl_Window {
     }
   }
 
+  void updateInfoDisplaySettings() {
+    // Calculate base text size with scaling
+    int textSize = static_cast<int>(22 * m_scale * m_infoTextScale);
+    
+    // Set text size
+    m_infoDisplay->textsize(textSize);
+    
+    // Adjust line spacing based on text size
+    int lineSpacing = static_cast<int>(textSize * 1.5);
+    m_infoDisplay->linenumber_width(lineSpacing);
+    
+    // Set text font
+    m_infoDisplay->textfont(FL_HELVETICA);
+    
+    // Reset scroll position
+    m_infoDisplay->scroll(0, 0);
+    
+    // Force redraw
+    m_infoDisplay->redraw();
+  }
+
   void updateInfoBox(const std::string &hand) {
     if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
         return;
@@ -971,8 +998,8 @@ class Wizard : public Fl_Window {
     const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
     size_t num_hands = hands.size();
 
-    // Build simplified strategy info string
-    std::string info = "\n" + hand + " Strategy:\n\n";
+    // Build simplified strategy info string with added spacing
+    std::string info = "\n    " + hand + " Strategy:\n\n";  // Added leading spaces
 
     // Get all specific combos for this hand
     std::vector<std::pair<std::string, size_t>> combos;
@@ -1007,9 +1034,9 @@ class Wizard : public Fl_Window {
         }
     }
 
-    // Show strategies for each valid combo
+    // Show strategies for each valid combo with improved spacing
     for (const auto &combo : combos) {
-        info += combo.first + ":\n";
+        info += "    " + combo.first + ":\n";  // Added leading spaces
         
         float total = 0.0f;
         for (size_t i = 0; i < actions.size(); ++i) {
@@ -1035,10 +1062,10 @@ class Wizard : public Fl_Window {
                     case Action::BET: action_str = "Bet " + std::to_string(action.amount); break;
                     case Action::RAISE: action_str = "Raise to " + std::to_string(action.amount); break;
                 }
-                info += "    " + action_str + ": " + std::to_string(int(prob + 0.5f)) + "%\n";
+                info += "        " + action_str + ": " + std::to_string(int(prob + 0.5f)) + "%\n";  // Added more leading spaces
             }
         }
-        info += "\n";
+        info += "\n";  // Extra line between combos
     }
 
     m_infoBuffer->text(info.c_str());
@@ -1257,6 +1284,20 @@ class Wizard : public Fl_Window {
     }
     m_boardInfo->copy_label(board.c_str());
     m_boardInfo->redraw();
+  }
+
+  void zoomIn() {
+    if (m_infoTextScale < 2.0f) {  // Maximum 2x zoom
+      m_infoTextScale += 0.1f;
+      updateInfoDisplaySettings();
+    }
+  }
+
+  void zoomOut() {
+    if (m_infoTextScale > 0.5f) {  // Minimum 0.5x zoom
+      m_infoTextScale -= 0.1f;
+      updateInfoDisplaySettings();
+    }
   }
 
   // Revert to original design dimensions
@@ -1710,22 +1751,40 @@ private:
 
     // Info title with proper spacing
     int infoTitleH = static_cast<int>(30 * m_scale);  // Increased height for title
-    m_infoTitle = new Fl_Box(infoX, infoY, infoW, infoTitleH, "Hand Analysis");
+    m_infoTitle = new Fl_Box(infoX, infoY, infoW - static_cast<int>(80 * m_scale), infoTitleH, "Hand Analysis");
     m_infoTitle->labelsize(static_cast<int>(24 * m_scale));
     m_infoTitle->labelfont(FL_HELVETICA_BOLD);
     m_infoTitle->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+
+    // Add zoom control buttons
+    int zoomButtonSize = static_cast<int>(30 * m_scale);
+    int zoomX = infoX + infoW - 2 * (zoomButtonSize + 5);
+    
+    m_zoomOutBtn = new Fl_Button(zoomX, infoY, zoomButtonSize, zoomButtonSize, "-");
+    m_zoomOutBtn->labelsize(static_cast<int>(18 * m_scale));
+    m_zoomOutBtn->labelfont(FL_HELVETICA_BOLD);
+    m_zoomOutBtn->box(FL_FLAT_BOX);
+    m_zoomOutBtn->color(fl_rgb_color(220, 220, 220));
+    m_zoomOutBtn->callback(cbZoomOut, this);
+
+    m_zoomInBtn = new Fl_Button(zoomX + zoomButtonSize + 5, infoY, zoomButtonSize, zoomButtonSize, "+");
+    m_zoomInBtn->labelsize(static_cast<int>(18 * m_scale));
+    m_zoomInBtn->labelfont(FL_HELVETICA_BOLD);
+    m_zoomInBtn->box(FL_FLAT_BOX);
+    m_zoomInBtn->color(fl_rgb_color(220, 220, 220));
+    m_zoomInBtn->callback(cbZoomIn, this);
 
     // Adjust info display position to account for title
     m_infoBuffer = new Fl_Text_Buffer();
     m_infoDisplay = new Fl_Text_Display(infoX, infoY + infoTitleH + 5, infoW, infoH - infoTitleH - 5);
     m_infoDisplay->buffer(m_infoBuffer);
-    m_infoDisplay->textsize(static_cast<int>(22 * m_scale));
-    m_infoDisplay->textfont(FL_HELVETICA);
+    m_infoDisplay->wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 0);  // Enable word wrapping
     m_infoDisplay->box(FL_FLAT_BOX);
     m_infoDisplay->color(fl_rgb_color(230, 230, 230));
     m_infoDisplay->selection_color(fl_rgb_color(200, 200, 200));
     m_infoDisplay->scrollbar_width(7);
     m_infoDisplay->scrollbar_align(FL_ALIGN_RIGHT);
+    updateInfoDisplaySettings();  // Initialize display settings
 
     // Action buttons - Position them below the grid with proper spacing
     // Calculate button sizes based on available width and reasonable proportions
