@@ -1,96 +1,51 @@
-name: CMake CI
+build-win:
+  name: Build on Windows (MSYS2/MinGW)
+  runs-on: windows-latest
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    # 1) Set up MSYS2 without triggering the full upgrade
+    - name: Set up MSYS2 & install toolchain
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false               # ← skip pacman -Syuu
+        install: >
+          mingw-w64-x86_64-toolchain
+          mingw-w64-x86_64-fltk
+          mingw-w64-x86_64-tbb
+          mingw-w64-x86_64-cmake
+          make
 
-jobs:
-  build-nix:
-    name: Build on Linux/macOS
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
+    # 2) (Optional) if you want to refresh the DB in CI—won't kill the shell if you split it:
+    #- name: Refresh MSYS2 package DB
+    #  shell: msys2 {0}
+    #  run: |
+    #    pacman -Sy --noconfirm
 
-      - name: Install deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfltk1.3-dev libtbb-dev cmake
-
-      - name: Install deps (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew install fltk tbb cmake
-
-      - name: Configure with CMake
-        run: cmake -S . -B build \
+    # 3) Configure & build under MSYS2
+    - name: Configure & build
+      shell: msys2 {0}
+      run: |
+        mkdir -p build
+        cd build
+        cmake -G "MinGW Makefiles" .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_STANDARD=20 \
           -DCMAKE_CXX_EXTENSIONS=OFF \
           -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+        make -j
 
-      - name: Build
-        run: cmake --build build --config Release
+    - name: List build artifacts
+      shell: msys2 {0}
+      run: ls -R build
 
-      - name: List build artifacts
-        run: ls -R build
-
-      - name: Upload shark binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: shark-${{ matrix.os }}
-          path: build/shark*
-
-  build-win:
-    name: Build on Windows (MSYS2/MinGW)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Setup MSYS2 & install packages
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-fltk
-            mingw-w64-x86_64-tbb
-            mingw-w64-x86_64-cmake
-            make
-
-      - name: Configure & build
-        shell: msys2 {0}
-        run: |
-          mkdir -p build
-          cd build
-          cmake -G "MinGW Makefiles" .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_STANDARD=20 \
-            -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          make -j
-
-      - name: List build artifacts
-        shell: msys2 {0}
-        run: ls -R build
-
-      - name: Upload shark.exe
-        uses: actions/upload-artifact@v4
-        with:
-          name: shark-windows-mingw
-          path: build/shark.exe
+    - name: Upload shark.exe
+      uses: actions/upload-artifact@v4
+      with:
+        name: shark-windows-mingw
+        path: build/shark.exe
