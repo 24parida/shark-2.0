@@ -30,11 +30,11 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math" \
             -G "Unix Makefiles" \
             -DSHARK_MACOS_BUNDLE=ON
-          cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu)
+          cmake --build build --config Release --parallel "$(sysctl -n hw.logicalcpu)"
 
       - name: Verify static linking (macOS)
         run: |
-          otool -L build/Shark.app/Contents/MacOS/shark | grep -E 'fltk|tbb' && {
+          otool -L build/shark.app/Contents/MacOS/shark | grep -E 'fltk|tbb' && {
             echo "❌ Linked to shared FLTK or TBB"
             exit 1
           } || echo "✅ Static linking confirmed"
@@ -42,13 +42,13 @@ jobs:
       - name: Package macOS .app into zip
         run: |
           cd build
-          zip -r Shark-macos.zip Shark.app
+          zip -r shark-macos.zip shark.app
 
-      - name: Upload macOS bundle
+      - name: Upload macOS bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: shark-macos
-          path: build/Shark-macos.zip
+          path: build/shark-macos.zip
 
   build-win:
     name: Build on Windows (MinGW)
@@ -96,8 +96,6 @@ jobs:
             /mingw64/bin/libtbb*.dll; do
             [ -f "$lib" ] && cp -u -v "$lib" .
           done
-
-          # Also pick up any non-system deps
           for exe in *.exe; do
             echo "Scanning $exe for dependencies..."
             ntldd "$exe" | awk '{print $3}' | while read -r dll; do
@@ -126,10 +124,9 @@ jobs:
       - name: Package Windows build
         shell: pwsh
         run: |
-          Write-Host "Creating shark-windows.zip..."
           Compress-Archive -Path build\*.exe,build\*.dll -DestinationPath build\shark-windows.zip
 
-      - name: Upload Windows bundle
+      - name: Upload Windows bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
@@ -140,13 +137,13 @@ jobs:
     needs: [build-mac, build-win]
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS bundle
+      - name: Download macOS bundle artifact
         uses: actions/download-artifact@v4
         with:
           name: shark-macos
           path: ./mac
 
-      - name: Download Windows zip
+      - name: Download Windows bundle artifact
         uses: actions/download-artifact@v4
         with:
           name: shark-windows
@@ -169,8 +166,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./mac/Shark-macos.zip
-          asset_name: Shark-macos.zip
+          asset_path: ./mac/shark-macos.zip
+          asset_name: shark-macos.zip
           asset_content_type: application/zip
 
       - name: Upload Windows ZIP to release
