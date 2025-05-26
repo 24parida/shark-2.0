@@ -29,11 +29,10 @@ jobs:
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math" \
             -G "Unix Makefiles" \
-            -DCMAKE_OSX_ARCHITECTURES="$(uname -m)" \
             -DSHARK_MACOS_BUNDLE=ON
           cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu)
 
-      - name: Verify static linking
+      - name: Verify static linking (macOS)
         run: |
           otool -L build/Shark.app/Contents/MacOS/shark | grep -E 'fltk|tbb' && {
             echo "❌ Linked to shared FLTK or TBB"
@@ -52,13 +51,96 @@ jobs:
           path: build/Shark-macos.zip
 
   build-win:
-    …  # unchanged
+    name: Build on Windows (MinGW)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-fltk
+            mingw-w64-x86_64-tbb
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ntldd-git
+
+      - name: Configure & build
+        shell: msys2 {0}
+        run: |
+          mkdir -p build
+          cd build
+          cmake -G "MinGW Makefiles" .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
+          mingw32-make -j$(nproc)
+
+      - name: Copy required DLLs
+        shell: msys2 {0}
+        run: |
+          cd build
+          for lib in \
+            /mingw64/bin/libgcc_s_seh-1.dll \
+            /mingw64/bin/libstdc++-6.dll \
+            /mingw64/bin/libwinpthread-1.dll \
+            /mingw64/bin/libfltk*.dll \
+            /mingw64/bin/libtbb*.dll; do
+            [ -f "$lib" ] && cp -u -v "$lib" .
+          done
+
+          # Also pick up any non-system deps
+          for exe in *.exe; do
+            echo "Scanning $exe for dependencies..."
+            ntldd "$exe" | awk '{print $3}' | while read -r dll; do
+              if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
+                cp -u -v "$dll" .
+              fi
+            done
+          done
+
+      - name: Verify no missing DLLs
+        shell: msys2 {0}
+        run: |
+          cd build
+          FAIL=0
+          for exe in *.exe; do
+            echo "Verifying $exe"
+            if ntldd "$exe" | grep "not found"; then
+              echo "❌ Missing DLLs in $exe"
+              FAIL=1
+            else
+              echo "✅ All DLLs found for $exe"
+            fi
+          done
+          exit $FAIL
+
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          Write-Host "Creating shark-windows.zip..."
+          Compress-Archive -Path build\*.exe,build\*.dll -DestinationPath build\shark-windows.zip
+
+      - name: Upload Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-windows
+          path: build/shark-windows.zip
 
   release:
+    name: Publish GitHub Release
     needs: [build-mac, build-win]
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS zip
+      - name: Download macOS bundle
         uses: actions/download-artifact@v4
         with:
           name: shark-macos
@@ -92,4 +174,11 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Windows ZIP to release
-        …  # unchanged
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./win/shark-windows.zip
+          asset_name: shark-windows.zip
+          asset_content_type: application/zip
