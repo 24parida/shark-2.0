@@ -7,7 +7,7 @@
 2. **Accessibility** – Allow anyone, even those unfamiliar with poker, to use the solver with ease.
 
 Many features seen in other solvers have been intentionally omitted to reduce clutter and cognitive load. For example:
-- Bet sizes are fixed to **25%, 50%, 75%, and 100%**
+- Bet sizes are fixed to **33, 66, 100**
 - Raise sizes are limited to **50% and 100%**
 
 These trade-offs were made to maintain a clean user experience.
@@ -78,10 +78,11 @@ Use **Back** to return to inputs and solve a different game.
 > macOS is more strict with unsigned apps
 
 1. Go to the [Releases tab](https://github.com/24parida/shark-2.0/releases) and download the mac `.zip` file
-2. Download and try to open `shark` — it will say the app is untrusted
-3. Go to **System Settings** → **Privacy & Security**
-4. Scroll down and click **Open Anyway** under *"shark wants to run"*
-5. Confirm to run the app
+2. Unzip the file
+3. Try to open `shark` — it will say the app is untrusted
+4. Go to **System Settings** → **Privacy & Security**
+5. Scroll down and click **Open Anyway** under *"shark wants to run"*
+6. Confirm to run the app
 ---
 
 ## 🔐 Security Note
