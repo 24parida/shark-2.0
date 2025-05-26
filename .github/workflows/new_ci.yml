@@ -2,9 +2,8 @@ name: CMake CI
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*'
 
 jobs:
   build-mac:
@@ -29,7 +28,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu)
+          cmake --build build --config Release --parallel "$(sysctl -n hw.logicalcpu)"
 
       - name: Make binary executable
         run: chmod +x build/shark
@@ -44,7 +43,7 @@ jobs:
           cd build
           tar czf shark-macos.tar.gz shark shark.command
 
-      - name: Upload macOS bundle
+      - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: shark-macos
@@ -88,28 +87,19 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          copy_if_exists() {
-            if [ -f "$1" ]; then
-              echo "Copying $1"
-              cp -u -v "$1" .
-            else
-              echo "Missing $1"
-            fi
-          }
-
           for lib in \
             /mingw64/bin/libgcc_s_seh-1.dll \
             /mingw64/bin/libstdc++-6.dll \
             /mingw64/bin/libwinpthread-1.dll \
             /mingw64/bin/libfltk*.dll \
             /mingw64/bin/libtbb*.dll; do
-            copy_if_exists "$lib"
+            [ -f "$lib" ] && cp -u -v "$lib" .
           done
 
-          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+          for exe in *.exe; do
             echo "Scanning $exe for dependencies..."
             ntldd "$exe" | awk '{print $3}' | while read -r dll; do
-              if [ -f "$dll" ]; then
+              if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
                 cp -u -v "$dll" .
               fi
             done
@@ -120,7 +110,7 @@ jobs:
         run: |
           cd build
           FAIL=0
-          for exe in $(find . -maxdepth 1 -name "*.exe"); do
+          for exe in *.exe; do
             echo "Verifying $exe"
             if ntldd "$exe" | grep "not found"; then
               echo "❌ Missing DLLs in $exe"
@@ -131,9 +121,61 @@ jobs:
           done
           exit $FAIL
 
-      - name: Upload Windows bundle
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\*.exe,build\*.dll -DestinationPath build\shark-windows.zip
+
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: shark-windows
-          path: build/*
-          compression-level: 9
+          path: build/shark-windows.zip
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shark-macos
+          path: ./mac
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shark-windows
+          path: ./win
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS tarball to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./mac/shark-macos.tar.gz
+          asset_name: shark-macos.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Windows ZIP to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./win/shark-windows.zip
+          asset_name: shark-windows.zip
+          asset_content_type: application/zip
