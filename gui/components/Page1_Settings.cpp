@@ -15,6 +15,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   m_inpStack = new Fl_Input(0, 0, 0, 0);
   m_inpStack->textsize(24);
+  m_inpStack->value("100");
   m_grid->widget(m_inpStack, 0, 1);
 
   // Row 1: Starting Pot
@@ -25,6 +26,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   m_inpPot = new Fl_Input(0, 0, 0, 0);
   m_inpPot->textsize(24);
+  m_inpPot->value("10");
   m_grid->widget(m_inpPot, 1, 1);
 
   // Row 2: Min Bet
@@ -35,6 +37,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   m_inpMinBet = new Fl_Input(0, 0, 0, 0);
   m_inpMinBet->textsize(24);
+  m_inpMinBet->value("2");
   m_grid->widget(m_inpMinBet, 2, 1);
 
   // Row 3: All-In Threshold
@@ -142,6 +145,9 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   m_btnNext->labelsize(18);
 
   end();
+
+  // Force initial layout
+  resize(X, Y, W, H);
 }
 
 void Page1_Settings::setNextCallback(Fl_Callback *cb, void *data) {

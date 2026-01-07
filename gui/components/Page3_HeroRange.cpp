@@ -1,62 +1,31 @@
 #include "Page3_HeroRange.hh"
 #include "../utils/RangeData.hh"
 #include "../utils/Colors.hh"
+#include <FL/Fl_Grid.H>
 #include <algorithm>
 
 Page3_HeroRange::Page3_HeroRange(int X, int Y, int W, int H)
     : Fl_Group(X, Y, W, H) {
 
-  // Title
-  m_lblTitle = new Fl_Box(X, Y + 20, W, 50, "Range Editor (you)");
+  // Main container grid: 3 rows (title, range grid, nav)
+  auto *mainGrid = new Fl_Grid(X, Y, W, H);
+  mainGrid->layout(3, 1, 5, 5);
+
+  // Row 0: Title
+  m_lblTitle = new Fl_Box(0, 0, 0, 0, "Range Editor (you)");
   m_lblTitle->labelfont(FL_BOLD);
   m_lblTitle->labelsize(28);
-  m_lblTitle->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
+  m_lblTitle->align(FL_ALIGN_CENTER);
+  mainGrid->widget(m_lblTitle, 0, 0);
+  mainGrid->row_height(0, 60);
 
-  // Range grid (will be created in rebuildRangeGrid)
-  rebuildRangeGrid(W, H);
+  // Row 1: Range grid (13×13)
+  m_rangeGrid = new Fl_Grid(0, 0, 0, 0);
+  m_rangeGrid->layout(13, 13, 3, 3);  // 13×13, 3px spacing
 
-  // Navigation buttons
-  int navY = Y + H - 60;
-  m_btnBack = new Fl_Button(X + 25, navY, 120, 40, "Back");
-  m_btnBack->labelsize(18);
-
-  m_btnNext = new Fl_Button(X + W - 145, navY, 120, 40, "Next");
-  m_btnNext->labelsize(18);
-
-  end();
-}
-
-void Page3_HeroRange::rebuildRangeGrid(int W, int H) {
-  // Clear existing buttons
-  for (auto *btn : m_rangeBtns) {
-    remove(btn);
-    delete btn;
-  }
-  m_rangeBtns.clear();
-
-  int grid_size = 13;
-  int available_width = W - 100;
-  int available_height = H - 250;
-
-  int base_button_size = std::min(
-      (available_width - (grid_size * 10)) / grid_size,
-      (available_height - (grid_size * 10)) / grid_size
-  );
-
-  int min_range_button = 60;
-  int rbw = std::max(min_range_button, base_button_size);
-  int rbh = rbw;
-  int rsp = 10;
-
-  int rangeGridX = x() + (W - (13 * (rbw + rsp) - rsp)) / 2;
-  int rangeGridY = y() + 90;
-
-  // Create 13x13 range grid
+  // Create 169 hand buttons
   for (int i = 0; i < 13; ++i) {
     for (int j = 0; j < 13; ++j) {
-      int cx = rangeGridX + j * (rbw + rsp);
-      int cy = rangeGridY + i * (rbh + rsp);
-
       std::string lbl;
       Fl_Color base;
 
@@ -74,14 +43,45 @@ void Page3_HeroRange::rebuildRangeGrid(int W, int H) {
         base = Colors::DefaultCell();
       }
 
-      auto *btn = new CardButton(cx, cy, rbw, rbh, base);
+      auto *btn = new CardButton(0, 0, 0, 0, base);
       btn->copy_label(lbl.c_str());
-      btn->labelsize(20);
+      btn->labelsize(12);
       btn->callback(cbRange, this);
       btn->clear_visible_focus();
+
+      m_rangeGrid->widget(btn, i, j);
       m_rangeBtns.push_back(btn);
     }
   }
+
+  // Equal weights for all rows/cols
+  for (int i = 0; i < 13; ++i) {
+    m_rangeGrid->row_weight(i, 1);
+    m_rangeGrid->col_weight(i, 1);
+  }
+
+  m_rangeGrid->end();
+  mainGrid->widget(m_rangeGrid, 1, 0);
+  mainGrid->row_height(1, H - 120);  // Leave space for title and nav
+
+  // Row 2: Navigation
+  auto *navRow = new Fl_Group(0, 0, 0, 0);
+  navRow->begin();
+  m_btnBack = new Fl_Button(0, 0, 0, 0, "Back");
+  m_btnBack->labelsize(18);
+
+  m_btnNext = new Fl_Button(0, 0, 0, 0, "Next");
+  m_btnNext->labelsize(18);
+  navRow->end();
+
+  mainGrid->widget(navRow, 2, 0);
+  mainGrid->row_height(2, 50);
+
+  mainGrid->end();
+  end();
+
+  // Force initial layout
+  resize(X, Y, W, H);
 }
 
 void Page3_HeroRange::setBackCallback(Fl_Callback *cb, void *data) {
@@ -147,12 +147,22 @@ void Page3_HeroRange::handleRangeClick(CardButton *btn) {
 void Page3_HeroRange::resize(int X, int Y, int W, int H) {
   Fl_Group::resize(X, Y, W, H);
 
-  m_lblTitle->resize(X, Y + 20, W, 50);
+  // Update range grid height based on available space
+  if (children() > 0) {
+    auto *mainGrid = dynamic_cast<Fl_Grid*>(child(0));
+    if (!mainGrid || mainGrid->children() < 3) return;
 
-  // Rebuild range grid with new dimensions
-  rebuildRangeGrid(W, H);
+    // Adjust row 1 (range grid) height based on window size
+    int rangeGridHeight = H - 120;  // Leave space for title (60) + nav (50) + margins (10)
+    mainGrid->row_height(1, rangeGridHeight);
+    mainGrid->resize(X, Y, W, H);
 
-  int navY = Y + H - 60;
-  m_btnBack->resize(X + 25, navY, 120, 40);
-  m_btnNext->resize(X + W - 145, navY, 120, 40);
+    auto *navRow = mainGrid->child(2);
+    int navX = navRow->x();
+    int navY = navRow->y();
+    int navW = navRow->w();
+
+    m_btnBack->resize(navX + 25, navY + 2, 120, 40);
+    m_btnNext->resize(navX + navW - 145, navY + 2, 120, 40);
+  }
 }

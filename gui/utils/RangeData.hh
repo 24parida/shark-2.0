@@ -102,4 +102,38 @@ namespace RangeData {
     }
     return hands;
   }
+
+  // Get position index for in-position calculation
+  inline int getPositionIndex(const std::string& position) {
+    static const std::map<std::string, int> positionIndices = {
+      {"SB", 0}, {"BB", 1}, {"UTG", 2}, {"UTG+1", 3},
+      {"MP", 4}, {"LJ", 5}, {"HJ", 6}, {"CO", 7}, {"BTN", 8}
+    };
+
+    auto it = positionIndices.find(position);
+    return (it != positionIndices.end()) ? it->second : 0;
+  }
+
+  // Get range for a specific position and pot type
+  inline std::vector<std::string> getRangeForPosition(const std::string& position,
+                                                      const std::string& potType,
+                                                      bool isHero) {
+    auto it = POSITION_RANGES.find(position);
+    if (it == POSITION_RANGES.end()) {
+      return {};
+    }
+
+    const auto& ranges = it->second;
+    std::string rangeStr;
+
+    if (potType == "Single Raise") {
+      rangeStr = ranges.opening;
+    } else if (potType == "3-bet") {
+      rangeStr = isHero ? ranges.threeBet : ranges.opening;
+    } else if (potType == "4-bet") {
+      rangeStr = isHero ? ranges.fourBet : ranges.threeBet;
+    }
+
+    return expandRange(rangeStr);
+  }
 }

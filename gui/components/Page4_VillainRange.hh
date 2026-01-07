@@ -1,5 +1,6 @@
 #pragma once
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Grid.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Button.H>
 #include "CardButton.hh"
@@ -9,6 +10,7 @@
 
 class Page4_VillainRange : public Fl_Group {
   Fl_Box *m_lblTitle;
+  Fl_Grid *m_rangeGrid;  // 13×13 grid of hands
   std::vector<CardButton *> m_rangeBtns;
   Fl_Button *m_btnBack, *m_btnNext;
 
@@ -32,5 +34,4 @@ protected:
 private:
   static void cbRange(Fl_Widget *w, void *data);
   void handleRangeClick(CardButton *btn);
-  void rebuildRangeGrid(int W, int H);
 };

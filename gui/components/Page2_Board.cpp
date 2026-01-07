@@ -1,6 +1,7 @@
 #include "Page2_Board.hh"
 #include "../utils/RangeData.hh"
 #include "../utils/Colors.hh"
+#include <FL/Fl_Grid.H>
 #include <algorithm>
 #include <random>
 #include <sstream>
@@ -8,90 +9,90 @@
 Page2_Board::Page2_Board(int X, int Y, int W, int H)
     : Fl_Group(X, Y, W, H) {
 
-  // Title
-  m_lblTitle = new Fl_Box(X, Y + 15, W, 50, "Init Board (3-5 Cards)");
+  // Main container grid: 4 rows (title, cards, input, nav)
+  auto *mainGrid = new Fl_Grid(X, Y, W, H);
+  mainGrid->layout(4, 1, 5, 5);  // 4 rows, 1 column, 5px margins
+
+  // Row 0: Title
+  m_lblTitle = new Fl_Box(0, 0, 0, 0, "Init Board (3-5 Cards)");
   m_lblTitle->labelfont(FL_BOLD);
-  m_lblTitle->labelsize(21);
-  m_lblTitle->align(FL_ALIGN_INSIDE | FL_ALIGN_CENTER);
+  m_lblTitle->labelsize(28);
+  m_lblTitle->align(FL_ALIGN_CENTER);
+  mainGrid->widget(m_lblTitle, 0, 0);
+  mainGrid->row_height(0, 60);
 
-  // Card grid (will be created in rebuildCardGrid)
-  rebuildCardGrid(W, H);
+  // Row 1: Card grid (13 rows × 4 columns)
+  m_cardGrid = new Fl_Grid(0, 0, 0, 0);
+  m_cardGrid->layout(13, 4, 5, 5);  // 13 rows, 4 columns, 5px spacing
 
-  // Selection display
-  int inputWidth = static_cast<int>(W * 0.6);
-  int randButtonWidth = 200;
-  int inputSpacing = 20;
-  int totalWidth = inputWidth + randButtonWidth + inputSpacing;
-  int startX = X + (W - totalWidth) / 2;
-  int inputY = Y + H - 110;
-
-  m_selDisplay = new Fl_Input(startX, inputY, inputWidth, 40);
-  m_selDisplay->textsize(18);
-  m_selDisplay->readonly(1);
-
-  m_btnRand = new Fl_Button(m_selDisplay->x() + m_selDisplay->w() + inputSpacing,
-                            inputY, randButtonWidth, 40, "Generate Random Flop");
-  m_btnRand->labelsize(18);
-  m_btnRand->callback(cbRand, this);
-
-  // Navigation buttons
-  int navY = Y + H - 60;
-  m_btnBack = new Fl_Button(X + 25, navY, 150, 40, "Back");
-  m_btnBack->labelsize(18);
-
-  m_btnNext = new Fl_Button(X + W - 175, navY, 150, 40, "Next");
-  m_btnNext->labelsize(18);
-
-  end();
-}
-
-void Page2_Board::rebuildCardGrid(int W, int H) {
-  // Clear existing cards
-  for (auto *card : m_cards) {
-    remove(card);
-    delete card;
-  }
-  m_cards.clear();
-
-  int cols = 4, rows = 13;
-  int topMargin = 80;
-  int bottomReservedSpace = 150;
-  int availableHeight = H - topMargin - bottomReservedSpace;
-  int availableWidth = W - 100;
-  int spacing = 8;
-
-  int maxButtonWidth = (availableWidth - (cols - 1) * spacing) / cols;
-  int maxButtonHeight = (availableHeight - (rows - 1) * spacing) / rows;
-  int buttonSize = std::min(maxButtonWidth, maxButtonHeight);
-  buttonSize = std::min(65, std::max(45, buttonSize));
-
-  int totalGridWidth = cols * buttonSize + (cols - 1) * spacing;
-  int totalGridHeight = rows * buttonSize + (rows - 1) * spacing;
-  int GX = x() + (W - totalGridWidth) / 2;
-  int GY = y() + topMargin + (availableHeight - totalGridHeight) / 2;
-
-  // Create card grid
-  for (int r = 0; r < rows; ++r) {
-    for (int s = 0; s < cols; ++s) {
-      int cx = GX + s * (buttonSize + spacing);
-      int cy = GY + r * (buttonSize + spacing);
-
+  // Create 52 cards and add to grid
+  for (int r = 0; r < 13; ++r) {
+    for (int c = 0; c < 4; ++c) {
       Fl_Color base;
-      switch (RangeData::SUITS[s]) {
+      switch (RangeData::SUITS[c]) {
         case 'h': base = Colors::Hearts(); break;
         case 'd': base = Colors::Diamonds(); break;
         case 'c': base = Colors::Clubs(); break;
         default:  base = Colors::Spades();
       }
 
-      auto *cb = new CardButton(cx, cy, buttonSize, buttonSize, base);
-      std::string lbl = RangeData::RANKS[r] + std::string(1, RangeData::SUITS[s]);
-      cb->copy_label(lbl.c_str());
-      cb->labelsize(16);
-      cb->callback(cbCard, this);
-      m_cards.push_back(cb);
+      auto *card = new CardButton(0, 0, 0, 0, base);  // Fl_Grid will size it
+      std::string lbl = RangeData::RANKS[r] + std::string(1, RangeData::SUITS[c]);
+      card->copy_label(lbl.c_str());
+      card->labelsize(14);
+      card->callback(cbCard, this);
+
+      m_cardGrid->widget(card, r, c);  // Add to grid at (row, col)
+      m_cards.push_back(card);
     }
   }
+
+  // Set all rows/cols to equal weight so they resize proportionally
+  for (int i = 0; i < 13; ++i) {
+    m_cardGrid->row_weight(i, 1);
+  }
+  for (int i = 0; i < 4; ++i) {
+    m_cardGrid->col_weight(i, 1);
+  }
+
+  m_cardGrid->end();
+  mainGrid->widget(m_cardGrid, 1, 0);
+  // Set a reasonable fixed height for card grid (will be adjusted in resize)
+  mainGrid->row_height(1, H - 170);  // Leave space for title, input, nav
+
+  // Row 2: Input + Random button
+  auto *inputRow = new Fl_Group(0, 0, 0, 0);
+  inputRow->begin();
+  m_selDisplay = new Fl_Input(0, 0, 0, 0);
+  m_selDisplay->textsize(18);
+  m_selDisplay->readonly(1);
+
+  m_btnRand = new Fl_Button(0, 0, 0, 0, "Random Flop");
+  m_btnRand->labelsize(18);
+  m_btnRand->callback(cbRand, this);
+  inputRow->end();
+
+  mainGrid->widget(inputRow, 2, 0);
+  mainGrid->row_height(2, 50);
+
+  // Row 3: Navigation
+  auto *navRow = new Fl_Group(0, 0, 0, 0);
+  navRow->begin();
+  m_btnBack = new Fl_Button(0, 0, 0, 0, "Back");
+  m_btnBack->labelsize(18);
+
+  m_btnNext = new Fl_Button(0, 0, 0, 0, "Next");
+  m_btnNext->labelsize(18);
+  navRow->end();
+
+  mainGrid->widget(navRow, 3, 0);
+  mainGrid->row_height(3, 60);
+
+  mainGrid->end();
+  end();
+
+  // Force initial layout
+  resize(X, Y, W, H);
 }
 
 void Page2_Board::setBackCallback(Fl_Callback *cb, void *data) {
@@ -132,7 +133,6 @@ void Page2_Board::randomFlop() {
     const auto& card = allCards[i];
     m_selectedCards.push_back(card);
 
-    // Find and select the card button
     for (auto *btn : m_cards) {
       if (std::string(btn->label()) == card) {
         btn->select(true);
@@ -160,11 +160,9 @@ void Page2_Board::handleCardClick(CardButton *btn) {
 
   auto it = std::find(m_selectedCards.begin(), m_selectedCards.end(), card);
   if (it != m_selectedCards.end()) {
-    // Deselect
     m_selectedCards.erase(it);
     btn->select(false);
   } else if (m_selectedCards.size() < 5) {
-    // Select (max 5 cards)
     m_selectedCards.push_back(card);
     btn->select(true);
   }
@@ -191,23 +189,38 @@ void Page2_Board::updateDisplay() {
 void Page2_Board::resize(int X, int Y, int W, int H) {
   Fl_Group::resize(X, Y, W, H);
 
-  m_lblTitle->resize(X, Y + 15, W, 50);
+  // Update card grid height based on available space
+  if (children() > 0) {
+    auto *mainGrid = dynamic_cast<Fl_Grid*>(child(0));
+    if (!mainGrid || mainGrid->children() < 4) return;
 
-  // Rebuild card grid with new dimensions
-  rebuildCardGrid(W, H);
+    // Adjust row 1 (card grid) height based on window size
+    int cardGridHeight = H - 180;  // Leave space for title (60) + input (50) + nav (60) + margins (10)
+    mainGrid->row_height(1, cardGridHeight);
+    mainGrid->resize(X, Y, W, H);
 
-  // Reposition bottom controls
-  int inputWidth = static_cast<int>(W * 0.6);
-  int randButtonWidth = 200;
-  int inputSpacing = 20;
-  int totalWidth = inputWidth + randButtonWidth + inputSpacing;
-  int startX = X + (W - totalWidth) / 2;
-  int inputY = Y + H - 110;
+    // Row 2: Input row - position input and button
+    auto *inputRow = mainGrid->child(2);
+    int rowW = inputRow->w();
+    int rowX = inputRow->x();
+    int rowY = inputRow->y();
 
-  m_selDisplay->resize(startX, inputY, inputWidth, 40);
-  m_btnRand->resize(m_selDisplay->x() + m_selDisplay->w() + inputSpacing, inputY, randButtonWidth, 40);
+    int inputWidth = static_cast<int>(rowW * 0.6);
+    int btnWidth = static_cast<int>(rowW * 0.3);
+    int spacing = 20;
+    int totalW = inputWidth + spacing + btnWidth;
+    int startX = rowX + (rowW - totalW) / 2;
 
-  int navY = Y + H - 60;
-  m_btnBack->resize(X + 25, navY, 150, 40);
-  m_btnNext->resize(X + W - 175, navY, 150, 40);
+    m_selDisplay->resize(startX, rowY + 5, inputWidth, 40);
+    m_btnRand->resize(startX + inputWidth + spacing, rowY + 5, btnWidth, 40);
+
+    // Row 3: Nav row - position back and next buttons
+    auto *navRow = mainGrid->child(3);
+    int navX = navRow->x();
+    int navY = navRow->y();
+    int navW = navRow->w();
+
+    m_btnBack->resize(navX + 25, navY + 2, 120, 40);
+    m_btnNext->resize(navX + navW - 145, navY + 2, 120, 40);
+  }
 }
