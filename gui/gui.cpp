@@ -29,6 +29,9 @@
 #include "tree/GameTree.hh"
 #include "tree/Nodes.hh"
 
+// GUI components
+#include "components/CardButton.hh"
+
 static const std::vector<std::string> RANKS = {
     "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
 static const std::vector<char> SUITS = {'h', 'd', 'c', 's'};
@@ -126,133 +129,6 @@ std::vector<std::string> expandRange(const std::string& range) {
     }
     return hands;
 }
-
-class CardButton : public Fl_Button {
-  Fl_Color m_base;
-  bool m_sel = false;
-  bool m_strategy_sel = false;  // New: separate tracking for strategy selection
-  static const Fl_Color HIGHLIGHT;
-  static const Fl_Color UNCOLORED_BG;  // New: background color for uncolored cards
-  std::vector<std::pair<Fl_Color, float>> m_strategy_colors; // Color and percentage pairs
-
-public:
-  CardButton(int X, int Y, int W, int H, Fl_Color baseColor)
-      : Fl_Button(X, Y, W, H, ""), m_base(baseColor) {
-    box(FL_FLAT_BOX); // Change to flat box for square shape
-    labelcolor(FL_WHITE);
-    labelsize(18);
-    color(m_base);
-    visible_focus(false);
-  }
-
-  void toggle() {
-    m_sel = !m_sel;
-    color(m_sel ? HIGHLIGHT : m_base);
-    redraw();
-  }
-
-  void select(bool s) {
-    if (s != m_sel)
-      toggle();
-  }
-
-  bool selected() const { return m_sel; }
-
-  // New: methods for strategy selection
-  void setStrategySelected(bool sel) {
-    if (m_strategy_sel != sel) {
-      m_strategy_sel = sel;
-      redraw();
-    }
-  }
-
-  bool strategySelected() const { return m_strategy_sel; }
-
-  void setStrategyColors(const std::vector<std::pair<Fl_Color, float>> &colors) {
-    m_strategy_colors = colors;
-    m_strategy_sel = false;  // Reset selection state when colors are updated
-    redraw();
-  }
-
-protected:
-  void draw() override {
-    // Draw base button
-    if (!m_strategy_colors.empty()) {
-      int x = this->x();
-      int y = this->y();
-      int w = this->w();
-      int h = this->h();
-
-      // First draw the base background
-      fl_color(FL_BACKGROUND_COLOR);
-      fl_rectf(x, y, w, h);
-
-      // Draw strategy color bars
-      int current_y = y;
-      for (const auto &[color, percentage] : m_strategy_colors) {
-        if (percentage > 0.001f) { // Only draw if > 0.1%
-          int bar_height = static_cast<int>(h * percentage);
-          fl_color(color);
-          fl_rectf(x, current_y, w, bar_height);
-          current_y += bar_height;
-        }
-      }
-
-      // Redraw label on top
-      fl_color(labelcolor());
-      fl_font(labelfont(), labelsize());
-      fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
-
-      // Draw black border if this hand is selected in strategy display
-      if (m_strategy_sel) {
-        fl_color(FL_BLACK);
-        fl_line_style(FL_SOLID, 4);  // Increase line thickness to 4 pixels
-        
-        // Draw slightly rounded rectangle
-        int corner_radius = 3;  // Small radius for subtle rounding
-        
-        // Top-left corner
-        fl_arc(x + corner_radius, y + corner_radius, corner_radius * 2, corner_radius * 2, 90, 180);
-        // Top-right corner
-        fl_arc(x + w - corner_radius * 3, y + corner_radius, corner_radius * 2, corner_radius * 2, 0, 90);
-        // Bottom-left corner
-        fl_arc(x + corner_radius, y + h - corner_radius * 3, corner_radius * 2, corner_radius * 2, 180, 270);
-        // Bottom-right corner
-        fl_arc(x + w - corner_radius * 3, y + h - corner_radius * 3, corner_radius * 2, corner_radius * 2, 270, 360);
-        
-        // Connect the corners with lines
-        fl_line(x + corner_radius, y, x + w - corner_radius, y);           // Top
-        fl_line(x + w, y + corner_radius, x + w, y + h - corner_radius);   // Right
-        fl_line(x + corner_radius, y + h, x + w - corner_radius, y + h);   // Bottom
-        fl_line(x, y + corner_radius, x, y + h - corner_radius);           // Left
-        
-        fl_line_style(0);  // Reset line style
-      }
-    } else {
-      // For non-strategy buttons, draw shaded background if uncolored
-      if (m_base == FL_BACKGROUND_COLOR) {
-        int x = this->x();
-        int y = this->y();
-        int w = this->w();
-        int h = this->h();
-        
-        // Draw shaded background
-        fl_color(UNCOLORED_BG);
-        fl_rectf(x, y, w, h);
-      }
-      Fl_Button::draw();  // Use default drawing
-    }
-  }
-
-  int handle(int event) override {
-    if (event == FL_FOCUS || event == FL_UNFOCUS)
-      return 0;
-    return Fl_Button::handle(event);
-  }
-};
-
-const Fl_Color CardButton::HIGHLIGHT = fl_rgb_color(255, 200, 0);
-const Fl_Color CardButton::UNCOLORED_BG = fl_rgb_color(80, 80, 80);  // Changed to match range picker gray
 
 class Wizard : public Fl_Window {
   struct UserInputs {
@@ -1886,6 +1762,7 @@ private:
     m_pg6->end();
     m_pg6->hide();
 
+    resizable(this);
     end();
   }
 };

@@ -6,7 +6,7 @@
 
 namespace CardUtility {
 inline uint64_t card_to_mask(const Card &card) {
-  return 1ULL << card.get_card();
+  return 1ULL << int(card);
 }
 
 inline uint64_t board_to_mask(const std::vector<Card> &board) {
@@ -40,7 +40,7 @@ inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {
 
 // Fast overlap check using precomputed board mask
 inline bool overlap_mask(const PreflopCombo &combo, uint64_t board_mask) {
-  uint64_t combo_mask = (1ULL << combo.hand1.get_card()) | (1ULL << combo.hand2.get_card());
+  uint64_t combo_mask = (1ULL << int(combo.hand1)) | (1ULL << int(combo.hand2));
   return (combo_mask & board_mask) != 0;
 }
 

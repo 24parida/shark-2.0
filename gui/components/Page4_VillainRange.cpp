@@ -96,10 +96,6 @@ void Page4_VillainRange::setRangeChangeCallback(std::function<void(const std::ve
   m_onRangeChange = cb;
 }
 
-std::vector<std::string> Page4_VillainRange::getSelectedRange() const {
-  return m_selectedRange;
-}
-
 void Page4_VillainRange::setSelectedRange(const std::vector<std::string>& range) {
   m_selectedRange = range;
 

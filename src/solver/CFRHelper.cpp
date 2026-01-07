@@ -46,7 +46,7 @@ auto CFRHelper::get_isomorphic_card_groups(const std::vector<Card> &board,
     -> std::vector<std::vector<int>> {
   std::array<int, 4> suit_count{};
   for (const auto &card : board) {
-    suit_count[card.get_suit()]++;
+    suit_count[int(card) % 4]++;
   }
 
   std::map<int, int> count_to_canonical;
@@ -74,8 +74,8 @@ auto CFRHelper::get_isomorphic_card_groups(const std::vector<Card> &board,
       continue;
 
     Card c(card);
-    int rank = c.get_rank();
-    int can_suit = canonical_suit[c.get_suit()];
+    int rank = int(c) / 4;
+    int can_suit = canonical_suit[int(c) % 4];
     groups[{rank, can_suit}].push_back(card);
   }
 
@@ -282,8 +282,8 @@ auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
       continue;
     float pr = villain_reach_pr[v];
     p_total += pr;
-    p_card[vc.hand1.get_card()] += pr;
-    p_card[vc.hand2.get_card()] += pr;
+    p_card[int(vc.hand1)] += pr;
+    p_card[int(vc.hand2)] += pr;
   }
 
   uint64_t board_mask_bits = CardUtility::board_to_mask(board);
@@ -291,7 +291,7 @@ auto CFRHelper::get_card_weights(const std::vector<float> &villain_reach_pr,
   std::vector<float> card_weights(m_num_hero_hands * NC, 0.0f);
   for (size_t h = 0; h < m_num_hero_hands; ++h) {
     const auto &hc = m_hero_preflop_combos[h];
-    int h1 = hc.hand1.get_card(), h2 = hc.hand2.get_card();
+    int h1 = int(hc.hand1), h2 = int(hc.hand2);
     uint64_t hero_mask = (1ULL << h1) | (1ULL << h2);
     if ((hero_mask & board_mask_bits) != 0)
       continue;

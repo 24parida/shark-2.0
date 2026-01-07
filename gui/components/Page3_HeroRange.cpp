@@ -96,10 +96,6 @@ void Page3_HeroRange::setRangeChangeCallback(std::function<void(const std::vecto
   m_onRangeChange = cb;
 }
 
-std::vector<std::string> Page3_HeroRange::getSelectedRange() const {
-  return m_selectedRange;
-}
-
 void Page3_HeroRange::setSelectedRange(const std::vector<std::string>& range) {
   m_selectedRange = range;
 

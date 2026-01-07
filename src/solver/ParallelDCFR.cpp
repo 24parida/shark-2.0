@@ -56,9 +56,9 @@ void ParallelDCFR::reset_cumulative_strategies(Node *const node) {
     auto *action_node = static_cast<ActionNode *>(node);
     action_node->get_trainer()->reset_cumulative_strategy();
 
-    for (int i = 0; i < action_node->get_num_children(); ++i) {
-      if (action_node->get_child(i)) {
-        reset_cumulative_strategies(action_node->get_child(i));
+    for (auto &child : action_node->get_children()) {
+      if (child) {
+        reset_cumulative_strategies(child.get());
       }
     }
   } else if (node->get_node_type() == NodeType::CHANCE_NODE) {
