@@ -47,6 +47,7 @@ add_subdirectory(include/PokerHandEvaluator/cpp pheval_build)
 # 5. Source files
 file(GLOB_RECURSE POKER_GUI_SRCS
   gui/gui.cpp
+  gui/components/*.cpp
   src/hands/*.cpp
   src/solver/*.cpp
   src/trainer/*.cpp
@@ -60,6 +61,7 @@ add_executable(shark WIN32 ${POKER_GUI_SRCS})
 target_include_directories(shark PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/gui
   ${FLTK_INCLUDE_DIR}
 )
 

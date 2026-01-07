@@ -8,6 +8,10 @@
 #include <oneapi/tbb/global_control.h>
 #include <oneapi/tbb/parallel_for.h>
 #include <vector>
+#include <functional>
+
+// Progress callback: void callback(int current_iteration, int total_iterations, float exploitability)
+using ProgressCallback = std::function<void(int, int, float)>;
 
 class ParallelDCFR {
   PreflopRangeManager m_prm;
@@ -17,6 +21,7 @@ class ParallelDCFR {
   std::vector<Card> m_init_board;
   int m_init_pot;
   int m_in_position_player;
+  int m_thread_count;
 
   // Precomputed combo mappings to avoid O(N*M) search per iteration
   std::vector<int> m_p1_to_p2;
@@ -25,14 +30,14 @@ class ParallelDCFR {
 public:
   ParallelDCFR(const PreflopRangeManager &prm,
                const std::vector<Card> &init_board, int init_pot,
-               int in_position_player)
+               int in_position_player, int thread_count = 0)
       : m_prm(prm), m_brm(prm), m_init_board(init_board), m_init_pot(init_pot),
-        m_in_position_player(in_position_player) {}
+        m_in_position_player(in_position_player), m_thread_count(thread_count) {}
 
   void load_trainer_modules(Node *const node);
   void precompute_combo_mappings();
   void reset_cumulative_strategies(Node *const node);
-  void train(Node *root, const int iterations, const float min_explot = -1.0);
+  void train(Node *root, const int iterations, const float min_explot = -1.0, ProgressCallback progress_cb = nullptr);
 
   void cfr(const int hero, const int villain, Node *root,
            const int iteration_count,

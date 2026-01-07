@@ -2,6 +2,20 @@
 #include "Nodes.hh"
 #include "TreeBuilderSettings.hh"
 #include <memory>
+#include <cstddef>
+
+struct TreeStatistics {
+  int total_action_nodes;
+  int flop_action_nodes;
+  int turn_action_nodes;
+  int river_action_nodes;
+  int chance_nodes;
+  int terminal_nodes;
+  int p1_num_hands;
+  int p2_num_hands;
+
+  size_t estimateMemoryBytes() const;
+};
 
 class GameTree {
   TreeBuilderSettings m_settings;
@@ -33,4 +47,6 @@ public:
       -> std::unique_ptr<Node>;
   auto build_term_nodes(const Node *parent, const GameState &state)
       -> std::unique_ptr<Node>;
+
+  auto getTreeStats() const -> TreeStatistics;
 };

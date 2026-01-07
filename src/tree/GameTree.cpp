@@ -218,3 +218,39 @@ bool is_valid_action(const Action &action, const GameState &state) {
   }
   return false;
 }
+
+auto GameTree::getTreeStats() const -> TreeStatistics {
+  TreeStatistics stats;
+  stats.flop_action_nodes = m_flop_action_node_count;
+  stats.turn_action_nodes = m_turn_action_node_count;
+  stats.river_action_nodes = m_river_action_node_count;
+  stats.total_action_nodes = m_flop_action_node_count + m_turn_action_node_count + m_river_action_node_count;
+  stats.chance_nodes = m_chance_node_count;
+  stats.terminal_nodes = m_terminal_node_count;
+  stats.p1_num_hands = m_p1_num_hands;
+  stats.p2_num_hands = m_p2_num_hands;
+  return stats;
+}
+
+size_t TreeStatistics::estimateMemoryBytes() const {
+  // DCFR storage per action node:
+  // - 2 bytes per (hand, action) for cumulative regret (int16_t)
+  // - 2 bytes per (hand, action) for cumulative strategy (int16_t)
+  // Assuming average 3 actions per node
+  const int avg_actions_per_node = 3;
+  const int bytes_per_hand_action = 4;  // 2 for regret + 2 for strategy
+
+  size_t dcfr_bytes = 0;
+
+  // Estimate for each action node (player perspective matters)
+  // Simplified: each action node stores data for both players
+  int max_hands = (p1_num_hands > p2_num_hands) ? p1_num_hands : p2_num_hands;
+  dcfr_bytes = static_cast<size_t>(total_action_nodes) * max_hands * avg_actions_per_node * bytes_per_hand_action;
+
+  // Tree structure overhead (nodes, pointers, etc.)
+  // Rough estimate: 200 bytes per node
+  size_t tree_structure_bytes = static_cast<size_t>(total_action_nodes + chance_nodes + terminal_nodes) * 200;
+
+  // Total with 20% overhead for misc data structures
+  return static_cast<size_t>((dcfr_bytes + tree_structure_bytes) * 1.2);
+}

@@ -72,9 +72,11 @@ void ParallelDCFR::reset_cumulative_strategies(Node *const node) {
 }
 
 void ParallelDCFR::train(Node *root, const int iterations,
-                         const float min_exploit) {
+                         const float min_exploit, ProgressCallback progress_cb) {
+  // Configure thread count: use m_thread_count if > 0, otherwise auto-detect
+  int thread_count = (m_thread_count > 0) ? m_thread_count : std::thread::hardware_concurrency();
   tbb::global_control c{tbb::global_control::max_allowed_parallelism,
-                        std::thread::hardware_concurrency()};
+                        static_cast<size_t>(thread_count)};
 
   load_trainer_modules(root);
   precompute_combo_mappings();
@@ -94,11 +96,21 @@ void ParallelDCFR::train(Node *root, const int iterations,
       reset_cumulative_strategies(root);
     }
 
+    // Compute exploitability and call progress callback
+    float exploit = -1.0f;
     if (i % static_cast<int>(iterations / 5) == 0 && i != 0) {
-      float exploit = m_brm.get_exploitability(
+      exploit = m_brm.get_exploitability(
           root, i, m_init_board, m_init_pot, m_in_position_player);
-      if (exploit < min_exploit)
+
+      if (progress_cb) {
+        progress_cb(i, iterations, exploit);
+      }
+
+      if (min_exploit > 0.0f && exploit < min_exploit)
         return;
+    } else if (progress_cb) {
+      // Call progress callback even when not computing exploitability
+      progress_cb(i, iterations, exploit);
     }
   }
 }

@@ -24,8 +24,9 @@ float BestResponse::get_best_response_ev(
   auto unblocked_combo_counts{
       get_unblocked_combo_counts(hero_combos, villain_combos, board)};
 
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
   for (int i = 0; i < m_num_hero_hands; ++i) {
-    if (!CardUtility::overlap(hero_combos[i], board)) {
+    if (!CardUtility::overlap_mask(hero_combos[i], board_mask)) {
       ev += preflop_combo_evs[i] / unblocked_combo_counts[i] *
             hero_combos[i].rel_probability;
     }
@@ -66,6 +67,8 @@ float BestResponse::get_exploitability(Node *node, int iteration_count,
       auto &vc = p1_combos[v];
 
       if (hc == vc) {
+        p2_to_p1[h] = v;
+        break;
       }
     }
   }
@@ -90,17 +93,18 @@ auto BestResponse::get_unblocked_combo_counts(
     const std::vector<PreflopCombo> &villain_combos,
     const std::vector<Card> &board) -> std::vector<float> {
   std::vector<float> combo_counts(hero_combos.size());
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
 
   for (int hero_hand = 0; hero_hand < hero_combos.size(); ++hero_hand) {
     const PreflopCombo &combo{hero_combos[hero_hand]};
 
-    if (CardUtility::overlap(combo, board))
+    if (CardUtility::overlap_mask(combo, board_mask))
       continue;
 
     float sum{0};
     for (const auto &villain_combo : villain_combos) {
       if (!CardUtility::overlap(combo, villain_combo) &&
-          !CardUtility::overlap(villain_combo, board)) {
+          !CardUtility::overlap_mask(villain_combo, board_mask)) {
         sum += villain_combo.probability;
       }
     }
@@ -226,8 +230,11 @@ auto BestResponse::all_in_best_response(
   }
 
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
+
   for (int card = 0; card < 52; ++card) {
-    if (CardUtility::overlap(card, board))
+    const uint64_t card_mask = 1ULL << card;
+    if (card_mask & board_mask)
       continue;
 
     auto new_board{board};
@@ -314,8 +321,12 @@ auto BestResponse::uncontested_best_response(
     const std::vector<Card> &board) -> std::vector<float> {
   float villain_reach_sum{0.0};
   std::vector<float> sum_with_card(52);
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
 
   for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
+    if (CardUtility::overlap_mask(m_villain_preflop_combos[hand], board_mask))
+      continue;
+
     sum_with_card[m_villain_preflop_combos[hand].hand1] +=
         villain_reach_pr[hand];
     sum_with_card[m_villain_preflop_combos[hand].hand2] +=
@@ -329,7 +340,7 @@ auto BestResponse::uncontested_best_response(
                           : (node->get_pot() / 2.0f);
   std::vector<float> utils(m_num_hero_hands);
   for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-    if (CardUtility::overlap(m_hero_preflop_combos[hand], board))
+    if (CardUtility::overlap_mask(m_hero_preflop_combos[hand], board_mask))
       continue;
 
     int v{m_hero_to_villain[hand]};

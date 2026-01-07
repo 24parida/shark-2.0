@@ -8,10 +8,7 @@ DCFR::DCFR(const ActionNode *node)
     : m_num_hands(node->get_num_hands()),
       m_num_actions(node->get_num_actions()), m_current(node->get_player()),
       m_cummulative_regret(m_num_hands * m_num_actions),
-      m_cummulative_strategy(m_num_hands * m_num_actions) {
-  m_cummulative_regret.reserve(m_num_hands * m_num_actions);
-  m_cummulative_strategy.reserve(m_num_hands * m_num_actions);
-}
+      m_cummulative_strategy(m_num_hands * m_num_actions) {}
 
 auto DCFR::get_average_strat() const -> std::vector<float> {
   std::vector<float> average_strategy(m_num_hands * m_num_actions);
