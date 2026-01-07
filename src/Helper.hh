@@ -2,26 +2,35 @@
 #include "hands/PreflopCombo.hh"
 #include "phevaluator.h"
 #include <cassert>
+#include <cstdint>
 
 namespace CardUtility {
+inline uint64_t card_to_mask(const Card &card) {
+  return 1ULL << card.get_card();
+}
+
+inline uint64_t board_to_mask(const std::vector<Card> &board) {
+  uint64_t mask = 0;
+  for (const auto &c : board) {
+    mask |= card_to_mask(c);
+  }
+  return mask;
+}
+
 inline bool overlap(const PreflopCombo &combo, const Card &card) {
   return combo.hand1 == card || combo.hand2 == card;
 }
 
 inline bool overlap(const Card &card, const std::vector<Card> &board) {
-  for (const auto &i : board) {
-    if (i == card)
-      return true;
-  }
-  return false;
+  uint64_t card_mask = card_to_mask(card);
+  uint64_t board_mask = board_to_mask(board);
+  return (card_mask & board_mask) != 0;
 }
 
 inline bool overlap(const PreflopCombo &combo, const std::vector<Card> &board) {
-  for (const auto &i : board) {
-    if (i == combo.hand1 || i == combo.hand2)
-      return true;
-  }
-  return false;
+  uint64_t combo_mask = card_to_mask(combo.hand1) | card_to_mask(combo.hand2);
+  uint64_t board_mask = board_to_mask(board);
+  return (combo_mask & board_mask) != 0;
 }
 
 inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {

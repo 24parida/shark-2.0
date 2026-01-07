@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(NOT MSVC)
+if(MSVC)
+  add_compile_options(/O2 /fp:fast)
+else()
   add_compile_options(-O3 -ffast-math)
 endif()
 
@@ -52,7 +54,7 @@ file(GLOB_RECURSE POKER_GUI_SRCS
 )
 
 # 6. Executable
-add_executable(shark ${POKER_GUI_SRCS})
+add_executable(shark WIN32 ${POKER_GUI_SRCS})
 
 # 7. Include paths
 target_include_directories(shark PRIVATE

@@ -18,6 +18,10 @@ class ParallelDCFR {
   int m_init_pot;
   int m_in_position_player;
 
+  // Precomputed combo mappings to avoid O(N*M) search per iteration
+  std::vector<int> m_p1_to_p2;
+  std::vector<int> m_p2_to_p1;
+
 public:
   ParallelDCFR(const PreflopRangeManager &prm,
                const std::vector<Card> &init_board, int init_pot,
@@ -26,6 +30,8 @@ public:
         m_in_position_player(in_position_player) {}
 
   void load_trainer_modules(Node *const node);
+  void precompute_combo_mappings();
+  void reset_cumulative_strategies(Node *const node);
   void train(Node *root, const int iterations, const float min_explot = -1.0);
 
   void cfr(const int hero, const int villain, Node *root,
@@ -54,6 +60,10 @@ class CFRHelper {
   RiverRangeManager &m_rrm;
   std::vector<int> &m_hero_to_villain;
 
+  // Precomputed combo index for card weights calculation
+  std::array<std::array<int, 52>, 52> m_villain_combo_index;
+  bool m_combo_index_initialized;
+
 public:
   CFRHelper(Node *node, const int hero_id, const int villain_id,
             std::vector<PreflopCombo> &hero_preflop_combos,
@@ -70,10 +80,17 @@ public:
         m_num_hero_hands(hero_preflop_combos.size()),
         m_num_villain_hands(villain_preflop_combos.size()),
         m_iteration_count(iteration_count), m_result(m_num_hero_hands),
-        m_rrm(rrm), m_hero_to_villain(hero_to_villain) {};
+        m_rrm(rrm), m_hero_to_villain(hero_to_villain),
+        m_combo_index_initialized(false) {};
 
   void compute();
   auto get_result() const -> std::vector<float> { return m_result; };
+
+  void initialize_combo_index();
+
+  auto get_isomorphic_card_groups(const std::vector<Card> &board,
+                                  const ChanceNode *node)
+      -> std::vector<std::vector<int>>;
 
   void chance_node_utility(const ChanceNode *const node,
                            const std::vector<float> &hero_reach_pr,

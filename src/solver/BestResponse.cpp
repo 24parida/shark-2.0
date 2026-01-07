@@ -146,7 +146,8 @@ auto BestResponse::action_best_response(
     return max_action_evs;
   } else {
     std::vector<float> cum_subgame_evs(m_num_hero_hands);
-    auto avg_strat = node->get_average_strat();
+    std::vector<float> avg_strat(m_num_villain_hands * node->get_num_actions());
+    node->get_trainer()->get_average_strat(avg_strat);
     for (int action = 0; action < node->get_num_actions(); ++action) {
       std::vector<float> new_villain_reach_probs(m_num_villain_hands);
       for (int hand = 0; hand < m_num_villain_hands; ++hand) {
@@ -170,6 +171,8 @@ auto BestResponse::chance_best_response(
     ChanceNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
+  const int num_children{node->get_num_children()};
+
   for (int card = 0; card < 52; ++card) {
     auto child = node->get_child(card);
 
@@ -190,11 +193,16 @@ auto BestResponse::chance_best_response(
     std::vector<float> subgame_evs{
         best_response(child, new_villain_reach_probs, new_board)};
 
-    const int num_children{node->get_num_children()};
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
-      preflop_combo_evs[hand] += subgame_evs[hand] / num_children;
+      preflop_combo_evs[hand] += subgame_evs[hand];
     }
   }
+
+  // Divide by num_children once after accumulating all cards
+  for (int hand = 0; hand < m_num_hero_hands; ++hand) {
+    preflop_combo_evs[hand] /= static_cast<float>(num_children);
+  }
+
   return preflop_combo_evs;
 }
 
