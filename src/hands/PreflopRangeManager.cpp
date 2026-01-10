@@ -7,11 +7,21 @@ auto PreflopRangeManager::get_initial_reach_probs(
   const auto preflop_combos{get_preflop_combos(player)};
   std::vector<float> reach_probs(preflop_combos.size());
 
+  // First pass: compute unnormalized reach and total
+  float total = 0.0f;
   for (std::size_t i{0}; i < preflop_combos.size(); ++i) {
     if (CardUtility::overlap(preflop_combos[i], board)) {
       reach_probs[i] = 0;
     } else {
       reach_probs[i] = preflop_combos[i].probability;
+      total += reach_probs[i];
+    }
+  }
+
+  // Normalize so reach probs sum to 1
+  if (total > 0) {
+    for (std::size_t i{0}; i < reach_probs.size(); ++i) {
+      reach_probs[i] /= total;
     }
   }
 

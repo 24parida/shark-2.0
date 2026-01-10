@@ -33,21 +33,17 @@ void CardButton::setStrategySelected(bool sel) {
 void CardButton::setStrategyColors(const std::vector<std::pair<Fl_Color, float>> &colors) {
   m_strategy_colors = colors;
   m_strategy_sel = false;
-  redraw();
+  // Don't call redraw() here - let parent batch the redraw
 }
 
 void CardButton::draw() {
+  int x = this->x();
+  int y = this->y();
+  int w = this->w();
+  int h = this->h();
+
   if (!m_strategy_colors.empty()) {
-    int x = this->x();
-    int y = this->y();
-    int w = this->w();
-    int h = this->h();
-
-    // Draw base background
-    fl_color(FL_BACKGROUND_COLOR);
-    fl_rectf(x, y, w, h);
-
-    // Draw strategy color bars
+    // Draw strategy color bars (stacked vertically)
     int current_y = y;
     for (const auto &[color, percentage] : m_strategy_colors) {
       if (percentage > 0.001f) {
@@ -57,45 +53,23 @@ void CardButton::draw() {
         current_y += bar_height;
       }
     }
-
-    // Redraw label on top
-    fl_color(labelcolor());
-    fl_font(labelfont(), labelsize());
-    fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
-
-    // Draw black border if this hand is selected in strategy display
-    if (m_strategy_sel) {
-      fl_color(FL_BLACK);
-      fl_line_style(FL_SOLID, 4);
-
-      int corner_radius = 3;
-
-      // Draw corners
-      fl_arc(x + corner_radius, y + corner_radius, corner_radius * 2, corner_radius * 2, 90, 180);
-      fl_arc(x + w - corner_radius * 3, y + corner_radius, corner_radius * 2, corner_radius * 2, 0, 90);
-      fl_arc(x + corner_radius, y + h - corner_radius * 3, corner_radius * 2, corner_radius * 2, 180, 270);
-      fl_arc(x + w - corner_radius * 3, y + h - corner_radius * 3, corner_radius * 2, corner_radius * 2, 270, 360);
-
-      // Connect corners with lines
-      fl_line(x + corner_radius, y, x + w - corner_radius, y);
-      fl_line(x + w, y + corner_radius, x + w, y + h - corner_radius);
-      fl_line(x + corner_radius, y + h, x + w - corner_radius, y + h);
-      fl_line(x, y + corner_radius, x, y + h - corner_radius);
-
-      fl_line_style(0);
-    }
   } else {
-    // For non-strategy buttons, draw shaded background if uncolored
-    if (m_base == FL_BACKGROUND_COLOR) {
-      int x = this->x();
-      int y = this->y();
-      int w = this->w();
-      int h = this->h();
+    // No strategy - draw solid background color (or highlight if selected)
+    fl_color(m_sel ? HIGHLIGHT : m_base);
+    fl_rectf(x, y, w, h);
+  }
 
-      fl_color(UNCOLORED_BG);
-      fl_rectf(x, y, w, h);
-    }
-    Fl_Button::draw();
+  // Draw label on top
+  fl_color(labelcolor());
+  fl_font(labelfont(), labelsize());
+  fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
+
+  // Draw border if this hand is selected (strategy page)
+  if (m_strategy_sel) {
+    fl_color(FL_BLACK);
+    fl_line_style(FL_SOLID, 3);
+    fl_rect(x, y, w, h);
+    fl_line_style(0);
   }
 }
 

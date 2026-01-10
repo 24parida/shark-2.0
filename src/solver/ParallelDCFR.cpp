@@ -1,6 +1,7 @@
 #include "Solver.hh"
 #include "hands/PreflopCombo.hh"
 #include "tree/Nodes.hh"
+#include "../trainer/DCFR.hh"
 #include <oneapi/tbb/task_group.h>
 #include <tbb/global_control.h>
 
@@ -87,18 +88,20 @@ void ParallelDCFR::train(Node *root, const int iterations,
   auto villain_reach_probs{m_prm.get_initial_reach_probs(2, m_init_board)};
 
   for (int i{1}; i <= iterations; ++i) {
+    // Precompute DCFR discount factors once per iteration
+    DCFR::precompute_discounts(i);
+
     cfr(1, 2, root, i, hero_preflop_combos, villain_preflop_combos,
         hero_reach_probs, villain_reach_probs);
     cfr(2, 1, root, i, villain_preflop_combos, hero_preflop_combos,
         villain_reach_probs, hero_reach_probs);
 
-    if (i >= 4 && (i & (i - 1)) == 0 && (i & 0xAAAAAAAA) == 0) {
-      reset_cumulative_strategies(root);
-    }
-
     // Compute exploitability and call progress callback
     float exploit = -1.0f;
-    if (i % static_cast<int>(iterations / 5) == 0 && i != 0) {
+    int exploit_interval = iterations / 5;
+    if (exploit_interval < 1) exploit_interval = 1;  // Avoid division by zero
+
+    if (i % exploit_interval == 0 && i != 0) {
       exploit = m_brm.get_exploitability(
           root, i, m_init_board, m_init_pot, m_in_position_player);
 

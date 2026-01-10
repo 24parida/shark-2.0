@@ -1,5 +1,6 @@
 #pragma once
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Grid.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Choice.H>
@@ -9,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 #include <functional>
 
 class Page6_Strategy : public Fl_Group {
@@ -22,16 +24,27 @@ class Page6_Strategy : public Fl_Group {
   Fl_Text_Buffer *m_infoBuffer;
 
   std::vector<Fl_Button *> m_actionBtns;
-  Fl_Choice *m_cardChoice, *m_rankChoice, *m_suitChoice;
+  Fl_Box *m_cardSelLabel;
+  Fl_Choice *m_rankChoice, *m_suitChoice;
 
   Fl_Button *m_zoomInBtn, *m_zoomOutBtn;
   Fl_Button *m_backBtn, *m_undoBtn;
 
+  // Grid structure
+  Fl_Grid *m_mainGrid;
+  Fl_Group *m_cardSelectionRow;
+  Fl_Group *m_actionButtonsGroup;
+  Fl_Grid *m_strategyGrid;
+  Fl_Group *m_analysisPanel;
+
   float m_infoTextScale = 1.0f;
+  bool m_initialLayoutDone = false;
 
   std::function<void(const std::string&)> m_onAction;
   std::function<void()> m_onBack;
   std::function<void()> m_onUndo;
+  std::function<void(const std::string&)> m_onHandSelect;
+  std::function<void(const std::string&)> m_onCardSelected;
 
 public:
   Page6_Strategy(int X, int Y, int W, int H);
@@ -40,6 +53,8 @@ public:
   void setActionCallback(std::function<void(const std::string&)> cb);
   void setBackCallback(std::function<void()> cb);
   void setUndoCallback(std::function<void()> cb);
+  void setHandSelectCallback(std::function<void(const std::string&)> cb);
+  void setCardSelectedCallback(std::function<void(const std::string&)> cb);
 
   void setTitle(const std::string& title);
   void setBoardInfo(const std::string& board);
@@ -53,6 +68,15 @@ public:
   void zoomIn();
   void zoomOut();
 
+  // Chance node handling
+  void showCardSelection(bool show);
+  void showStrategyGrid(bool show);
+  void showAnalysisPanel(bool show);
+  void populateCardChoices(const std::vector<std::string>& availableCards);
+
+  void show() override;
+  void draw() override;
+
 protected:
   void resize(int X, int Y, int W, int H) override;
 
@@ -63,9 +87,19 @@ private:
   static void cbZoomOut(Fl_Widget *w, void *data);
   static void cbBack(Fl_Widget *w, void *data);
   static void cbUndo(Fl_Widget *w, void *data);
+  static void cbCardSelected(Fl_Widget *w, void *data);
 
   void handleStrategyClick(CardButton *btn);
   void handleActionClick(Fl_Button *btn);
-  void rebuildStrategyGrid(int W, int H);
   void updateInfoTextSize();
+  void positionManualWidgets();
+
+  // Helper methods for creating sections
+  std::string getHandLabel(int row, int col);
+  Fl_Group* createHeaderSection();
+  Fl_Group* createContentSection();
+  Fl_Group* createAnalysisPanel();
+  Fl_Group* createCardSelectionRow();
+  Fl_Group* createActionRow();
+  Fl_Group* createNavigationRow();
 };

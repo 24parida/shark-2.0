@@ -91,3 +91,23 @@ else()
     pheval
   )
 endif()
+
+# 9. CLI test executable (no GUI)
+file(GLOB_RECURSE SOLVER_SRCS
+  src/hands/*.cpp
+  src/solver/*.cpp
+  src/trainer/*.cpp
+  src/tree/*.cpp
+)
+add_executable(shark_cli src/main.cpp ${SOLVER_SRCS})
+target_include_directories(shark_cli PRIVATE
+  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/include
+)
+if(APPLE)
+  target_link_libraries(shark_cli PRIVATE ${TBB_STATIC_LIB} pheval)
+elseif(UNIX)
+  target_link_libraries(shark_cli PRIVATE ${TBB_STATIC_LIB} pheval m pthread dl)
+else()
+  target_link_libraries(shark_cli PRIVATE TBB::tbb pheval)
+endif()

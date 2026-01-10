@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -12,11 +13,13 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
 
 // Solver headers
 #include "hands/PreflopRange.hh"
 #include "hands/PreflopRangeManager.hh"
 #include "solver/Solver.hh"
+#include "trainer/DCFR.hh"
 #include "tree/GameTree.hh"
 #include "tree/Nodes.hh"
 
@@ -264,6 +267,13 @@ class Wizard : public Fl_Window {
     m_pg5->reset();
     Fl::check();
 
+    // Set pot normalizer for DCFR regret scaling (CRITICAL!)
+    DCFR::pot_normalizer = static_cast<float>(settings.starting_pot);
+    std::cout << "[GUI DEBUG] pot_normalizer = " << DCFR::pot_normalizer << std::endl;
+    std::cout << "[GUI DEBUG] starting_pot = " << settings.starting_pot << std::endl;
+    std::cout << "[GUI DEBUG] board size = " << settings.initial_board.size() << std::endl;
+    std::cout << "[GUI DEBUG] iterations = " << m_data.iterations << std::endl;
+
     // Create trainer with thread count and progress callback
     ParallelDCFR trainer{m_prm, settings.initial_board, settings.starting_pot,
                          settings.in_position_player, m_data.threadCount};
@@ -280,6 +290,36 @@ class Wizard : public Fl_Window {
 
     // Run training
     trainer.train(m_root.get(), m_data.iterations, m_data.min_exploitability, progress_cb);
+
+    // Debug: log strategies to file for comparison with CLI
+    {
+      std::ofstream log("shark_debug.log", std::ios::app);
+      log << "=== Solve Complete ===\n";
+      log << "Threads: " << m_data.threadCount << "\n";
+      log << "Iterations: " << m_data.iterations << "\n";
+      log << "Pot: " << settings.starting_pot << "\n";
+      log << "Stack: " << m_data.stackSize << "\n";
+      log << "pot_normalizer: " << DCFR::pot_normalizer << "\n";
+
+      // Log root node strategy
+      if (m_root->get_node_type() == NodeType::ACTION_NODE) {
+        auto* root_action = static_cast<ActionNode*>(m_root.get());
+        auto strat = root_action->get_average_strat();
+        int nh = root_action->get_num_hands();
+        int na = root_action->get_num_actions();
+        log << "Root: num_hands=" << nh << " num_actions=" << na << "\n";
+        // Log first 5 hands
+        for (int h = 0; h < std::min(5, nh); ++h) {
+          log << "  Hand " << h << ": ";
+          for (int a = 0; a < na; ++a) {
+            log << std::fixed << std::setprecision(1) << (strat[h + a * nh] * 100) << "% ";
+          }
+          log << "\n";
+        }
+      }
+      log << "\n";
+      log.close();
+    }
 
     // Initialize pot and stack tracking
     m_current_pot = m_data.startingPot;
@@ -357,7 +397,25 @@ class Wizard : public Fl_Window {
         prompt += " Card";
         m_pg6->setTitle(prompt);
 
-        // TODO: Update Page6_Strategy to handle chance node card selection
+        // Hide strategy grid, analysis panel, and clear actions
+        m_pg6->showStrategyGrid(false);
+        m_pg6->showAnalysisPanel(false);
+        m_pg6->setActions({});
+
+        // Get available cards (exclude board cards)
+        std::vector<std::string> availableCards;
+        for (const auto& rank : RANKS) {
+          for (const char suit : SUITS) {
+            std::string card = rank + std::string(1, suit);
+            if (std::find(m_data.board.begin(), m_data.board.end(), card) == m_data.board.end()) {
+              availableCards.push_back(card);
+            }
+          }
+        }
+
+        // Show card selection
+        m_pg6->populateCardChoices(availableCards);
+        m_pg6->showCardSelection(true);
       }
       return;
     }
@@ -477,6 +535,9 @@ class Wizard : public Fl_Window {
 
     // Update Page6 strategy grid
     m_pg6->updateStrategyGrid(strategyMap);
+    m_pg6->showStrategyGrid(true);  // Show strategy grid for action nodes
+    m_pg6->showAnalysisPanel(true);  // Show analysis panel for action nodes
+    m_pg6->showCardSelection(false);  // Hide card selection for action nodes
 
     // Set available actions
     std::vector<std::string> actionLabels;
@@ -558,12 +619,8 @@ class Wizard : public Fl_Window {
     // Navigate to next node
     m_current_node = action_node->get_child(action_idx);
 
-    if (m_current_node->get_node_type() == NodeType::CHANCE_NODE) {
-      // TODO: Handle chance node card selection
-      updateStrategyDisplay();
-    } else {
-      updateStrategyDisplay();
-    }
+    // Update display (will show card selection if it's a chance node)
+    updateStrategyDisplay();
   }
 
   void doBack6() {
@@ -574,18 +631,55 @@ class Wizard : public Fl_Window {
     m_current_pot = m_data.startingPot;
     m_p1_wager = m_p2_wager = 0;
 
-    // Reset board to original flop/turn selection
-    std::vector<std::string> original_board;
-    for (size_t i = 0; i < std::min(size_t(4), m_data.board.size()); i++) {
-      original_board.push_back(m_data.board[i]);
-    }
-    m_data.board = original_board;
+    // Board is preserved as-is (user's original selection from Page2)
+    // No need to modify m_data.board here
 
     // Clear history
     m_history.clear();
 
     m_pg6->hide();
     m_pg4->show(); // Go back to range selection
+  }
+
+  void doCardSelected(const std::string &cardStr) {
+    if (!m_current_node ||
+        m_current_node->get_node_type() != NodeType::CHANCE_NODE)
+      return;
+
+    // Save current state before navigating
+    GameState state{m_current_node, m_p1_stack, m_p2_stack, m_current_pot,
+                    m_p1_wager, m_p2_wager, m_data.board};
+    m_history.push_back(state);
+
+    // Convert card string to Card object and get index
+    Card card(cardStr.c_str());
+    int card_index = static_cast<int>(card);
+
+    // Navigate to the child node for this card
+    auto *chance_node = static_cast<const ChanceNode *>(m_current_node);
+    Node *child = chance_node->get_child(card_index);
+
+    if (!child) {
+      // Card not valid for this node (shouldn't happen with proper UI)
+      m_history.pop_back();
+      return;
+    }
+
+    // Add card to board
+    m_data.board.push_back(cardStr);
+
+    // Navigate to child
+    m_current_node = child;
+
+    // Update display
+    updateStrategyDisplay();
+
+    // Update board info
+    std::string board = "Board: ";
+    for (const auto &c : m_data.board) {
+      board += c + " ";
+    }
+    m_pg6->setBoardInfo(board);
   }
 
   void doUndo() {
@@ -619,6 +713,91 @@ class Wizard : public Fl_Window {
       board += card + " ";
     }
     m_pg6->setBoardInfo(board);
+  }
+
+  void handleHandSelect(const std::string &hand) {
+    if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
+      return;
+
+    auto *action_node = dynamic_cast<const ActionNode *>(m_current_node);
+    const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
+    const auto &strategy = action_node->get_average_strat();
+    const auto &actions = action_node->get_actions();
+
+    // Build info text for selected hand
+    std::ostringstream info;
+    info << "Strategy for " << hand << ":\n";
+    info << "========================\n\n";
+
+    // Find all combos matching this hand type
+    size_t num_hands = hands.size();
+    int combo_count = 0;
+
+    for (size_t i = 0; i < num_hands; ++i) {
+      const auto &h = hands[i];
+      std::string hand_str = h.to_string();
+
+      // Convert hand string format from "(Ah, Ad)" to "AhAd"
+      hand_str = hand_str.substr(1, hand_str.length() - 2);
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ' '), hand_str.end());
+      hand_str.erase(std::remove(hand_str.begin(), hand_str.end(), ','), hand_str.end());
+
+      // Get the rank+suit format (e.g., "AKs" from "AhKh")
+      std::string rank1 = hand_str.substr(0, 1);
+      std::string rank2 = hand_str.substr(2, 1);
+      bool suited = hand_str[1] == hand_str[3];
+      std::string hand_format = rank1 + rank2 + (suited ? "s" : "o");
+      if (rank1 == rank2) hand_format = rank1 + rank2;
+
+      // Check if this combo matches the selected hand
+      if (hand_format != hand) continue;
+
+      // Check if combo overlaps with board
+      bool overlaps = false;
+      for (const auto &board_card : m_data.board) {
+        Card card(board_card.c_str());
+        if (h.hand1 == card || h.hand2 == card) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (overlaps) continue;
+
+      // Get combo name (e.g., "AhKh")
+      info << hand_str << ": ";
+
+      // Get strategy for this combo
+      bool first = true;
+      for (size_t a = 0; a < actions.size(); ++a) {
+        size_t strat_idx = i + a * num_hands;
+        float prob = (strat_idx < strategy.size()) ? strategy[strat_idx] : 0.0f;
+
+        if (prob > 0.001f) {
+          if (!first) info << ", ";
+          first = false;
+
+          std::string actionStr;
+          const auto &action = actions[a];
+          switch (action.type) {
+            case Action::FOLD: actionStr = "Fold"; break;
+            case Action::CHECK: actionStr = "Check"; break;
+            case Action::CALL: actionStr = "Call"; break;
+            case Action::BET: actionStr = "Bet " + std::to_string(action.amount); break;
+            case Action::RAISE: actionStr = "Raise " + std::to_string(action.amount); break;
+          }
+          info << actionStr << " " << std::fixed << std::setprecision(0) << (prob * 100) << "%";
+        }
+      }
+      info << "\n";
+      combo_count++;
+    }
+
+    if (combo_count == 0) {
+      info << "(No valid combos - blocked by board)";
+    }
+
+    m_pg6->setInfoText(info.str());
   }
 
 public:
@@ -672,6 +851,8 @@ private:
     m_pg6->setActionCallback([this](const std::string &action) { doAction(action); });
     m_pg6->setBackCallback([this]() { doBack6(); });
     m_pg6->setUndoCallback([this]() { doUndo(); });
+    m_pg6->setHandSelectCallback([this](const std::string &hand) { handleHandSelect(hand); });
+    m_pg6->setCardSelectedCallback([this](const std::string &card) { doCardSelected(card); });
     m_pg6->hide();
 
     resizable(this);

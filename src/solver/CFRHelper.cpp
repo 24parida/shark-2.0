@@ -96,29 +96,29 @@ void CFRHelper::action_node_utility(
   const int num_actions{node->get_num_actions()};
   const int num_hands = (player == m_hero) ? m_num_hero_hands : m_num_villain_hands;
 
-  std::vector<float> strategy;
-  strategy.reserve(num_hands * num_actions);
-  strategy.resize(num_hands * num_actions);
+  // Note: Can't use thread_local here due to recursive CFRHelper calls
+  std::vector<float> strategy(num_hands * num_actions);
   node->get_trainer()->get_current_strat(strategy);
 
-  std::vector<float> subgame_utils_flat;
-  subgame_utils_flat.reserve(num_actions * m_num_hero_hands);
-  subgame_utils_flat.resize(num_actions * m_num_hero_hands);
+  std::vector<float> subgame_utils_flat(num_actions * m_num_hero_hands);
   auto get_utils = [&](int action, int hand) -> float& {
     return subgame_utils_flat[action * m_num_hero_hands + hand];
   };
 
-  thread_local std::vector<float> hero_buffer;
-  thread_local std::vector<float> villain_buffer;
+  // Note: Cannot use thread_local here because these buffers are passed by reference
+  // to recursive CFRHelper calls. If thread_local, the recursive call would overwrite
+  // the buffer that the outer call is still using.
 
   tbb::parallel_for(
       tbb::blocked_range<int>(0, num_actions),
       [&](const tbb::blocked_range<int> &r) {
-        hero_buffer.resize(m_num_hero_hands);
-        villain_buffer.resize(m_num_villain_hands);
+        // Local buffers per parallel task - each recursive call gets its own copy
+        std::vector<float> hero_buffer(m_num_hero_hands);
+        std::vector<float> villain_buffer(m_num_villain_hands);
 
         for (auto i = r.begin(); i < r.end(); ++i) {
           if (player == m_hero) {
+            // Weight hero reach by strategy for cumulative strategy updates at child nodes
             for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
               hero_buffer[hand] =
                   strategy[hand + i * m_num_hero_hands] * hero_reach_pr[hand];
@@ -157,26 +157,28 @@ void CFRHelper::action_node_utility(
 
   auto *trainer{node->get_trainer()};
   if (trainer->get_current() != m_hero) {
+    // Non-hero player: utilities are already strategy-weighted via reach probs
+    // Just sum them up (strategy weighting happened in the recursive call)
     for (std::size_t action{0}; action < num_actions; ++action) {
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += get_utils(action, hand);
       }
     }
   } else {
-    for (std::size_t action{0}; action < num_actions; ++action) {
-      std::vector<float> action_utils(m_num_hero_hands);
-      for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
-        action_utils[hand] = get_utils(action, hand);
-      }
-      trainer->update_cum_regret_one(action_utils, action);
+    // Hero player: compute regrets using correct DCFR formula
+    // R_new = R_old * discount + instantaneous_regret
+    // The two-phase approach (R_new = (R_old + inst) * discount) is WRONG
 
+    // First compute counterfactual value (expected utility under current strategy)
+    for (std::size_t action{0}; action < num_actions; ++action) {
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += get_utils(action, hand) *
                           strategy[hand + action * m_num_hero_hands];
       }
     }
 
-    trainer->update_cum_regret_two(m_result, m_iteration_count);
+    // Update regrets using correct formula: R = R_old * discount + (action_util - value)
+    trainer->update_regrets(subgame_utils_flat, m_result, m_iteration_count);
     trainer->update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
   }
 };
@@ -187,40 +189,35 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
                                     const std::vector<Card> &board) {
   const auto card_weights{get_card_weights(villain_reach_pr, board)};
 
-  auto isomorphic_groups = get_isomorphic_card_groups(board, node);
-
-  std::vector<int> representatives;
-  std::vector<int> group_sizes;
-  int total_children = 0;
-
-  for (const auto &group : isomorphic_groups) {
-    representatives.push_back(group[0]);
-    group_sizes.push_back(group.size());
-    total_children += group.size();
+  // Collect all valid cards (no isomorphism - process each card individually)
+  std::vector<int> valid_cards;
+  for (int card = 0; card < 52; ++card) {
+    if (node->get_child(card)) {
+      valid_cards.push_back(card);
+    }
   }
 
-  const int num_groups = representatives.size();
-  std::vector<float> subgame_utils_flat;
-  subgame_utils_flat.reserve(num_groups * m_num_hero_hands);
-  subgame_utils_flat.resize(num_groups * m_num_hero_hands);
-  auto get_utils = [&](int action, int hand) -> float& {
-    return subgame_utils_flat[action * m_num_hero_hands + hand];
+  const int num_cards = static_cast<int>(valid_cards.size());
+  if (num_cards == 0) return;
+
+  // Allocate storage for each card's utilities
+  std::vector<float> subgame_utils_flat(num_cards * m_num_hero_hands);
+  auto get_utils = [&](int card_idx, int hand) -> float& {
+    return subgame_utils_flat[card_idx * m_num_hero_hands + hand];
   };
 
-  thread_local std::vector<float> hero_buffer;
-  thread_local std::vector<float> villain_buffer;
-  thread_local std::vector<Card> board_buffer;
-
+  // Process each card in parallel
   tbb::parallel_for(
-      tbb::blocked_range<int>(0, num_groups),
+      tbb::blocked_range<int>(0, num_cards),
       [&](const tbb::blocked_range<int> &r) {
-        hero_buffer.resize(m_num_hero_hands);
-        villain_buffer.resize(m_num_villain_hands);
+        // Local buffers per parallel task
+        std::vector<float> hero_buffer(m_num_hero_hands);
+        std::vector<float> villain_buffer(m_num_villain_hands);
+        std::vector<Card> board_buffer;
         board_buffer.reserve(6);
 
         for (auto i = r.begin(); i < r.end(); ++i) {
-          int card{representatives[i]};
-          int group_size{group_sizes[i]};
+          int card = valid_cards[i];
 
           board_buffer = board;
           board_buffer.push_back(card);
@@ -261,10 +258,12 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
         }
       });
 
-  for (std::size_t group{0}; group < num_groups; ++group) {
-    float group_weight = static_cast<float>(group_sizes[group]) / static_cast<float>(total_children);
+  // Weight uniformly - card blocking is already handled via reach probability updates
+  // Each remaining card has equal probability of being dealt
+  float card_weight = 1.0f / static_cast<float>(num_cards);
+  for (int i = 0; i < num_cards; ++i) {
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
-      m_result[h] += get_utils(group, h) * group_weight;
+      m_result[h] += get_utils(i, h) * card_weight;
     }
   }
 }
@@ -362,6 +361,8 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
   }
 
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
+  std::vector<int> card_counts(m_num_hero_hands, 0);  // Count valid cards per hero hand
+
   for (int card = 0; card < 52; ++card) {
     if (CardUtility::overlap(card, board))
       continue;
@@ -378,9 +379,20 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
     const auto subgame_evs{
         get_all_in_utils(node, new_villain_reach_probs, new_board)};
 
-    const float normalizing_sum{static_cast<float>(52 - 2 - 2 - board.size())};
-    for (int hand = 0; hand < m_num_hero_hands; ++hand)
-      preflop_combo_evs[hand] += subgame_evs[hand] / normalizing_sum;
+    // Only add for hero hands that don't block this card
+    for (int hand = 0; hand < m_num_hero_hands; ++hand) {
+      if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
+        preflop_combo_evs[hand] += subgame_evs[hand];
+        card_counts[hand]++;
+      }
+    }
+  }
+
+  // Normalize by actual number of valid cards per hero hand
+  for (int hand = 0; hand < m_num_hero_hands; ++hand) {
+    if (card_counts[hand] > 0) {
+      preflop_combo_evs[hand] /= static_cast<float>(card_counts[hand]);
+    }
   }
 
   return preflop_combo_evs;

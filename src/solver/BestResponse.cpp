@@ -122,13 +122,14 @@ auto BestResponse::best_response(Node *node,
     return action_best_response(static_cast<ActionNode *>(node),
                                 villain_reach_probs, board);
   case NodeType::CHANCE_NODE:
-    return chance_best_response(dynamic_cast<ChanceNode *>(node),
+    return chance_best_response(static_cast<ChanceNode *>(node),
                                 villain_reach_probs, board);
   case NodeType::TERMINAL_NODE:
-
-    return terminal_best_response(dynamic_cast<TerminalNode *>(node),
+    return terminal_best_response(static_cast<TerminalNode *>(node),
                                   villain_reach_probs, board);
   }
+  // Should never reach here - all node types handled above
+  return std::vector<float>(m_num_hero_hands, 0.0f);
 }
 
 auto BestResponse::action_best_response(
@@ -152,8 +153,12 @@ auto BestResponse::action_best_response(
     std::vector<float> cum_subgame_evs(m_num_hero_hands);
     std::vector<float> avg_strat(m_num_villain_hands * node->get_num_actions());
     node->get_trainer()->get_average_strat(avg_strat);
+
+    // Allocate once outside loop, reuse
+    std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+
     for (int action = 0; action < node->get_num_actions(); ++action) {
-      std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+      // Reuse vector - just overwrite values
       for (int hand = 0; hand < m_num_villain_hands; ++hand) {
         new_villain_reach_probs[hand] =
             avg_strat[hand + action * m_num_villain_hands] *
@@ -175,7 +180,12 @@ auto BestResponse::chance_best_response(
     ChanceNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
-  const int num_children{node->get_num_children()};
+  int cards_processed = 0;
+
+  // Allocate once outside loop, reuse
+  std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+  auto new_board{board};
+  new_board.reserve(board.size() + 1);
 
   for (int card = 0; card < 52; ++card) {
     auto child = node->get_child(card);
@@ -183,11 +193,14 @@ auto BestResponse::chance_best_response(
     if (!child)
       continue;
 
-    auto new_board{board};
+    cards_processed++;
+
+    // Reuse board vector
+    new_board.resize(board.size());
     new_board.push_back(card);
 
-    std::vector<float> new_villain_reach_probs(m_num_villain_hands);
-
+    // Reuse reach probs vector - clear and refill
+    std::fill(new_villain_reach_probs.begin(), new_villain_reach_probs.end(), 0.0f);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
         new_villain_reach_probs[hand] = villain_reach_probs[hand];
@@ -202,9 +215,9 @@ auto BestResponse::chance_best_response(
     }
   }
 
-  // Divide by num_children once after accumulating all cards
+  // Divide by actual cards processed (not num_children which may differ)
   for (int hand = 0; hand < m_num_hero_hands; ++hand) {
-    preflop_combo_evs[hand] /= static_cast<float>(num_children);
+    preflop_combo_evs[hand] /= static_cast<float>(cards_processed);
   }
 
   return preflop_combo_evs;
@@ -232,15 +245,24 @@ auto BestResponse::all_in_best_response(
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
   const uint64_t board_mask = CardUtility::board_to_mask(board);
 
+  // Allocate once outside loop, reuse
+  std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+  auto new_board{board};
+  new_board.reserve(board.size() + 1);
+
+  const float normalizing_sum{static_cast<float>(52 - 2 - 2 - board.size())};
+
   for (int card = 0; card < 52; ++card) {
     const uint64_t card_mask = 1ULL << card;
     if (card_mask & board_mask)
       continue;
 
-    auto new_board{board};
+    // Reuse board vector
+    new_board.resize(board.size());
     new_board.push_back(card);
 
-    std::vector<float> new_villain_reach_probs(m_num_villain_hands);
+    // Reuse reach probs vector - clear and refill
+    std::fill(new_villain_reach_probs.begin(), new_villain_reach_probs.end(), 0.0f);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card))
         new_villain_reach_probs[hand] = villain_reach_probs[hand];
@@ -249,7 +271,6 @@ auto BestResponse::all_in_best_response(
     const auto subgame_evs{
         all_in_best_response(node, new_villain_reach_probs, new_board)};
 
-    const float normalizing_sum{static_cast<float>(52 - 2 - 2 - board.size())};
     for (int hand = 0; hand < m_num_hero_hands; ++hand)
       preflop_combo_evs[hand] += subgame_evs[hand] / normalizing_sum;
   }
