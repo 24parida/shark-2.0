@@ -1,7 +1,8 @@
 #include "CardButton.hh"
+#include "../utils/Colors.hh"
 
 const Fl_Color CardButton::HIGHLIGHT = fl_rgb_color(255, 200, 0);
-const Fl_Color CardButton::UNCOLORED_BG = fl_rgb_color(80, 80, 80);
+const Fl_Color CardButton::UNCOLORED_BG = fl_rgb_color(40, 75, 120);  // Sea blue (matches theme)
 
 CardButton::CardButton(int X, int Y, int W, int H, Fl_Color baseColor)
     : Fl_Button(X, Y, W, H, ""), m_base(baseColor) {
@@ -66,19 +67,23 @@ void CardButton::draw() {
     fl_rectf(x, y, w, h);
   }
 
-  // Draw label on top
+  // Draw subtle border for card definition
+  fl_color(fl_rgb_color(20, 35, 60));  // Dark border
+  fl_rect(x, y, w, h);
+
+  // Draw label on top with bold font
   // Use dimmed text color for cards not in range (only on strategy page)
   if (m_strategy_mode && m_strategy_colors.empty()) {
-    fl_color(fl_rgb_color(140, 140, 140));  // Dimmed gray text for out-of-range
+    fl_color(fl_rgb_color(100, 130, 170));  // Dimmed blue-gray for out-of-range
   } else {
     fl_color(labelcolor());
   }
-  fl_font(labelfont(), labelsize());
+  fl_font(FL_HELVETICA_BOLD, labelsize());
   fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
 
   // Draw border if this hand is selected (strategy page)
   if (m_strategy_sel) {
-    fl_color(FL_BLACK);
+    fl_color(FL_WHITE);  // White border for visibility on dark theme
     int thick = 3;  // Line thickness
     for (int t = 0; t < thick; ++t) {
       fl_rect(x + t, y + t, w - 2 * t, h - 2 * t);

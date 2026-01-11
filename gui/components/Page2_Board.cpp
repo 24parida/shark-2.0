@@ -39,7 +39,7 @@ Page2_Board::Page2_Board(int X, int Y, int W, int H)
       auto *card = new CardButton(0, 0, 0, 0, base);  // Fl_Grid will size it
       std::string lbl = RangeData::RANKS[r] + std::string(1, RangeData::SUITS[c]);
       card->copy_label(lbl.c_str());
-      card->labelsize(14);
+      card->labelsize(16);
       card->callback(cbCard, this);
 
       m_cardGrid->widget(card, r, c);  // Add to grid at (row, col)
@@ -69,6 +69,9 @@ Page2_Board::Page2_Board(int X, int Y, int W, int H)
 
   m_btnRand = new Fl_Button(0, 0, 0, 0, "Random Flop");
   m_btnRand->labelsize(18);
+  m_btnRand->labelfont(FL_HELVETICA_BOLD);
+  m_btnRand->color(Colors::ThemeButtonBg());
+  m_btnRand->labelcolor(FL_WHITE);
   m_btnRand->callback(cbRand, this);
   inputRow->end();
 
@@ -80,9 +83,15 @@ Page2_Board::Page2_Board(int X, int Y, int W, int H)
   navRow->begin();
   m_btnBack = new Fl_Button(0, 0, 0, 0, "Back");
   m_btnBack->labelsize(18);
+  m_btnBack->labelfont(FL_HELVETICA_BOLD);
+  m_btnBack->color(Colors::ThemeButtonBg());
+  m_btnBack->labelcolor(FL_WHITE);
 
   m_btnNext = new Fl_Button(0, 0, 0, 0, "Next");
   m_btnNext->labelsize(18);
+  m_btnNext->labelfont(FL_HELVETICA_BOLD);
+  m_btnNext->color(Colors::ThemeButtonBg());
+  m_btnNext->labelcolor(FL_WHITE);
   navRow->end();
 
   mainGrid->widget(navRow, 3, 0);

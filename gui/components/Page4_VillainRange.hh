@@ -13,6 +13,7 @@ class Page4_VillainRange : public Fl_Group {
   Fl_Grid *m_rangeGrid;  // 13×13 grid of hands
   std::vector<CardButton *> m_rangeBtns;
   Fl_Button *m_btnBack, *m_btnNext;
+  Fl_Button *m_btnImport, *m_btnCopy;
 
   std::vector<std::string> m_selectedRange;
   std::function<void(const std::vector<std::string>&)> m_onRangeChange;
@@ -33,5 +34,10 @@ protected:
 
 private:
   static void cbRange(Fl_Widget *w, void *data);
+  static void cbImport(Fl_Widget *w, void *data);
+  static void cbCopy(Fl_Widget *w, void *data);
   void handleRangeClick(CardButton *btn);
+  void handleImport();
+  void handleCopy();
+  std::vector<std::string> parseRangeString(const std::string& rangeStr);
 };

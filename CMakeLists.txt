@@ -110,6 +110,7 @@ else()
     ${FLTK_LIBRARIES}
     TBB::tbb
     pheval
+    dwmapi
   )
 endif()
 

@@ -1,4 +1,5 @@
 #include "Page1_Settings.hh"
+#include "utils/Colors.hh"
 #include <cstdlib>
 
 Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
@@ -10,6 +11,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 0: Stack Size
   auto *lblStack = new Fl_Box(0, 0, 0, 0, "Stack Size:");
   lblStack->labelsize(24);
+  lblStack->labelfont(FL_HELVETICA_BOLD);
   lblStack->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblStack, 0, 0);
 
@@ -21,6 +23,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 1: Starting Pot
   auto *lblPot = new Fl_Box(0, 0, 0, 0, "Starting Pot:");
   lblPot->labelsize(24);
+  lblPot->labelfont(FL_HELVETICA_BOLD);
   lblPot->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblPot, 1, 0);
 
@@ -32,6 +35,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 2: Min Bet
   auto *lblMinBet = new Fl_Box(0, 0, 0, 0, "Initial Min Bet:");
   lblMinBet->labelsize(24);
+  lblMinBet->labelfont(FL_HELVETICA_BOLD);
   lblMinBet->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblMinBet, 2, 0);
 
@@ -43,6 +47,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 3: All-In Threshold
   auto *lblAllIn = new Fl_Box(0, 0, 0, 0, "All-In Thresh:");
   lblAllIn->labelsize(24);
+  lblAllIn->labelfont(FL_HELVETICA_BOLD);
   lblAllIn->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblAllIn, 3, 0);
 
@@ -54,6 +59,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 4: Pot Type
   auto *lblPotType = new Fl_Box(0, 0, 0, 0, "Type of pot:");
   lblPotType->labelsize(24);
+  lblPotType->labelfont(FL_HELVETICA_BOLD);
   lblPotType->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblPotType, 4, 0);
 
@@ -66,6 +72,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 5: Your Position
   auto *lblYourPos = new Fl_Box(0, 0, 0, 0, "Your pos:");
   lblYourPos->labelsize(24);
+  lblYourPos->labelfont(FL_HELVETICA_BOLD);
   lblYourPos->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblYourPos, 5, 0);
 
@@ -78,6 +85,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 6: Their Position
   auto *lblTheirPos = new Fl_Box(0, 0, 0, 0, "Their pos:");
   lblTheirPos->labelsize(24);
+  lblTheirPos->labelfont(FL_HELVETICA_BOLD);
   lblTheirPos->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblTheirPos, 6, 0);
 
@@ -90,6 +98,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 7: Iterations
   auto *lblIters = new Fl_Box(0, 0, 0, 0, "Iterations:");
   lblIters->labelsize(24);
+  lblIters->labelfont(FL_HELVETICA_BOLD);
   lblIters->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblIters, 7, 0);
 
@@ -101,17 +110,19 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Row 8: Min Exploitability
   auto *lblMinExploit = new Fl_Box(0, 0, 0, 0, "Min Exploitability (%):");
   lblMinExploit->labelsize(24);
+  lblMinExploit->labelfont(FL_HELVETICA_BOLD);
   lblMinExploit->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblMinExploit, 8, 0);
 
   m_inpMinExploit = new Fl_Float_Input(0, 0, 0, 0);
   m_inpMinExploit->textsize(24);
-  m_inpMinExploit->value("1.0");
+  m_inpMinExploit->value("0.1");
   m_grid->widget(m_inpMinExploit, 8, 1);
 
   // Row 9: Thread Count
   auto *lblThreads = new Fl_Box(0, 0, 0, 0, "Thread Count:");
   lblThreads->labelsize(24);
+  lblThreads->labelfont(FL_HELVETICA_BOLD);
   lblThreads->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
   m_grid->widget(lblThreads, 9, 0);
 
@@ -126,6 +137,7 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   m_chkAutoImport = new Fl_Check_Button(0, 0, 0, 0, "Auto-import ranges based on positions");
   m_chkAutoImport->labelsize(24);
+  m_chkAutoImport->labelfont(FL_HELVETICA_BOLD);
   m_chkAutoImport->value(1);
   m_grid->widget(m_chkAutoImport, 10, 1);
 
@@ -143,6 +155,9 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   // Next button (outside grid, fixed at bottom center)
   m_btnNext = new Fl_Button((W - 225) / 2, H - 70, 225, 52, "Next");
   m_btnNext->labelsize(18);
+  m_btnNext->labelfont(FL_HELVETICA_BOLD);
+  m_btnNext->color(Colors::ThemeButtonBg());
+  m_btnNext->labelcolor(FL_WHITE);
 
   end();
 
@@ -179,7 +194,7 @@ float Page1_Settings::getAllInThreshold() const {
 }
 
 float Page1_Settings::getMinExploitability() const {
-  return m_inpMinExploit->value() ? static_cast<float>(atof(m_inpMinExploit->value())) : 1.0f;
+  return m_inpMinExploit->value() ? static_cast<float>(atof(m_inpMinExploit->value())) : 0.1f;
 }
 
 const char* Page1_Settings::getPotType() const {

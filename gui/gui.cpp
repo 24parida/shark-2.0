@@ -2,9 +2,20 @@
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
 #include <FL/fl_ask.H>
+#include <FL/x.H>
 
 #ifdef _WIN32
 #include <windows.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
+
+// DWM attributes for title bar color (Windows 10 1809+ / Windows 11)
+#ifndef DWMWA_CAPTION_COLOR
+#define DWMWA_CAPTION_COLOR 35
+#endif
+#ifndef DWMWA_TEXT_COLOR
+#define DWMWA_TEXT_COLOR 36
+#endif
 #endif
 
 #include <algorithm>
@@ -1191,9 +1202,29 @@ int main(int argc, char **argv) {
   Fl::set_font(FL_HELVETICA_BOLD, "DejaVu Sans Bold");
 #endif
 
+  // Set oceanic blue theme colors
+  Fl::background(20, 40, 80);       // Deep ocean blue - primary background
+  Fl::foreground(255, 255, 255);    // White text
+  Fl::background2(25, 50, 90);      // Dark blue-gray - input field background
+
   fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 2);
   fl_message_hotspot(1);
   Wizard wiz("Shark 2.0");
   wiz.show(argc, argv);
+
+#ifdef _WIN32
+  // Set title bar color to match oceanic theme (Windows 10 1809+ / Windows 11)
+  HWND hwnd = fl_xid(&wiz);
+  if (hwnd) {
+    // Title bar background: Deep ocean blue (RGB 20, 40, 80)
+    COLORREF captionColor = RGB(20, 40, 80);
+    DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
+
+    // Title bar text: White
+    COLORREF textColor = RGB(255, 255, 255);
+    DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &textColor, sizeof(textColor));
+  }
+#endif
+
   return Fl::run();
 }

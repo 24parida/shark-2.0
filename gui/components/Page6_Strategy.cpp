@@ -143,14 +143,14 @@ Fl_Group* Page6_Strategy::createAnalysisPanel() {
   // Use simple Fl_Group with manual positioning (not nested Fl_Grid)
   auto *panel = new Fl_Group(0, 0, 0, 0);
   panel->box(FL_DOWN_BOX);
-  panel->color(fl_rgb_color(240, 240, 240));
+  panel->color(Colors::PanelBg());
   panel->begin();
 
   // Header: Title centered
   m_infoTitle = new Fl_Box(0, 0, 100, 35, "Hand Analysis");
   m_infoTitle->labelsize(16);
   m_infoTitle->labelfont(FL_HELVETICA_BOLD);
-  m_infoTitle->labelcolor(FL_BLACK);
+  m_infoTitle->labelcolor(Colors::PrimaryText());
   m_infoTitle->align(FL_ALIGN_CENTER);
 
   // Keep pointers null (removed zoom buttons)
@@ -163,9 +163,9 @@ Fl_Group* Page6_Strategy::createAnalysisPanel() {
   m_infoDisplay->buffer(m_infoBuffer);
   m_infoDisplay->textsize(14);
   m_infoDisplay->wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 0);
-  m_infoDisplay->color(FL_WHITE);
+  m_infoDisplay->color(Colors::InputBg());
   m_infoDisplay->box(FL_DOWN_BOX);
-  m_infoDisplay->textcolor(FL_BLACK);
+  m_infoDisplay->textcolor(Colors::PrimaryText());
   m_infoDisplay->hide();
 
   // Visual combo strategy display
@@ -180,7 +180,7 @@ Fl_Group* Page6_Strategy::createCardSelectionRow() {
   auto *grid = new Fl_Grid(0, 0, 0, 0);
   grid->layout(3, 3, 20, 15);  // 3 rows, 3 cols
   grid->box(FL_FLAT_BOX);
-  grid->color(fl_rgb_color(240, 240, 240));
+  grid->color(Colors::SecondaryBg());
 
   // Row 0: Label centered
   auto *spacer1 = new Fl_Box(0, 0, 0, 0);
@@ -266,6 +266,9 @@ Fl_Group* Page6_Strategy::createNavigationRow() {
 
   m_backBtn = new Fl_Button(0, 0, 0, 0, "Back");
   m_backBtn->labelsize(16);
+  m_backBtn->labelfont(FL_HELVETICA_BOLD);
+  m_backBtn->color(Colors::ThemeButtonBg());
+  m_backBtn->labelcolor(FL_WHITE);
   m_backBtn->callback(cbBack, this);
   grid->widget(m_backBtn, 0, 0);
   grid->col_width(0, 120);
@@ -273,6 +276,9 @@ Fl_Group* Page6_Strategy::createNavigationRow() {
 
   m_undoBtn = new Fl_Button(0, 0, 0, 0, "Undo");
   m_undoBtn->labelsize(16);
+  m_undoBtn->labelfont(FL_HELVETICA_BOLD);
+  m_undoBtn->color(Colors::ThemeButtonBg());
+  m_undoBtn->labelcolor(FL_WHITE);
   m_undoBtn->callback(cbUndo, this);
   grid->widget(m_undoBtn, 0, 1);
   grid->col_width(1, 120);
@@ -286,6 +292,9 @@ Fl_Group* Page6_Strategy::createNavigationRow() {
   // Copy Range button on the right
   m_copyRangeBtn = new Fl_Button(0, 0, 0, 0, "Copy Range");
   m_copyRangeBtn->labelsize(14);
+  m_copyRangeBtn->labelfont(FL_HELVETICA_BOLD);
+  m_copyRangeBtn->color(Colors::ThemeButtonBg());
+  m_copyRangeBtn->labelcolor(FL_WHITE);
   m_copyRangeBtn->callback(cbCopyRange, this);
   grid->widget(m_copyRangeBtn, 0, 3);
   grid->col_width(3, 120);
@@ -402,6 +411,9 @@ void Page6_Strategy::setActions(const std::vector<std::string>& actions) {
     auto *btn = new Fl_Button(0, 0, 0, 0);
     btn->copy_label(actions[i].c_str());
     btn->labelsize(16);
+    btn->labelfont(FL_HELVETICA_BOLD);
+    btn->color(Colors::ThemeButtonBg());
+    btn->labelcolor(FL_WHITE);
     btn->callback(cbAction, this);
     btnGrid->widget(btn, 0, i);
     btnGrid->col_weight(i, 1);  // Equal width

@@ -1,5 +1,6 @@
 #include "Page5_Progress.hh"
 #include "../utils/MemoryUtil.hh"
+#include "../utils/Colors.hh"
 #include <FL/Fl.H>
 #include <sstream>
 #include <iomanip>
@@ -26,6 +27,9 @@ Page5_Progress::Page5_Progress(int X, int Y, int W, int H)
   m_progressBar->maximum(100);
   m_progressBar->value(0);
   m_progressBar->labelsize(16);
+  m_progressBar->color(Colors::SecondaryBg());      // Background
+  m_progressBar->selection_color(Colors::ThemeButtonBg());  // Fill color
+  m_progressBar->labelcolor(FL_WHITE);
 
   // Iteration counter
   m_lblIteration = new Fl_Box(X, centerY + 130, W, 30);
