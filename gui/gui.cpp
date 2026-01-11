@@ -347,22 +347,24 @@ class Wizard : public Fl_Double_Window {
                                 settings.initial_board);
     GameTree game_tree{settings};
 
-    // Estimate memory
+    m_pg5->setStatus("Building game tree...");
+    Fl::check();
+
+    // Build tree first (stats are populated during build)
+    m_root = game_tree.build();
+
+    // Now get accurate memory estimate
     auto stats = game_tree.getTreeStats();
     size_t estimatedMemory = stats.estimateMemoryBytes();
     size_t availableMemory = MemoryUtil::getAvailableMemory();
 
     m_pg5->setMemoryEstimate(estimatedMemory, availableMemory);
-    m_pg5->setStatus("Building game tree...");
     Fl::check();
 
     if (!m_pg5->isMemoryOk()) {
       fl_alert("Warning: Estimated memory usage exceeds available memory.\n"
                "The solver may run slowly or fail.");
     }
-
-    // Build tree
-    m_root = game_tree.build();
 
     m_pg5->setStatus("Training solver...");
     m_pg5->reset();
@@ -549,6 +551,9 @@ class Wizard : public Fl_Double_Window {
     std::map<std::string, std::vector<float>> handTypeStrategies;
     std::map<std::string, int> handTypeCounts;
 
+    // Compute reach probabilities for this player's combos
+    std::vector<float> reach = computeComboReach(action_node->get_player());
+
     // First pass: Aggregate all strategies for each hand type
     size_t num_hands = hands.size();
     for (size_t i = 0; i < num_hands; ++i) {
@@ -580,23 +585,24 @@ class Wizard : public Fl_Double_Window {
         }
       }
 
-      if (!overlaps) {
-        // Initialize strategy vector if needed
-        if (handTypeStrategies.find(hand_format) == handTypeStrategies.end()) {
-          handTypeStrategies[hand_format] =
-              std::vector<float>(actions.size(), 0.0f);
-          handTypeCounts[hand_format] = 0;
-        }
+      // Skip combos that overlap with board or have 0 reach
+      if (overlaps || reach[i] < 0.001f) continue;
 
-        // Add this combo's strategy - using correct indexing
-        for (size_t a = 0; a < actions.size(); ++a) {
-          size_t strat_idx = i + a * num_hands;
-          if (strat_idx < strategy.size()) {
-            handTypeStrategies[hand_format][a] += strategy[strat_idx];
-          }
-        }
-        handTypeCounts[hand_format]++;
+      // Initialize strategy vector if needed
+      if (handTypeStrategies.find(hand_format) == handTypeStrategies.end()) {
+        handTypeStrategies[hand_format] =
+            std::vector<float>(actions.size(), 0.0f);
+        handTypeCounts[hand_format] = 0;
       }
+
+      // Add this combo's strategy - using correct indexing
+      for (size_t a = 0; a < actions.size(); ++a) {
+        size_t strat_idx = i + a * num_hands;
+        if (strat_idx < strategy.size()) {
+          handTypeStrategies[hand_format][a] += strategy[strat_idx];
+        }
+      }
+      handTypeCounts[hand_format]++;
     }
 
     // Build strategy map for Page6_Strategy
@@ -866,6 +872,9 @@ class Wizard : public Fl_Double_Window {
     // Find all combos matching this hand type
     size_t num_hands = hands.size();
 
+    // Compute reach probabilities for this player's combos
+    std::vector<float> reach = computeComboReach(action_node->get_player());
+
     for (size_t i = 0; i < num_hands; ++i) {
       const auto &h = hands[i];
       std::string hand_str = h.to_string();
@@ -896,6 +905,9 @@ class Wizard : public Fl_Double_Window {
       }
 
       if (overlaps) continue;
+
+      // Skip combos with 0 reach (filtered out by previous actions)
+      if (reach[i] < 0.001f) continue;
 
       // Build combo strategy
       ComboStrategyDisplay::ComboStrategy comboStrat;
@@ -1024,6 +1036,38 @@ class Wizard : public Fl_Double_Window {
     return result.str();
   }
 
+  // Compute reach probabilities for all combos of a given player at current node
+  // Returns vector of reach values indexed by hand index
+  std::vector<float> computeComboReach(int player) {
+    const auto &hands = m_prm.get_preflop_combos(player);
+    size_t num_hands = hands.size();
+    std::vector<float> reach(num_hands, 1.0f);
+
+    // Walk through history to compute reach probabilities
+    for (const auto &state : m_history) {
+      if (state.action_taken < 0) continue;  // Skip chance nodes
+
+      if (state.node->get_node_type() != NodeType::ACTION_NODE) continue;
+
+      auto *hist_action_node = dynamic_cast<const ActionNode *>(state.node);
+      if (hist_action_node->get_player() != player) continue;
+
+      const auto &strategy = hist_action_node->get_average_strat();
+      size_t hist_num_hands = strategy.size() / hist_action_node->get_num_actions();
+      int action_idx = state.action_taken;
+
+      // Multiply reach by strategy probability for the action taken
+      for (size_t i = 0; i < num_hands && i < hist_num_hands; ++i) {
+        size_t strat_idx = i + action_idx * hist_num_hands;
+        if (strat_idx < strategy.size()) {
+          reach[i] *= strategy[strat_idx];
+        }
+      }
+    }
+
+    return reach;
+  }
+
   void showOverallStrategy() {
     if (!m_current_node || m_current_node->get_node_type() != NodeType::ACTION_NODE)
       return;
@@ -1039,6 +1083,9 @@ class Wizard : public Fl_Double_Window {
     const auto &hands = m_prm.get_preflop_combos(action_node->get_player());
     const auto &strategy = action_node->get_average_strat();
     const auto &actions = action_node->get_actions();
+
+    // Compute reach probabilities for this player's combos
+    std::vector<float> reach = computeComboReach(action_node->get_player());
 
     // Calculate overall strategy across all hands
     std::vector<float> overallProbs(actions.size(), 0.0f);
@@ -1058,15 +1105,16 @@ class Wizard : public Fl_Double_Window {
         }
       }
 
-      if (!overlaps) {
-        for (size_t a = 0; a < actions.size(); ++a) {
-          size_t strat_idx = i + a * num_hands;
-          if (strat_idx < strategy.size()) {
-            overallProbs[a] += strategy[strat_idx];
-          }
+      // Skip combos that overlap with board or have 0 reach
+      if (overlaps || reach[i] < 0.001f) continue;
+
+      for (size_t a = 0; a < actions.size(); ++a) {
+        size_t strat_idx = i + a * num_hands;
+        if (strat_idx < strategy.size()) {
+          overallProbs[a] += strategy[strat_idx];
         }
-        validHandCount++;
       }
+      validHandCount++;
     }
 
     // Normalize

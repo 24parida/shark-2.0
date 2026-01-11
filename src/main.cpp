@@ -5,116 +5,78 @@
 #include "trainer/DCFR.hh"
 #include <iostream>
 #include <iomanip>
-#include <algorithm>
-#include <numeric>
 #include <chrono>
-#include <functional>
 
 int main() {
   using phevaluator::Card;
 
-  std::cout << "=== Flop Optimization Gating Test ===" << std::endl;
-  std::cout << std::endl;
+  std::cout << "=== Flop Solve Benchmark ===" << std::endl;
 
-  // Even larger ranges - approaching memory limits
-  PreflopRange range1{"55+,A2s+,K7s+,Q8s+,J8s+,T8s+,97s+,87s,76s,A9o+,KTo+,QJo"}; // ~280+ combos
-  PreflopRange range2{"33+,A2s+,K2s+,Q5s+,J7s+,T7s+,96s+,85s+,75s+,64s+,A5o+,K9o+,Q9o+,J9o+,T9o"}; // ~450+ combos
+  // Same ranges as before
+  PreflopRange range1{"55+,A2s+,K7s+,Q8s+,J8s+,T8s+,97s+,87s,76s,A9o+,KTo+,QJo"};
+  PreflopRange range2{"33+,A2s+,K2s+,Q5s+,J7s+,T7s+,96s+,85s+,75s+,64s+,A5o+,K9o+,Q9o+,J9o+,T9o"};
 
-  std::cout << "Range1 combos: " << range1.num_hands << std::endl;
-  std::cout << "Range2 combos: " << range2.num_hands << std::endl;
-  std::cout << std::endl;
+  std::cout << "Range1: " << range1.num_hands << " combos" << std::endl;
+  std::cout << "Range2: " << range2.num_hands << " combos" << std::endl;
 
-  int stack = 100;
-  int pot = 10;
-  int min_bet = 2;
+  // Flop board (3 cards)
+  std::vector<Card> board{Card{"Ks"}, Card{"Qh"}, Card{"7d"}};
+  std::cout << "Board: Ks Qh 7d (flop)" << std::endl;
 
-  // ============ TEST 1: Turn solve (should NOT use flop optimizations) ============
-  std::cout << "=== TEST 1: Turn Solve (4 cards) ===" << std::endl;
-  {
-    std::vector<Card> board{Card{"Ks"}, Card{"Qh"}, Card{"7d"}, Card{"2c"}};
-    std::cout << "Board: Ks Qh 7d 2c (turn)" << std::endl;
+  int stack = 100, pot = 10, min_bet = 2;
 
-    TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
+  // Flop optimizations
+  TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
+  settings.remove_donk_bets = true;
+  settings.raise_cap = 3;
 
-    const bool is_flop_solve = (board.size() == 3);
-    settings.remove_donk_bets = is_flop_solve;
-    settings.raise_cap = is_flop_solve ? 3 : -1;
-    DCFR::compress_strategy = is_flop_solve;
+  DCFR::compress_strategy = true;
 
-    std::cout << "is_flop_solve: " << (is_flop_solve ? "true" : "false") << std::endl;
-    std::cout << "remove_donk_bets: " << (settings.remove_donk_bets ? "true" : "false") << std::endl;
-    std::cout << "raise_cap: " << settings.raise_cap << std::endl;
-    std::cout << "compress_strategy: " << (DCFR::compress_strategy ? "true" : "false") << std::endl;
+  std::cout << "\nBuilding tree..." << std::endl;
+  auto t0 = std::chrono::high_resolution_clock::now();
 
-    PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos, board};
-    GameTree game_tree{settings};
+  PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos, board};
+  GameTree game_tree{settings};
 
-    auto stats = game_tree.getTreeStats();
-    std::cout << "Tree stats: " << stats.total_action_nodes << " action nodes" << std::endl;
+  std::unique_ptr<Node> root{game_tree.build()};
 
-    std::unique_ptr<Node> root{game_tree.build()};
+  auto stats = game_tree.getTreeStats();
+  std::cout << "Action nodes: " << stats.total_action_nodes << std::endl;
+  std::cout << "Est. memory: " << (stats.estimateMemoryBytes() / 1024 / 1024) << " MB" << std::endl;
 
-    ParallelDCFR trainer{prm, board, settings.starting_pot, settings.in_position_player};
-    BestResponse br{prm};
+  auto t1 = std::chrono::high_resolution_clock::now();
+  std::cout << "Tree built in " << std::chrono::duration<double>(t1 - t0).count() << "s\n" << std::endl;
 
-    std::cout << "Training 500 iterations..." << std::endl;
-    trainer.train(root.get(), 500, -1.0, nullptr);
+  // Train
+  int iterations = 100;
+  std::cout << "Training " << iterations << " iterations..." << std::endl;
 
-    float exp = br.get_exploitability(root.get(), 500, board, pot, 2);
-    std::cout << "Exploitability: " << std::fixed << std::setprecision(4) << exp << "%" << std::endl;
-    std::cout << (exp < 0.5 ? "PASS: Turn solve converged!" : "FAIL: Turn solve did not converge") << std::endl;
-  }
+  int thread_count = 14;
+  std::cout << "Using " << thread_count << " threads" << std::endl;
 
-  std::cout << std::endl;
+  ParallelDCFR trainer{prm, board, pot, 2, thread_count};
+  BestResponse br{prm};
 
-  // ============ TEST 2: Flop tree (memory estimate only, no solve) ============
-  std::cout << "=== TEST 2: Flop Tree Memory Estimate (3 cards) ===" << std::endl;
-  {
-    std::vector<Card> board{Card{"Ks"}, Card{"Qh"}, Card{"7d"}};
-    std::cout << "Board: Ks Qh 7d (flop)" << std::endl;
+  trainer.train(root.get(), iterations, -1.0,
+    [&](int i, int total, float exploit) {
+      if (i % 20 == 0 || i == total) {
+        auto now = std::chrono::high_resolution_clock::now();
+        double elapsed = std::chrono::duration<double>(now - t1).count();
+        std::cout << "Iter " << i << "/" << total << " - "
+                  << std::fixed << std::setprecision(1) << elapsed << "s";
+        if (exploit >= 0) std::cout << " - Exploit: " << std::setprecision(2) << exploit << "%";
+        std::cout << std::endl;
+      }
+    });
 
-    TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
+  auto t2 = std::chrono::high_resolution_clock::now();
 
-    const bool is_flop_solve = (board.size() == 3);
-    settings.remove_donk_bets = is_flop_solve;
-    settings.raise_cap = is_flop_solve ? 3 : -1;
-    DCFR::compress_strategy = is_flop_solve;
-
-    std::cout << "is_flop_solve: " << (is_flop_solve ? "true" : "false") << std::endl;
-    std::cout << "remove_donk_bets: " << (settings.remove_donk_bets ? "true" : "false") << std::endl;
-    std::cout << "raise_cap: " << settings.raise_cap << std::endl;
-    std::cout << "compress_strategy: " << (DCFR::compress_strategy ? "true" : "false") << std::endl;
-
-    GameTree game_tree{settings};
-
-    std::cout << "Building tree..." << std::endl;
-    std::unique_ptr<Node> root{game_tree.build()};
-    std::cout << "Tree built successfully!" << std::endl;
-
-    auto stats = game_tree.getTreeStats();
-    size_t mem_bytes = stats.estimateMemoryBytes();
-
-    std::cout << std::endl;
-    std::cout << "--- Tree Statistics ---" << std::endl;
-    std::cout << "Flop action nodes:  " << stats.flop_action_nodes << std::endl;
-    std::cout << "Turn action nodes:  " << stats.turn_action_nodes << std::endl;
-    std::cout << "River action nodes: " << stats.river_action_nodes << std::endl;
-    std::cout << "Total action nodes: " << stats.total_action_nodes << std::endl;
-    std::cout << "Chance nodes:       " << stats.chance_nodes << std::endl;
-    std::cout << "Terminal nodes:     " << stats.terminal_nodes << std::endl;
-    std::cout << "P1 hands: " << stats.p1_num_hands << ", P2 hands: " << stats.p2_num_hands << std::endl;
-    std::cout << std::endl;
-    std::cout << "Estimated memory: " << (mem_bytes / 1024 / 1024) << " MB" << std::endl;
-    std::cout << "                  " << std::fixed << std::setprecision(2)
-              << (mem_bytes / 1024.0 / 1024.0 / 1024.0) << " GB" << std::endl;
-
-    if (mem_bytes > 15ULL * 1024 * 1024 * 1024) {
-      std::cout << std::endl << "WARNING: Exceeds 15GB RAM estimate" << std::endl;
-    }
-  }
-
-  std::cout << std::endl;
-  std::cout << "=== All tests complete ===" << std::endl;
+  // Final stats
+  float final_exploit = br.get_exploitability(root.get(), iterations, board, pot, 2);
+  std::cout << "\n=== Results ===" << std::endl;
+  std::cout << "Final exploitability: " << std::fixed << std::setprecision(3) << final_exploit << "%" << std::endl;
+  std::cout << "Training time: " << std::setprecision(1) << std::chrono::duration<double>(t2 - t1).count() << "s" << std::endl;
+  std::cout << "Total time: " << std::chrono::duration<double>(t2 - t0).count() << "s" << std::endl;
 
   return 0;
 }
