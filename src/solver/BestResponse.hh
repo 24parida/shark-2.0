@@ -26,12 +26,6 @@ public:
                            const std::vector<Card> &board, int init_pot,
                            int in_position_player);
 
-  auto
-  get_unblocked_combo_counts(const std::vector<PreflopCombo> &hero_combos,
-                             const std::vector<PreflopCombo> &villain_combos,
-                             const std::vector<Card> &board)
-      -> std::vector<float>;
-
   auto best_response(Node *node, const std::vector<float> &villain_reach_probs,
                      const std::vector<Card> &board) -> std::vector<float>;
 

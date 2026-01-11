@@ -1,6 +1,7 @@
 #pragma once
 #include "../game/Action.hh"
 #include "../trainer/DCFR.hh"
+#include "../solver/Isomorphism.hh"
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -85,6 +86,7 @@ private:
   std::vector<std::unique_ptr<Node>> m_children;
   int m_child_count;
   ChanceType m_type;
+  IsomorphismData m_iso_data;
 
 public:
   ChanceNode(const Node *parent, const ChanceType type)
@@ -96,6 +98,8 @@ public:
     m_children[card] = std::move(node);
     ++m_child_count;
   }
+  void set_isomorphism_data(IsomorphismData&& data) { m_iso_data = std::move(data); }
+  auto get_isomorphism_data() const -> const IsomorphismData& { return m_iso_data; }
   auto get_num_children() const -> int { return m_child_count; }
   auto get_type() const -> ChanceType { return m_type; }
   auto get_child(const int index) const -> Node *const {

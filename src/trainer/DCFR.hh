@@ -2,26 +2,22 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include <algorithm>
+#include <limits>
 
 class ActionNode;
 
 class DCFR {
-  // SCALE_FACTOR for int16_t compression
-  // Match wasm-postflop: direct scaling without pot normalization
-  // With 1000: max value = 32.767, precision = 0.001
-  static constexpr float SCALE_FACTOR = 1000.0f;
-  static constexpr float INV_SCALE_FACTOR = 0.001f;
-
   int m_num_hands;
   int m_num_actions;
   int m_current;
   std::vector<int16_t> m_cummulative_regret;
-  std::vector<float> m_cummulative_strategy;  // Float for small reach prob contributions
+  std::vector<float> m_cummulative_strategy;
+
+  // Per-node scale factor for regret compression (wasm-postflop style)
+  float m_regret_scale = 1.0f;
 
 public:
-  // Pot size for normalizing regrets (set by trainer)
-  static inline float pot_normalizer = 1.0f;
-
   // DCFR discount factors (precomputed once per iteration)
   // Based on wasm-postflop implementation
   // α = t^1.5/(t^1.5+1) for positive regrets, using t-1
@@ -42,18 +38,11 @@ public:
     // Beta: fixed at 0.5
     beta = 0.5f;
 
-    // Gamma: uses distance from nearest lower power of 4
-    // nearest_pow4 = largest power of 4 <= t
-    int nearest_pow4 = 0;
-    if (t > 0) {
-      // Count leading zeros, mask to even bit position
-      int msb = 31 - __builtin_clz(static_cast<unsigned int>(t));
-      nearest_pow4 = 1 << (msb & ~1);  // Round down to even power of 2 = power of 4
-    }
-    int t_gamma = t - nearest_pow4;
-    float tf_gamma = static_cast<float>(t_gamma);
-    float ratio = tf_gamma / (tf_gamma + 1.0f);
-    gamma = ratio * ratio * ratio;  // (ratio)^3
+    // Gamma: (t/(t+1))^2 - NO power-of-4 reset (differs from wasm-postflop)
+    // This provides smooth discounting without periodic resets
+    float tf = static_cast<float>(t);
+    float ratio = tf / (tf + 1.0f);
+    gamma = ratio * ratio;  // (t/(t+1))^2
   }
 
   // Debug: track a specific node
@@ -61,15 +50,38 @@ public:
   static inline int debug_hand = 0;
   int m_node_id = -1;
 
-  static inline auto compress(float value) -> int16_t {
-    float scaled = value * SCALE_FACTOR;
-    if (scaled > 32767.0f) return 32767;
-    if (scaled < -32768.0f) return -32768;
-    return static_cast<int16_t>(scaled);
+  // wasm-postflop style encoding: finds max absolute value, returns scale
+  // compressed = value * (32767 / scale)
+  static float encode_signed_slice(int16_t* dst, const float* src, size_t len) {
+    // Find max absolute value
+    float max_abs = 0.0f;
+    for (size_t i = 0; i < len; ++i) {
+      float abs_val = std::abs(src[i]);
+      if (abs_val > max_abs) max_abs = abs_val;
+    }
+
+    // Handle zero case
+    float scale = (max_abs == 0.0f) ? 1.0f : max_abs;
+    float encoder = 32767.0f / scale;
+
+    // Encode each value
+    for (size_t i = 0; i < len; ++i) {
+      float scaled = src[i] * encoder;
+      // Round and clamp to i16 range
+      int32_t rounded = static_cast<int32_t>(std::round(scaled));
+      if (rounded > 32767) rounded = 32767;
+      if (rounded < -32768) rounded = -32768;
+      dst[i] = static_cast<int16_t>(rounded);
+    }
+
+    return scale;
   }
 
-  static inline auto decompress(int16_t value) -> float {
-    return static_cast<float>(value) * INV_SCALE_FACTOR;
+  // wasm-postflop style decoding with discount baked in
+  // decoded = compressed * discount * scale / 32767
+  static float decode_with_discount(int16_t compressed, float scale, float pos_discount, float neg_discount) {
+    float discount = (compressed >= 0) ? pos_discount : neg_discount;
+    return static_cast<float>(compressed) * discount * scale / 32767.0f;
   }
 
 public:
@@ -83,7 +95,7 @@ public:
   void get_average_strat(std::vector<float> &out) const;
   void get_current_strat(std::vector<float> &out) const;
 
-  // New correct DCFR regret update (replaces the two-phase update)
+  // wasm-postflop style DCFR regret update
   void update_regrets(const std::vector<float> &action_utils_flat,
                       const std::vector<float> &value,
                       int iteration);

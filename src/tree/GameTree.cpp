@@ -1,9 +1,11 @@
 #include "GameTree.hh"
 #include "../Helper.hh"
+#include "../solver/Isomorphism.hh"
 #include "card.h"
 #include "game/Game.hh"
 #include "tree/Nodes.hh"
 #include <memory>
+#include <iostream>
 
 bool is_valid_action(const Action &action, const GameState &state);
 
@@ -141,9 +143,32 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
                                                      : ChanceType ::DEAL_RIVER};
   auto chance_node = std::make_unique<ChanceNode>(parent, type);
 
+  // Compute board mask for isomorphism
+  uint64_t board_mask = 0;
+  for (const auto& c : state.board) {
+    board_mask |= (1ULL << int(c));
+  }
+
+  // Compute isomorphism data
+  IsomorphismData iso_data = IsomorphismComputer::compute(
+      m_settings.range1.preflop_combos,
+      m_settings.range2.preflop_combos,
+      state.board,
+      board_mask);
+
+  // Build skip mask from isomorphic cards
+  uint64_t skip_mask = 0;
+  for (int card : iso_data.isomorphism_card) {
+    skip_mask |= (1ULL << card);
+  }
+
+  // Build children only for representative cards (skip isomorphic cards)
   for (int i{0}; i < GameParams::NUM_CARDS; ++i) {
     Card card{i};
-    if (CardUtility::overlap(card, state.board))
+    uint64_t card_mask = 1ULL << i;
+
+    // Skip board cards and isomorphic cards
+    if ((card_mask & board_mask) || (card_mask & skip_mask))
       continue;
 
     GameState nxt_state{state};
@@ -157,6 +182,9 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
     auto action_node{build_action_nodes(chance_node.get(), nxt_state)};
     chance_node->add_child(std::move(action_node), card);
   }
+
+  // Store isomorphism data in the chance node
+  chance_node->set_isomorphism_data(std::move(iso_data));
 
   return chance_node;
 }

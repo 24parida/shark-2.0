@@ -100,7 +100,7 @@ Fl_Group* Page6_Strategy::createContentSection() {
 
   // LEFT: Strategy grid (13×13)
   m_strategyGrid = new Fl_Grid(0, 0, 0, 0);
-  m_strategyGrid->layout(13, 13, 3, 3);  // 13×13, 3px spacing
+  m_strategyGrid->layout(13, 13, 1, 1);  // 13×13, minimal 1px spacing
 
   // Create 169 buttons ONCE
   for (int r = 0; r < 13; ++r) {
@@ -146,22 +146,18 @@ Fl_Group* Page6_Strategy::createAnalysisPanel() {
   panel->color(fl_rgb_color(240, 240, 240));
   panel->begin();
 
-  // Header: Title + zoom buttons (will be positioned in resize)
+  // Header: Title centered
   m_infoTitle = new Fl_Box(0, 0, 100, 35, "Hand Analysis");
   m_infoTitle->labelsize(16);
   m_infoTitle->labelfont(FL_HELVETICA_BOLD);
   m_infoTitle->labelcolor(FL_BLACK);
-  m_infoTitle->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+  m_infoTitle->align(FL_ALIGN_CENTER);
 
-  m_zoomOutBtn = new Fl_Button(0, 0, 35, 35, "-");
-  m_zoomOutBtn->labelsize(18);
-  m_zoomOutBtn->callback(cbZoomOut, this);
+  // Keep pointers null (removed zoom buttons)
+  m_zoomOutBtn = nullptr;
+  m_zoomInBtn = nullptr;
 
-  m_zoomInBtn = new Fl_Button(0, 0, 35, 35, "+");
-  m_zoomInBtn->labelsize(18);
-  m_zoomInBtn->callback(cbZoomIn, this);
-
-  // Text display (will be positioned in resize)
+  // Text display (kept for backwards compatibility, hidden by default)
   m_infoBuffer = new Fl_Text_Buffer();
   m_infoDisplay = new Fl_Text_Display(0, 0, 100, 100);
   m_infoDisplay->buffer(m_infoBuffer);
@@ -170,6 +166,10 @@ Fl_Group* Page6_Strategy::createAnalysisPanel() {
   m_infoDisplay->color(FL_WHITE);
   m_infoDisplay->box(FL_DOWN_BOX);
   m_infoDisplay->textcolor(FL_BLACK);
+  m_infoDisplay->hide();
+
+  // Visual combo strategy display
+  m_comboDisplay = new ComboStrategyDisplay(0, 0, 100, 100);
 
   panel->end();
   return panel;
@@ -262,7 +262,7 @@ Fl_Group* Page6_Strategy::createActionRow() {
 
 Fl_Group* Page6_Strategy::createNavigationRow() {
   auto *grid = new Fl_Grid(0, 0, 0, 0);
-  grid->layout(1, 3, 10, 10);  // 1 row, 3 cols: back, undo, spacer
+  grid->layout(1, 4, 10, 10);  // 1 row, 4 cols: back, undo, spacer, copy range
 
   m_backBtn = new Fl_Button(0, 0, 0, 0, "Back");
   m_backBtn->labelsize(16);
@@ -282,6 +282,14 @@ Fl_Group* Page6_Strategy::createNavigationRow() {
   auto *spacer = new Fl_Box(0, 0, 0, 0);
   grid->widget(spacer, 0, 2);
   grid->col_weight(2, 1);
+
+  // Copy Range button on the right
+  m_copyRangeBtn = new Fl_Button(0, 0, 0, 0, "Copy Range");
+  m_copyRangeBtn->labelsize(14);
+  m_copyRangeBtn->callback(cbCopyRange, this);
+  grid->widget(m_copyRangeBtn, 0, 3);
+  grid->col_width(3, 120);
+  grid->col_weight(3, 0);
 
   // Fixed row height so buttons don't expand vertically
   grid->row_height(0, 40);
@@ -312,6 +320,14 @@ void Page6_Strategy::setCardSelectedCallback(std::function<void(const std::strin
   m_onCardSelected = cb;
 }
 
+void Page6_Strategy::setCopyRangeCallback(std::function<std::string()> cb) {
+  m_onCopyRange = cb;
+}
+
+void Page6_Strategy::setShowOverallStrategyCallback(std::function<void()> cb) {
+  m_onShowOverallStrategy = cb;
+}
+
 void Page6_Strategy::setTitle(const std::string& title) {
   m_lblStrategy->copy_label(title.c_str());
   redraw();
@@ -329,7 +345,38 @@ void Page6_Strategy::setPotInfo(const std::string& pot) {
 
 void Page6_Strategy::setInfoText(const std::string& text) {
   m_infoBuffer->text(text.c_str());
-  redraw();
+  // Show text display, hide combo display
+  m_infoDisplay->show();
+  m_comboDisplay->hide();
+  // Don't call redraw() on entire page - widgets handle their own redraw
+}
+
+void Page6_Strategy::setComboStrategies(const std::string& handName, const std::vector<ComboStrategyDisplay::ComboStrategy>& combos) {
+  m_comboDisplay->setHandName(handName);
+  m_comboDisplay->setCombos(combos);
+  // Show combo display, hide text display
+  m_comboDisplay->show();
+  m_infoDisplay->hide();
+  // Don't call redraw() on entire page - combo display handles its own redraw
+}
+
+void Page6_Strategy::setOverallStrategy(const std::vector<ComboStrategyDisplay::ComboStrategy>& overall) {
+  m_comboDisplay->setHandName("Overall Range Strategy");
+  m_comboDisplay->setCombos(overall);
+  m_comboDisplay->show();
+  m_infoDisplay->hide();
+  // Don't call redraw() on entire page - combo display handles its own redraw
+}
+
+void Page6_Strategy::deselectHand() {
+  // Deselect all strategy buttons
+  for (auto *btn : m_strategyBtns) {
+    btn->setStrategySelected(false);
+  }
+  // Show overall strategy
+  if (m_onShowOverallStrategy) {
+    m_onShowOverallStrategy();
+  }
 }
 
 void Page6_Strategy::setActions(const std::vector<std::string>& actions) {
@@ -390,16 +437,23 @@ void Page6_Strategy::updateStrategyGrid(const std::map<std::string, std::map<std
       // Hand found - set strategy colors
       const auto& actionProbs = it->second;
 
+      // First pass: count bet/raise actions to assign indices
+      int betIndex = 0;
       std::vector<std::pair<Fl_Color, float>> colors;
+
       for (const auto& [action, prob] : actionProbs) {
         // Assign colors based on action type
         Fl_Color color;
-        if (action.find("fold") != std::string::npos || action.find("Fold") != std::string::npos) {
+        if (action.find("Fold") != std::string::npos || action.find("fold") != std::string::npos) {
           color = Colors::FoldColor();
-        } else if (action.find("call") != std::string::npos || action.find("Check") != std::string::npos) {
+        } else if (action.find("Check") != std::string::npos || action.find("check") != std::string::npos) {
+          color = Colors::CheckColor();
+        } else if (action.find("Call") != std::string::npos || action.find("call") != std::string::npos) {
           color = Colors::CallColor();
         } else {
-          color = Colors::BetColor(0, 1);  // Default bet color
+          // Bet or Raise - use indexed color
+          color = Colors::BetColor(betIndex);
+          betIndex++;
         }
         colors.emplace_back(color, prob);
       }
@@ -565,8 +619,27 @@ void Page6_Strategy::cbCardSelected(Fl_Widget *w, void *data) {
   }
 }
 
+void Page6_Strategy::cbCopyRange(Fl_Widget *w, void *data) {
+  auto *page = (Page6_Strategy *)data;
+  if (page->m_onCopyRange) {
+    std::string rangeStr = page->m_onCopyRange();
+    if (!rangeStr.empty()) {
+      // Copy to clipboard
+      Fl::copy(rangeStr.c_str(), static_cast<int>(rangeStr.length()), 1);
+    }
+  }
+}
+
 void Page6_Strategy::handleStrategyClick(CardButton *btn) {
   std::string hand = btn->label();
+
+  // Check if this hand is already selected (toggle behavior)
+  if (btn->strategySelected()) {
+    // Deselect and show overall strategy
+    deselectHand();
+    return;
+  }
+
   selectHand(hand);
 
   // Notify parent to update analysis panel with combo details
@@ -606,7 +679,7 @@ void Page6_Strategy::draw() {
 
 void Page6_Strategy::positionManualWidgets() {
   // Position analysis panel widgets
-  if (m_analysisPanel && m_infoTitle && m_zoomOutBtn && m_zoomInBtn && m_infoDisplay) {
+  if (m_analysisPanel && m_infoTitle && m_infoDisplay && m_comboDisplay) {
     int px = m_analysisPanel->x();
     int py = m_analysisPanel->y();
     int pw = m_analysisPanel->w();
@@ -614,10 +687,11 @@ void Page6_Strategy::positionManualWidgets() {
 
     if (pw > 50 && ph > 50) {
       int headerH = 40;
-      m_infoTitle->resize(px + 5, py + 5, pw - 85, headerH - 10);
-      m_zoomOutBtn->resize(px + pw - 75, py + 5, 32, 32);
-      m_zoomInBtn->resize(px + pw - 40, py + 5, 32, 32);
+      // Title spans full width, centered
+      m_infoTitle->resize(px + 5, py + 5, pw - 10, headerH - 10);
+      // Both displays share the same position (only one is visible at a time)
       m_infoDisplay->resize(px + 5, py + headerH, pw - 10, ph - headerH - 5);
+      m_comboDisplay->resize(px + 5, py + headerH, pw - 10, ph - headerH - 5);
     }
   }
 

@@ -8,6 +8,7 @@ class CardButton : public Fl_Button {
   Fl_Color m_base;
   bool m_sel = false;
   bool m_strategy_sel = false;
+  bool m_strategy_mode = false;  // True when on strategy page
   static const Fl_Color HIGHLIGHT;
   static const Fl_Color UNCOLORED_BG;
   std::vector<std::pair<Fl_Color, float>> m_strategy_colors;
@@ -22,6 +23,7 @@ public:
   void setStrategySelected(bool sel);
   bool strategySelected() const { return m_strategy_sel; }
   void setStrategyColors(const std::vector<std::pair<Fl_Color, float>> &colors);
+  void clearStrategyMode();
 
 protected:
   void draw() override;

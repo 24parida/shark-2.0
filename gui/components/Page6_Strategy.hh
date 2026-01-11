@@ -7,6 +7,7 @@
 #include <FL/Fl_Text_Display.H>
 #include <FL/Fl_Text_Buffer.H>
 #include "CardButton.hh"
+#include "ComboStrategyDisplay.hh"
 #include <vector>
 #include <string>
 #include <map>
@@ -22,13 +23,14 @@ class Page6_Strategy : public Fl_Group {
   std::vector<CardButton *> m_strategyBtns;
   Fl_Text_Display *m_infoDisplay;
   Fl_Text_Buffer *m_infoBuffer;
+  ComboStrategyDisplay *m_comboDisplay;
 
   std::vector<Fl_Button *> m_actionBtns;
   Fl_Box *m_cardSelLabel;
   Fl_Choice *m_rankChoice, *m_suitChoice;
 
   Fl_Button *m_zoomInBtn, *m_zoomOutBtn;
-  Fl_Button *m_backBtn, *m_undoBtn;
+  Fl_Button *m_backBtn, *m_undoBtn, *m_copyRangeBtn;
 
   // Grid structure
   Fl_Grid *m_mainGrid;
@@ -45,6 +47,11 @@ class Page6_Strategy : public Fl_Group {
   std::function<void()> m_onUndo;
   std::function<void(const std::string&)> m_onHandSelect;
   std::function<void(const std::string&)> m_onCardSelected;
+  std::function<std::string()> m_onCopyRange;
+  std::function<void()> m_onShowOverallStrategy;
+
+  // Store current strategies for range export
+  std::map<std::string, std::map<std::string, float>> m_currentStrategies;
 
 public:
   Page6_Strategy(int X, int Y, int W, int H);
@@ -55,12 +62,17 @@ public:
   void setUndoCallback(std::function<void()> cb);
   void setHandSelectCallback(std::function<void(const std::string&)> cb);
   void setCardSelectedCallback(std::function<void(const std::string&)> cb);
+  void setCopyRangeCallback(std::function<std::string()> cb);
+  void setShowOverallStrategyCallback(std::function<void()> cb);
 
   void setTitle(const std::string& title);
   void setBoardInfo(const std::string& board);
   void setPotInfo(const std::string& pot);
   void setInfoText(const std::string& text);
+  void setComboStrategies(const std::string& handName, const std::vector<ComboStrategyDisplay::ComboStrategy>& combos);
+  void setOverallStrategy(const std::vector<ComboStrategyDisplay::ComboStrategy>& overall);
   void setActions(const std::vector<std::string>& actions);
+  void deselectHand();
 
   void updateStrategyGrid(const std::map<std::string, std::map<std::string, float>>& strategies);
   void selectHand(const std::string& hand);
@@ -88,6 +100,7 @@ private:
   static void cbBack(Fl_Widget *w, void *data);
   static void cbUndo(Fl_Widget *w, void *data);
   static void cbCardSelected(Fl_Widget *w, void *data);
+  static void cbCopyRange(Fl_Widget *w, void *data);
 
   void handleStrategyClick(CardButton *btn);
   void handleActionClick(Fl_Button *btn);

@@ -22,19 +22,19 @@ namespace Colors {
   inline Fl_Color SuitedSelected()  { return fl_rgb_color(100, 100, 200); }
   inline Fl_Color DefaultCell()     { return fl_rgb_color(80, 80, 80); }
 
-  // Strategy colors
-  inline Fl_Color FoldColor()  { return fl_rgb_color(255, 50, 50); }   // Red
-  inline Fl_Color CallColor()  { return fl_rgb_color(50, 255, 50); }   // Green
+  // Strategy colors - cohesive palette
+  // Cool tones for passive actions, warm progression for aggressive actions
+  inline Fl_Color FoldColor()  { return fl_rgb_color(91, 141, 238); }   // Clear blue - passive
+  inline Fl_Color CheckColor() { return fl_rgb_color(94, 186, 125); }   // Fresh green - safe/neutral
+  inline Fl_Color CallColor()  { return fl_rgb_color(94, 186, 125); }   // Same green as check
 
-  // Generate bet color based on action index
-  inline Fl_Color BetColor(int actionIndex, int totalBetActions) {
-    if (totalBetActions <= 1) {
-      return fl_rgb_color(50, 50, 255);  // Blue
+  // Bet/raise colors - warm progression (0=smallest, 2=all-in)
+  inline Fl_Color BetColor(int betIndex) {
+    switch (betIndex) {
+      case 0: return fl_rgb_color(245, 166, 35);   // Golden amber - mild aggression
+      case 1: return fl_rgb_color(224, 124, 84);   // Terracotta coral - moderate
+      case 2: return fl_rgb_color(196, 69, 105);   // Deep rose - maximum aggression
+      default: return fl_rgb_color(196, 69, 105);  // Deep rose for any additional
     }
-    float ratio = static_cast<float>(actionIndex) / (totalBetActions - 1);
-    int r = static_cast<int>(50 + ratio * 205);
-    int g = 50;
-    int b = static_cast<int>(255 - ratio * 205);
-    return fl_rgb_color(r, g, b);
   }
 }

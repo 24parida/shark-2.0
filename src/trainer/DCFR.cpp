@@ -10,7 +10,8 @@ DCFR::DCFR(const ActionNode *node)
     : m_num_hands(node->get_num_hands()),
       m_num_actions(node->get_num_actions()), m_current(node->get_player()),
       m_cummulative_regret(m_num_hands * m_num_actions),
-      m_cummulative_strategy(m_num_hands * m_num_actions) {
+      m_cummulative_strategy(m_num_hands * m_num_actions),
+      m_regret_scale(1.0f) {
   m_node_id = g_node_counter++;
 }
 
@@ -20,7 +21,7 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float total{0.0};
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      total += m_cummulative_strategy[hand + action * m_num_hands];  // Direct float access
+      total += m_cummulative_strategy[hand + action * m_num_hands];
     }
 
     if (total > 0) {
@@ -41,23 +42,26 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
 auto DCFR::get_current_strat() const -> std::vector<float> {
   std::vector<float> current_strategy(m_num_hands * m_num_actions);
 
-  // Thread-local cache to avoid double decompress
-  thread_local std::vector<float> cached_regrets;
-  cached_regrets.resize(m_num_actions);
-
+  // Decode regrets without discount (for strategy computation, use scale 1.0)
+  // We just need relative magnitudes for regret matching
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float positive_regret_sum{0.0};
 
-    // Single pass: decompress and cache, compute sum
+    // First pass: decode and compute sum of positive regrets
+    thread_local std::vector<float> cached_regrets;
+    cached_regrets.resize(m_num_actions);
+
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      cached_regrets[action] = decompress(m_cummulative_regret[hand + action * m_num_hands]);
-      if (cached_regrets[action] > 0) {
-        positive_regret_sum += cached_regrets[action];
+      // Decode without discount: compressed * scale / 32767
+      int16_t compressed = m_cummulative_regret[hand + action * m_num_hands];
+      float decoded = static_cast<float>(compressed) * m_regret_scale / 32767.0f;
+      cached_regrets[action] = decoded;
+      if (decoded > 0) {
+        positive_regret_sum += decoded;
       }
     }
 
     if (positive_regret_sum > 0) {
-      // Use cached values
       for (std::size_t action{0}; action < m_num_actions; ++action) {
         current_strategy[hand + action * m_num_hands] =
             cached_regrets[action] > 0 ? cached_regrets[action] / positive_regret_sum : 0;
@@ -73,7 +77,6 @@ auto DCFR::get_current_strat() const -> std::vector<float> {
 }
 
 void DCFR::get_average_strat(std::vector<float> &average_strategy) const {
-  // Resize only if needed
   if (average_strategy.size() != m_num_hands * m_num_actions) {
     average_strategy.resize(m_num_hands * m_num_actions);
   }
@@ -81,7 +84,7 @@ void DCFR::get_average_strat(std::vector<float> &average_strategy) const {
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float total{0.0};
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      total += m_cummulative_strategy[hand + action * m_num_hands];  // Direct float access
+      total += m_cummulative_strategy[hand + action * m_num_hands];
     }
 
     if (total > 0) {
@@ -98,28 +101,26 @@ void DCFR::get_average_strat(std::vector<float> &average_strategy) const {
 }
 
 void DCFR::get_current_strat(std::vector<float> &current_strategy) const {
-  // Resize only if needed
   if (current_strategy.size() != m_num_hands * m_num_actions) {
     current_strategy.resize(m_num_hands * m_num_actions);
   }
 
-  // Thread-local cache to avoid double decompress
   thread_local std::vector<float> cached_regrets;
   cached_regrets.resize(m_num_actions);
 
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float positive_regret_sum{0.0};
 
-    // Single pass: decompress and cache, compute sum
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      cached_regrets[action] = decompress(m_cummulative_regret[hand + action * m_num_hands]);
-      if (cached_regrets[action] > 0) {
-        positive_regret_sum += cached_regrets[action];
+      int16_t compressed = m_cummulative_regret[hand + action * m_num_hands];
+      float decoded = static_cast<float>(compressed) * m_regret_scale / 32767.0f;
+      cached_regrets[action] = decoded;
+      if (decoded > 0) {
+        positive_regret_sum += decoded;
       }
     }
 
     if (positive_regret_sum > 0) {
-      // Use cached values
       for (std::size_t action{0}; action < m_num_actions; ++action) {
         current_strategy[hand + action * m_num_hands] =
             cached_regrets[action] > 0 ? cached_regrets[action] / positive_regret_sum : 0;
@@ -132,12 +133,19 @@ void DCFR::get_current_strat(std::vector<float> &current_strategy) const {
   }
 }
 
-// DCFR with λ=3: Discount old regrets before adding new
-// α = t³/(t³+1) for positive regrets
-// β = 0.5 for negative regrets
+// wasm-postflop style DCFR regret update
+// 1. Decode old regrets with discount baked in
+// 2. Add instantaneous regrets (action_utils - value)
+// 3. Re-encode with new scale
 void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
                           const std::vector<float> &value,
                           int iteration) {
+  const size_t total_size = m_num_hands * m_num_actions;
+
+  // Thread-local buffer for float regrets
+  thread_local std::vector<float> new_regrets;
+  new_regrets.resize(total_size);
+
   // Debug output for tracked node
   bool is_debug = (m_node_id == debug_node_id && debug_node_id >= 0);
   if (is_debug) {
@@ -150,77 +158,68 @@ void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
     std::cout << std::endl;
   }
 
+  // wasm-postflop style: decode with discount, add instantaneous regret
+  // alpha_decoder = alpha * scale / 32767
+  // beta_decoder = beta * scale / 32767
+  float alpha_decoder = alpha * m_regret_scale / 32767.0f;
+  float beta_decoder = beta * m_regret_scale / 32767.0f;
+
   for (std::size_t action{0}; action < m_num_actions; ++action) {
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;
 
-      float old_cum = decompress(m_cummulative_regret[idx]);
+      // Decode with discount baked in (wasm-postflop style)
+      int16_t compressed = m_cummulative_regret[idx];
+      float discount = (compressed >= 0) ? alpha_decoder : beta_decoder;
+      float discounted_old = static_cast<float>(compressed) * discount;
 
-      // DCFR: discount old regret based on sign (NO floor here - floor is in get_current_strat)
-      float coef = (old_cum > 0) ? alpha : beta;
-      float discounted_old = old_cum * coef;
-
-      // Compute instantaneous regret (no pot normalization - match wasm-postflop)
+      // Add instantaneous regret
       float inst_regret = action_utils_flat[idx] - value[hand];
-
-      // Store new cumulative regret (CAN be negative - floor happens in strategy computation)
-      float new_cum = discounted_old + inst_regret;
-
-      m_cummulative_regret[idx] = compress(new_cum);
+      new_regrets[idx] = discounted_old + inst_regret;
 
       // Debug: show regret update for tracked hand
       if (is_debug && hand == debug_hand) {
+        float old_decoded = static_cast<float>(compressed) * m_regret_scale / 32767.0f;
         std::cout << "    a" << action << ": inst_reg=" << inst_regret
-                  << " old=" << old_cum << " disc=" << discounted_old
-                  << " new=" << new_cum << std::endl;
+                  << " old=" << old_decoded << " disc=" << discounted_old
+                  << " new=" << new_regrets[idx] << std::endl;
       }
     }
   }
+
+  // Re-encode all regrets and get new scale
+  m_regret_scale = encode_signed_slice(m_cummulative_regret.data(), new_regrets.data(), total_size);
 }
 
 // Legacy functions (kept for compatibility)
 void DCFR::update_cum_regret_one(const std::vector<float> &action_utils,
                                  const int action_index) {
-  for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-    const std::size_t idx = hand + action_index * m_num_hands;
-    float current = decompress(m_cummulative_regret[idx]);
-    m_cummulative_regret[idx] = compress(current + action_utils[hand]);
-  }
+  // Not used in new implementation
+  (void)action_utils;
+  (void)action_index;
 }
+
 void DCFR::update_cum_regret_two(const std::vector<float> &utils,
                                  const int iteration) {
-  float x{static_cast<float>(pow(iteration, 3.0f))};
-  x = x / (x + 1);
-  update_cum_regret_two(utils, x);
+  (void)utils;
+  (void)iteration;
 }
 
 void DCFR::update_cum_regret_two(const std::vector<float> &utils,
                                  const float discount_factor) {
-  for (std::size_t action{0}; action < m_num_actions; ++action) {
-    for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-      const std::size_t idx = hand + action * m_num_hands;
-      float regret = decompress(m_cummulative_regret[idx]) - utils[hand];
-      if (regret > 0) {
-        regret *= discount_factor;
-      } else if (regret < 0) {
-        regret *= 0.5f;
-      }
-      m_cummulative_regret[idx] = compress(regret);
-    }
-  }
+  (void)utils;
+  (void)discount_factor;
 }
 
 void DCFR::update_cum_strategy(const std::vector<float> &strategy,
                                const std::vector<float> &reach_probs,
                                const int iteration) {
   // Use precomputed gamma from precompute_discounts()
-  // γ = (t/(t+1))² - already computed once per iteration
-  (void)iteration;  // Unused - gamma is precomputed
+  (void)iteration;
 
   for (std::size_t action{0}; action < m_num_actions; ++action) {
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;
-      // Use precomputed gamma for discounting
       float discounted_old = m_cummulative_strategy[idx] * gamma;
       float new_contribution = strategy[idx] * reach_probs[hand];
       m_cummulative_strategy[idx] = discounted_old + new_contribution;
@@ -234,7 +233,6 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
   for (std::size_t action{0}; action < m_num_actions; ++action) {
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;
-      // Use float directly (no compression)
       float discounted_old = m_cummulative_strategy[idx] * discount_factor;
       float new_contribution = strategy[idx] * reach_probs[hand];
       m_cummulative_strategy[idx] = discounted_old + new_contribution;

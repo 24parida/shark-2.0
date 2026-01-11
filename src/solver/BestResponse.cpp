@@ -2,7 +2,9 @@
 #include "../Helper.hh"
 #include "hands/PreflopCombo.hh"
 #include "tree/Nodes.hh"
+#include "Isomorphism.hh"
 #include <iostream>
+#include <array>
 
 float BestResponse::get_best_response_ev(
     Node *node, int hero, int villain,
@@ -17,20 +19,41 @@ float BestResponse::get_best_response_ev(
   m_num_villain_hands = villain_combos.size();
   m_hero_to_villain = hero_to_villain;
 
-  float ev{0.0};
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
+
+  // Compute num_combinations like wasm-postflop:
+  // num_combinations = Σ(hero_weight * villain_weight) for all non-overlapping pairs
+  double num_combinations = 0.0;
+  for (int h = 0; h < m_num_hero_hands; ++h) {
+    if (CardUtility::overlap_mask(hero_combos[h], board_mask))
+      continue;
+    for (int v = 0; v < m_num_villain_hands; ++v) {
+      if (CardUtility::overlap_mask(villain_combos[v], board_mask))
+        continue;
+      if (!CardUtility::overlap(hero_combos[h], villain_combos[v])) {
+        num_combinations += static_cast<double>(hero_combos[h].probability) *
+                           static_cast<double>(villain_combos[v].probability);
+      }
+    }
+  }
 
   auto preflop_combo_evs{best_response(
       node, m_prm.get_initial_reach_probs(villain, board), board)};
-  auto unblocked_combo_counts{
-      get_unblocked_combo_counts(hero_combos, villain_combos, board)};
 
-  const uint64_t board_mask = CardUtility::board_to_mask(board);
+  // Compute EV like wasm-postflop: weighted_sum(CFV, hero_reach) / num_combinations
+  // CFV already contains sum of (opponent_reach * payoff) from terminal evaluation
+  double weighted_cfv_sum = 0.0;
   for (int i = 0; i < m_num_hero_hands; ++i) {
     if (!CardUtility::overlap_mask(hero_combos[i], board_mask)) {
-      ev += preflop_combo_evs[i] / unblocked_combo_counts[i] *
-            hero_combos[i].rel_probability;
+      // weighted_sum: CFV[i] * hero_reach[i]
+      weighted_cfv_sum += static_cast<double>(preflop_combo_evs[i]) *
+                          static_cast<double>(hero_combos[i].probability);
     }
   }
+
+  // Divide by num_combinations (like wasm divides payoffs by num_combinations in evaluate)
+  float ev = static_cast<float>(weighted_cfv_sum / num_combinations);
+
   return ev;
 }
 
@@ -78,39 +101,13 @@ float BestResponse::get_exploitability(Node *node, int iteration_count,
   float ip_ev{get_best_response_ev(node, p2, p1, p2_combos, p1_combos, board,
                                    p2_to_p1)};
 
-  float exploitability{(oop_ev + ip_ev) / 2 / init_pot * 100};
-  // std::cout << "-------------------------------------------" << '\n';
-  // std::cout << "OOP BEST RESPONSE EV: " << oop_ev << '\n';
-  // std::cout << "IP BEST RESPONSE EV: " << ip_ev << '\n';
-  // std::cout << "exploitability at iteration " << iteration_count << " is "
-  //           << exploitability << "% of the pot per hand" << '\n';
-  // std::cout << "-------------------------------------------" << '\n';
-  return exploitability;
-}
+  // Match wasm-postflop: exploitability in chips = (oop_ev + ip_ev) * 0.5
+  // Convert to percentage of starting pot for display
+  // Clamp to 0 to handle numerical precision issues (like wasm-postflop web app does)
+  float exploitability_chips = std::max(0.0f, (oop_ev + ip_ev) * 0.5f);
+  float exploitability_pct = exploitability_chips / init_pot * 100.0f;
 
-auto BestResponse::get_unblocked_combo_counts(
-    const std::vector<PreflopCombo> &hero_combos,
-    const std::vector<PreflopCombo> &villain_combos,
-    const std::vector<Card> &board) -> std::vector<float> {
-  std::vector<float> combo_counts(hero_combos.size());
-  const uint64_t board_mask = CardUtility::board_to_mask(board);
-
-  for (int hero_hand = 0; hero_hand < hero_combos.size(); ++hero_hand) {
-    const PreflopCombo &combo{hero_combos[hero_hand]};
-
-    if (CardUtility::overlap_mask(combo, board_mask))
-      continue;
-
-    float sum{0};
-    for (const auto &villain_combo : villain_combos) {
-      if (!CardUtility::overlap(combo, villain_combo) &&
-          !CardUtility::overlap_mask(villain_combo, board_mask)) {
-        sum += villain_combo.probability;
-      }
-    }
-    combo_counts[hero_hand] = sum;
-  }
-  return combo_counts;
+  return exploitability_pct;
 }
 
 auto BestResponse::best_response(Node *node,
@@ -179,45 +176,77 @@ auto BestResponse::action_best_response(
 auto BestResponse::chance_best_response(
     ChanceNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
-  std::vector<float> preflop_combo_evs(m_num_hero_hands);
-  int cards_processed = 0;
+  // BestResponse does NOT use isomorphism shortcuts - processes ALL cards
+  // to ensure ground truth exploitability calculation
+  const uint64_t board_mask = CardUtility::board_to_mask(board);
+  const auto& iso_data = node->get_isomorphism_data();
 
-  // Allocate once outside loop, reuse
+  // Count total valid cards (representatives + isomorphic) for chance_factor
+  int num_rep_cards = 0;
+  for (int card = 0; card < 52; ++card) {
+    if (!((1ULL << card) & board_mask) && node->get_child(card)) {
+      num_rep_cards++;
+    }
+  }
+  const int num_iso_cards = static_cast<int>(iso_data.isomorphism_card.size());
+  const int chance_factor = num_rep_cards + num_iso_cards;
+  const float reach_scale = 1.0f / static_cast<float>(chance_factor);
+
+  std::vector<float> preflop_combo_evs(m_num_hero_hands, 0.0f);
   std::vector<float> new_villain_reach_probs(m_num_villain_hands);
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
+  // Process ALL valid cards (not just representatives)
   for (int card = 0; card < 52; ++card) {
-    auto child = node->get_child(card);
-
-    if (!child)
+    if ((1ULL << card) & board_mask)
       continue;
 
-    cards_processed++;
+    // Find the child node - either direct (representative) or via isomorphism
+    Node* child = node->get_child(card);
+    bool is_isomorphic = (child == nullptr);
 
-    // Reuse board vector
+    if (is_isomorphic) {
+      // This is an isomorphic card - find its representative
+      int suit = card & 3;
+      int rank = card >> 2;
+
+      // Find which suit this maps to by checking lower suits
+      for (int rep_suit = 0; rep_suit < suit; ++rep_suit) {
+        int rep_card = (rank << 2) | rep_suit;
+        if (node->get_child(rep_card)) {
+          child = node->get_child(rep_card);
+          break;
+        }
+      }
+
+      if (!child) continue;  // Should not happen if isomorphism is correct
+    }
+
+    // Use the actual card for board extension and blocking
     new_board.resize(board.size());
     new_board.push_back(card);
 
-    // Reuse reach probs vector - clear and refill
     std::fill(new_villain_reach_probs.begin(), new_villain_reach_probs.end(), 0.0f);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card)) {
-        new_villain_reach_probs[hand] = villain_reach_probs[hand];
+        new_villain_reach_probs[hand] = villain_reach_probs[hand] * reach_scale;
       }
     }
 
     std::vector<float> subgame_evs{
         best_response(child, new_villain_reach_probs, new_board)};
 
+    // If this is an isomorphic card, apply swap to transform results
+    if (is_isomorphic) {
+      int suit = card & 3;
+      const auto& swap_list = iso_data.swap_list[suit][m_hero - 1];
+      IsomorphismComputer::apply_swap(subgame_evs, swap_list);
+    }
+
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
       preflop_combo_evs[hand] += subgame_evs[hand];
     }
-  }
-
-  // Divide by actual cards processed (not num_children which may differ)
-  for (int hand = 0; hand < m_num_hero_hands; ++hand) {
-    preflop_combo_evs[hand] /= static_cast<float>(cards_processed);
   }
 
   return preflop_combo_evs;
@@ -242,7 +271,7 @@ auto BestResponse::all_in_best_response(
     return show_down_best_response(node, villain_reach_probs, board);
   }
 
-  std::vector<float> preflop_combo_evs(m_num_hero_hands);
+  std::vector<float> preflop_combo_evs(m_num_hero_hands, 0.0f);
   const uint64_t board_mask = CardUtility::board_to_mask(board);
 
   // Allocate once outside loop, reuse
@@ -250,7 +279,13 @@ auto BestResponse::all_in_best_response(
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
-  const float normalizing_sum{static_cast<float>(52 - 2 - 2 - board.size())};
+  // Count number of valid runout cards (chance_factor)
+  int chance_factor = 0;
+  for (int card = 0; card < 52; ++card) {
+    const uint64_t card_mask = 1ULL << card;
+    if (!(card_mask & board_mask)) chance_factor++;
+  }
+  const float reach_scale = 1.0f / static_cast<float>(chance_factor);
 
   for (int card = 0; card < 52; ++card) {
     const uint64_t card_mask = 1ULL << card;
@@ -261,18 +296,20 @@ auto BestResponse::all_in_best_response(
     new_board.resize(board.size());
     new_board.push_back(card);
 
-    // Reuse reach probs vector - clear and refill
+    // Scale opponent reach by 1/chance_factor (like wasm-postflop)
     std::fill(new_villain_reach_probs.begin(), new_villain_reach_probs.end(), 0.0f);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card))
-        new_villain_reach_probs[hand] = villain_reach_probs[hand];
+        new_villain_reach_probs[hand] = villain_reach_probs[hand] * reach_scale;
     }
 
     const auto subgame_evs{
         all_in_best_response(node, new_villain_reach_probs, new_board)};
 
-    for (int hand = 0; hand < m_num_hero_hands; ++hand)
-      preflop_combo_evs[hand] += subgame_evs[hand] / normalizing_sum;
+    // Sum EVs across all runout cards
+    for (int hand = 0; hand < m_num_hero_hands; ++hand) {
+      preflop_combo_evs[hand] += subgame_evs[hand];
+    }
   }
 
   return preflop_combo_evs;
@@ -288,9 +325,9 @@ auto BestResponse::show_down_best_response(
 
   std::vector<float> utils(m_num_hero_hands);
 
-  float win_sum{0.0};
+  float win_sum{0.0f};
   const float value{static_cast<float>(node->get_pot() / 2.0)};
-  std::vector<float> card_win_sum(52);
+  std::array<float, 52> card_win_sum{};
 
   int j{0};
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
@@ -299,11 +336,10 @@ auto BestResponse::show_down_best_response(
     while (j < villain_river_combos.size() &&
            hero_combo.rank > villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
-      win_sum += villain_reach_probs[villain_combo.reach_probs_index];
-      card_win_sum[villain_combo.hand1] +=
-          villain_reach_probs[villain_combo.reach_probs_index];
-      card_win_sum[villain_combo.hand2] +=
-          villain_reach_probs[villain_combo.reach_probs_index];
+      const float reach = villain_reach_probs[villain_combo.reach_probs_index];
+      win_sum += reach;
+      card_win_sum[villain_combo.hand1] += reach;
+      card_win_sum[villain_combo.hand2] += reach;
       j++;
     }
 
@@ -312,20 +348,18 @@ auto BestResponse::show_down_best_response(
                  card_win_sum[hero_combo.hand2]);
   }
 
-  float lose_sum{0.0};
-  std::vector<float> card_lose_sum(52);
+  float lose_sum{0.0f};
+  std::array<float, 52> card_lose_sum{};
   j = static_cast<int>(villain_river_combos.size()) - 1;
   for (int i{static_cast<int>(hero_river_combos.size()) - 1}; i >= 0; i--) {
     const auto &hero_combo{hero_river_combos[i]};
 
     while (j >= 0 && hero_combo.rank < villain_river_combos[j].rank) {
       const auto &villain_combo{villain_river_combos[j]};
-
-      lose_sum += villain_reach_probs[villain_combo.reach_probs_index];
-      card_lose_sum[villain_combo.hand1] +=
-          villain_reach_probs[villain_combo.reach_probs_index];
-      card_lose_sum[villain_combo.hand2] +=
-          villain_reach_probs[villain_combo.reach_probs_index];
+      const float reach = villain_reach_probs[villain_combo.reach_probs_index];
+      lose_sum += reach;
+      card_lose_sum[villain_combo.hand1] += reach;
+      card_lose_sum[villain_combo.hand2] += reach;
       j--;
     }
 
@@ -340,20 +374,18 @@ auto BestResponse::show_down_best_response(
 auto BestResponse::uncontested_best_response(
     TerminalNode *node, const std::vector<float> &villain_reach_pr,
     const std::vector<Card> &board) -> std::vector<float> {
-  float villain_reach_sum{0.0};
-  std::vector<float> sum_with_card(52);
+  float villain_reach_sum{0.0f};
+  std::array<float, 52> sum_with_card{};
   const uint64_t board_mask = CardUtility::board_to_mask(board);
 
   for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
     if (CardUtility::overlap_mask(m_villain_preflop_combos[hand], board_mask))
       continue;
 
-    sum_with_card[m_villain_preflop_combos[hand].hand1] +=
-        villain_reach_pr[hand];
-    sum_with_card[m_villain_preflop_combos[hand].hand2] +=
-        villain_reach_pr[hand];
-
-    villain_reach_sum += villain_reach_pr[hand];
+    const float reach = villain_reach_pr[hand];
+    sum_with_card[m_villain_preflop_combos[hand].hand1] += reach;
+    sum_with_card[m_villain_preflop_combos[hand].hand2] += reach;
+    villain_reach_sum += reach;
   }
 
   const float value = (m_hero == node->get_last_to_act())

@@ -33,7 +33,14 @@ void CardButton::setStrategySelected(bool sel) {
 void CardButton::setStrategyColors(const std::vector<std::pair<Fl_Color, float>> &colors) {
   m_strategy_colors = colors;
   m_strategy_sel = false;
+  m_strategy_mode = true;  // Mark that we're in strategy display mode
   // Don't call redraw() here - let parent batch the redraw
+}
+
+void CardButton::clearStrategyMode() {
+  m_strategy_colors.clear();
+  m_strategy_sel = false;
+  m_strategy_mode = false;
 }
 
 void CardButton::draw() {
@@ -60,16 +67,22 @@ void CardButton::draw() {
   }
 
   // Draw label on top
-  fl_color(labelcolor());
+  // Use dimmed text color for cards not in range (only on strategy page)
+  if (m_strategy_mode && m_strategy_colors.empty()) {
+    fl_color(fl_rgb_color(140, 140, 140));  // Dimmed gray text for out-of-range
+  } else {
+    fl_color(labelcolor());
+  }
   fl_font(labelfont(), labelsize());
   fl_draw(label(), x, y, w, h, FL_ALIGN_CENTER);
 
   // Draw border if this hand is selected (strategy page)
   if (m_strategy_sel) {
     fl_color(FL_BLACK);
-    fl_line_style(FL_SOLID, 3);
-    fl_rect(x, y, w, h);
-    fl_line_style(0);
+    int thick = 3;  // Line thickness
+    for (int t = 0; t < thick; ++t) {
+      fl_rect(x + t, y + t, w - 2 * t, h - 2 * t);
+    }
   }
 }
 
