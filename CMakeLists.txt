@@ -23,8 +23,7 @@ if(APPLE OR UNIX)
     execute_process(COMMAND brew --prefix OUTPUT_VARIABLE BREW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
     set(FLTK_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk.a)
     set(FLTK_IMAGES_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_images.a)
-    set(FLTK_PNG_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_png.a)
-    set(FLTK_JPEG_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_jpeg.a)
+    # Note: fltk_png/fltk_jpeg are not built when using system PNG/JPEG (Homebrew default)
     set(TBB_STATIC_LIB ${BREW_PREFIX}/opt/tbb/lib/libtbb.a)
   else() # Linux
     set(FLTK_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk.a)
@@ -98,8 +97,6 @@ target_include_directories(shark PRIVATE
 if(APPLE)
   target_link_libraries(shark PRIVATE
     ${FLTK_IMAGES_STATIC_LIB}
-    ${FLTK_PNG_STATIC_LIB}
-    ${FLTK_JPEG_STATIC_LIB}
     ${FLTK_STATIC_LIB}
     ${TBB_STATIC_LIB}
     pheval
