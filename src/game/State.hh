@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "Action.hh"
 #include "Game.hh"
 #include "card.h"
@@ -50,12 +53,9 @@ struct GameState {
   int minimum_bet_size;
   int minimum_raise_size;
 
-  // Per-street aggressor tracking for donk bet removal
-  // -1 = no aggressor (checked through), 1/2 = player ID
   int flop_aggressor = -1;
   int turn_aggressor = -1;
 
-  // Raise counter for raise cap (reset each street)
   int street_raise_count = 0;
 
   GameState() = default;
@@ -117,7 +117,6 @@ struct GameState {
       current->commit_chips(action.amount);
       pot += action.amount;
       minimum_raise_size = action.amount;
-      // Track aggressor for donk bet removal
       if (street == Street::FLOP) flop_aggressor = current->_id;
       else if (street == Street::TURN) turn_aggressor = current->_id;
       reset_last_to_act();
@@ -130,10 +129,8 @@ struct GameState {
       const int raise_size = action.amount - get_max_bet();
       if (raise_size > minimum_raise_size)
         minimum_raise_size = raise_size;
-      // Track aggressor for donk bet removal
       if (street == Street::FLOP) flop_aggressor = current->_id;
       else if (street == Street::TURN) turn_aggressor = current->_id;
-      // Track raise count for raise cap
       ++street_raise_count;
       reset_last_to_act();
       break;
@@ -156,6 +153,6 @@ struct GameState {
     p2->reset_wager();
 
     minimum_raise_size = minimum_bet_size;
-    street_raise_count = 0;  // Reset raise counter for new street
+    street_raise_count = 0;
   }
 };

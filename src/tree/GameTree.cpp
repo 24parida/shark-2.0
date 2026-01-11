@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "GameTree.hh"
 #include "../Helper.hh"
 #include "../solver/Isomorphism.hh"
@@ -83,24 +86,22 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
       Action action{.type = i, .amount = amount};
       action_node = build_action(std::move(action_node), state, action);
     } else if (i == ActionType::BET) {
-      // Donk bet removal: OOP cannot lead if IP was aggressor (or checked through)
       if (m_settings.remove_donk_bets) {
         bool is_oop = !state.current->has_position;
         int ip_id = state.p1->has_position ? 1 : 2;
 
         if (state.street == Street::TURN && is_oop) {
           if (state.flop_aggressor == ip_id || state.flop_aggressor == -1) {
-            continue;  // Skip all bet sizes - OOP cannot donk
+            continue;
           }
         }
         if (state.street == Street::RIVER && is_oop) {
           if (state.turn_aggressor == ip_id || state.turn_aggressor == -1) {
-            continue;  // Skip all bet sizes - OOP cannot donk
+            continue;
           }
         }
       }
 
-      // Use per-street bet sizing
       const auto& street_cfg = m_settings.bet_sizing.for_street(state.street);
       for (const auto &size : street_cfg.bet_sizes) {
         int bet_amount{static_cast<int>(size * state.pot)};
@@ -119,17 +120,15 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
         action_node = build_action(std::move(action_node), state, action);
       }
     } else {
-      // Raise cap: after N raises, force all-in only
       if (m_settings.raise_cap >= 0 && state.street_raise_count >= m_settings.raise_cap) {
         int all_in = state.current->stack + state.current->wager;
-        if (all_in > state.get_max_bet()) {  // Can still raise
+        if (all_in > state.get_max_bet()) {
           const Action action{.type = i, .amount = all_in};
           action_node = build_action(std::move(action_node), state, action);
         }
-        continue;  // Skip normal raise sizes
+        continue;
       }
 
-      // Use per-street raise sizing
       const auto& street_cfg = m_settings.bet_sizing.for_street(state.street);
       for (const auto &size : street_cfg.raise_sizes) {
         int raise_amount{
@@ -174,31 +173,26 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
                                                      : ChanceType ::DEAL_RIVER};
   auto chance_node = std::make_unique<ChanceNode>(parent, type);
 
-  // Compute board mask for isomorphism
   uint64_t board_mask = 0;
   for (const auto& c : state.board) {
     board_mask |= (1ULL << int(c));
   }
 
-  // Compute isomorphism data
   IsomorphismData iso_data = IsomorphismComputer::compute(
       m_settings.range1.preflop_combos,
       m_settings.range2.preflop_combos,
       state.board,
       board_mask);
 
-  // Build skip mask from isomorphic cards
   uint64_t skip_mask = 0;
   for (int card : iso_data.isomorphism_card) {
     skip_mask |= (1ULL << card);
   }
 
-  // Build children only for representative cards (skip isomorphic cards)
   for (int i{0}; i < GameParams::NUM_CARDS; ++i) {
     Card card{i};
     uint64_t card_mask = 1ULL << i;
 
-    // Skip board cards and isomorphic cards
     if ((card_mask & board_mask) || (card_mask & skip_mask))
       continue;
 
@@ -214,7 +208,6 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
     chance_node->add_child(std::move(action_node), card);
   }
 
-  // Store isomorphism data in the chance node
   chance_node->set_isomorphism_data(std::move(iso_data));
 
   return chance_node;
@@ -292,24 +285,15 @@ auto GameTree::getTreeStats() const -> TreeStatistics {
 }
 
 size_t TreeStatistics::estimateMemoryBytes() const {
-  // DCFR storage per action node:
-  // - 2 bytes per (hand, action) for cumulative regret (int16_t)
-  // - 2 bytes per (hand, action) for cumulative strategy (int16_t)
-  // Assuming average 3 actions per node
   const int avg_actions_per_node = 3;
-  const int bytes_per_hand_action = 4;  // 2 for regret + 2 for strategy
+  const int bytes_per_hand_action = 4;
 
   size_t dcfr_bytes = 0;
 
-  // Estimate for each action node (player perspective matters)
-  // Simplified: each action node stores data for both players
   int max_hands = (p1_num_hands > p2_num_hands) ? p1_num_hands : p2_num_hands;
   dcfr_bytes = static_cast<size_t>(total_action_nodes) * max_hands * avg_actions_per_node * bytes_per_hand_action;
 
-  // Tree structure overhead (nodes, pointers, etc.)
-  // Rough estimate: 200 bytes per node
   size_t tree_structure_bytes = static_cast<size_t>(total_action_nodes + chance_nodes + terminal_nodes) * 200;
 
-  // Total with 20% overhead for misc data structures
   return static_cast<size_t>((dcfr_bytes + tree_structure_bytes) * 1.2);
 }

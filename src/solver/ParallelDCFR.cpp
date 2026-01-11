@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "Solver.hh"
 #include "hands/PreflopCombo.hh"
 #include "tree/Nodes.hh"
@@ -74,7 +77,6 @@ void ParallelDCFR::reset_cumulative_strategies(Node *const node) {
 
 void ParallelDCFR::train(Node *root, const int iterations,
                          const float min_exploit, ProgressCallback progress_cb) {
-  // Configure thread count: use m_thread_count if > 0, otherwise auto-detect
   int thread_count = (m_thread_count > 0) ? m_thread_count : std::thread::hardware_concurrency();
   tbb::global_control c{tbb::global_control::max_allowed_parallelism,
                         static_cast<size_t>(thread_count)};
@@ -88,7 +90,6 @@ void ParallelDCFR::train(Node *root, const int iterations,
   auto villain_reach_probs{m_prm.get_initial_reach_probs(2, m_init_board)};
 
   for (int i{1}; i <= iterations; ++i) {
-    // Precompute DCFR discount factors once per iteration
     DCFR::precompute_discounts(i);
 
     cfr(1, 2, root, i, hero_preflop_combos, villain_preflop_combos,
@@ -96,10 +97,9 @@ void ParallelDCFR::train(Node *root, const int iterations,
     cfr(2, 1, root, i, villain_preflop_combos, hero_preflop_combos,
         villain_reach_probs, hero_reach_probs);
 
-    // Compute exploitability and call progress callback
     float exploit = -1.0f;
     int exploit_interval = iterations / 5;
-    if (exploit_interval < 1) exploit_interval = 1;  // Avoid division by zero
+    if (exploit_interval < 1) exploit_interval = 1;
 
     if (i % exploit_interval == 0 && i != 0) {
       exploit = m_brm.get_exploitability(
@@ -112,7 +112,6 @@ void ParallelDCFR::train(Node *root, const int iterations,
       if (min_exploit > 0.0f && exploit < min_exploit)
         return;
     } else if (progress_cb) {
-      // Call progress callback even when not computing exploitability
       progress_cb(i, iterations, exploit);
     }
   }
@@ -124,7 +123,6 @@ void ParallelDCFR::cfr(const int hero, const int villain, Node *root,
                        std::vector<PreflopCombo> &villain_preflop_combos,
                        std::vector<float> &hero_reach_probs,
                        std::vector<float> &villain_reach_probs) {
-  // Use precomputed combo mapping based on which player is hero
   std::vector<int> &hero_to_villain = (hero == 1) ? m_p1_to_p2 : m_p2_to_p1;
 
   CFRHelper rec{root,

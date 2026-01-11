@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "DCFR.hh"
 #include "../tree/Nodes.hh"
 #include <cmath>
@@ -11,7 +14,6 @@ DCFR::DCFR(const ActionNode *node)
       m_num_actions(node->get_num_actions()), m_current(node->get_player()),
       m_cummulative_regret(m_num_hands * m_num_actions),
       m_regret_scale(1.0f), m_strategy_scale(1.0f) {
-  // Initialize strategy storage based on compression flag
   const size_t total_size = m_num_hands * m_num_actions;
   if (compress_strategy) {
     m_cummulative_strategy_i16.resize(total_size, 0);
@@ -45,7 +47,6 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
         }
       }
     } else {
-      // Float mode: direct access
       for (std::size_t action{0}; action < m_num_actions; ++action) {
         total += m_cummulative_strategy_f32[hand + action * m_num_hands];
       }
@@ -69,17 +70,13 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
 auto DCFR::get_current_strat() const -> std::vector<float> {
   std::vector<float> current_strategy(m_num_hands * m_num_actions);
 
-  // Decode regrets without discount (for strategy computation, use scale 1.0)
-  // We just need relative magnitudes for regret matching
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float positive_regret_sum{0.0};
 
-    // First pass: decode and compute sum of positive regrets
     thread_local std::vector<float> cached_regrets;
     cached_regrets.resize(m_num_actions);
 
     for (std::size_t action{0}; action < m_num_actions; ++action) {
-      // Decode without discount: compressed * scale / 32767
       int16_t compressed = m_cummulative_regret[hand + action * m_num_hands];
       float decoded = static_cast<float>(compressed) * m_regret_scale / 32767.0f;
       cached_regrets[action] = decoded;
@@ -180,20 +177,14 @@ void DCFR::get_current_strat(std::vector<float> &current_strategy) const {
   }
 }
 
-// wasm-postflop style DCFR regret update
-// 1. Decode old regrets with discount baked in
-// 2. Add instantaneous regrets (action_utils - value)
-// 3. Re-encode with new scale
 void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
                           const std::vector<float> &value,
                           int iteration) {
   const size_t total_size = m_num_hands * m_num_actions;
 
-  // Thread-local buffer for float regrets
   thread_local std::vector<float> new_regrets;
   new_regrets.resize(total_size);
 
-  // Debug output for tracked node
   bool is_debug = (m_node_id == debug_node_id && debug_node_id >= 0);
   if (is_debug) {
     int h = debug_hand;
@@ -205,9 +196,6 @@ void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
     std::cout << std::endl;
   }
 
-  // wasm-postflop style: decode with discount, add instantaneous regret
-  // alpha_decoder = alpha * scale / 32767
-  // beta_decoder = beta * scale / 32767
   float alpha_decoder = alpha * m_regret_scale / 32767.0f;
   float beta_decoder = beta * m_regret_scale / 32767.0f;
 
@@ -215,16 +203,13 @@ void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;
 
-      // Decode with discount baked in (wasm-postflop style)
       int16_t compressed = m_cummulative_regret[idx];
       float discount = (compressed >= 0) ? alpha_decoder : beta_decoder;
       float discounted_old = static_cast<float>(compressed) * discount;
 
-      // Add instantaneous regret
       float inst_regret = action_utils_flat[idx] - value[hand];
       new_regrets[idx] = discounted_old + inst_regret;
 
-      // Debug: show regret update for tracked hand
       if (is_debug && hand == debug_hand) {
         float old_decoded = static_cast<float>(compressed) * m_regret_scale / 32767.0f;
         std::cout << "    a" << action << ": inst_reg=" << inst_regret
@@ -234,14 +219,11 @@ void DCFR::update_regrets(const std::vector<float> &action_utils_flat,
     }
   }
 
-  // Re-encode all regrets and get new scale
   m_regret_scale = encode_signed_slice(m_cummulative_regret.data(), new_regrets.data(), total_size);
 }
 
-// Legacy functions (kept for compatibility)
 void DCFR::update_cum_regret_one(const std::vector<float> &action_utils,
                                  const int action_index) {
-  // Not used in new implementation
   (void)action_utils;
   (void)action_index;
 }
@@ -261,13 +243,11 @@ void DCFR::update_cum_regret_two(const std::vector<float> &utils,
 void DCFR::update_cum_strategy(const std::vector<float> &strategy,
                                const std::vector<float> &reach_probs,
                                const int iteration) {
-  // Use precomputed gamma from precompute_discounts()
   (void)iteration;
 
   const size_t total_size = m_num_hands * m_num_actions;
 
   if (compress_strategy) {
-    // int16 mode: decode, update, re-encode
     thread_local std::vector<float> new_strategy;
     new_strategy.resize(total_size);
 
@@ -284,7 +264,6 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
 
     m_strategy_scale = encode_signed_slice(m_cummulative_strategy_i16.data(), new_strategy.data(), total_size);
   } else {
-    // Float mode: direct update
     for (std::size_t action{0}; action < m_num_actions; ++action) {
       for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
         const std::size_t idx = hand + action * m_num_hands;

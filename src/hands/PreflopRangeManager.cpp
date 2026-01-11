@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "PreflopRangeManager.hh"
 #include "../Helper.hh"
 
@@ -7,7 +10,6 @@ auto PreflopRangeManager::get_initial_reach_probs(
   const auto preflop_combos{get_preflop_combos(player)};
   std::vector<float> reach_probs(preflop_combos.size());
 
-  // First pass: compute unnormalized reach and total
   float total = 0.0f;
   for (std::size_t i{0}; i < preflop_combos.size(); ++i) {
     if (CardUtility::overlap(preflop_combos[i], board)) {
@@ -18,7 +20,6 @@ auto PreflopRangeManager::get_initial_reach_probs(
     }
   }
 
-  // Normalize so reach probs sum to 1
   if (total > 0) {
     for (std::size_t i{0}; i < reach_probs.size(); ++i) {
       reach_probs[i] /= total;

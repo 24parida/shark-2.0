@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "Helper.hh"
 #include "Solver.hh"
 #include "Isomorphism.hh"
@@ -98,7 +101,6 @@ void CFRHelper::action_node_utility(
   const int num_actions{node->get_num_actions()};
   const int num_hands = (player == m_hero) ? m_num_hero_hands : m_num_villain_hands;
 
-  // Note: Can't use thread_local here due to recursive CFRHelper calls
   std::vector<float> strategy(num_hands * num_actions);
   node->get_trainer()->get_current_strat(strategy);
 
@@ -107,14 +109,9 @@ void CFRHelper::action_node_utility(
     return subgame_utils_flat[action * m_num_hero_hands + hand];
   };
 
-  // Note: Cannot use thread_local here because these buffers are passed by reference
-  // to recursive CFRHelper calls. If thread_local, the recursive call would overwrite
-  // the buffer that the outer call is still using.
-
   tbb::parallel_for(
       tbb::blocked_range<int>(0, num_actions),
       [&](const tbb::blocked_range<int> &r) {
-        // Local buffers per parallel task - each recursive call gets its own copy
         std::vector<float> hero_buffer(m_num_hero_hands);
         std::vector<float> villain_buffer(m_num_villain_hands);
 
@@ -164,19 +161,12 @@ void CFRHelper::action_node_utility(
 
   auto *trainer{node->get_trainer()};
   if (trainer->get_current() != m_hero) {
-    // Non-hero player: utilities are already strategy-weighted via reach probs
-    // Just sum them up (strategy weighting happened in the recursive call)
     for (std::size_t action{0}; action < num_actions; ++action) {
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += get_utils(action, hand);
       }
     }
   } else {
-    // Hero player: compute regrets using correct DCFR formula
-    // R_new = R_old * discount + instantaneous_regret
-    // The two-phase approach (R_new = (R_old + inst) * discount) is WRONG
-
-    // First compute counterfactual value (expected utility under current strategy)
     for (std::size_t action{0}; action < num_actions; ++action) {
       for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
         m_result[hand] += get_utils(action, hand) *
@@ -184,7 +174,6 @@ void CFRHelper::action_node_utility(
       }
     }
 
-    // Update regrets using correct formula: R = R_old * discount + (action_util - value)
     trainer->update_regrets(subgame_utils_flat, m_result, m_iteration_count);
     trainer->update_cum_strategy(strategy, hero_reach_pr, m_iteration_count);
   }
@@ -197,7 +186,6 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
   const uint64_t board_mask = CardUtility::board_to_mask(board);
   const auto& iso_data = node->get_isomorphism_data();
 
-  // Build list of representative cards (those with children in the tree)
   std::vector<int> rep_cards;
   rep_cards.reserve(52);
   for (int card = 0; card < 52; ++card) {
@@ -209,18 +197,15 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
   const int num_rep_cards = static_cast<int>(rep_cards.size());
   if (num_rep_cards == 0) return;
 
-  // chance_factor = total valid cards (representatives + isomorphic)
   const int num_iso_cards = static_cast<int>(iso_data.isomorphism_card.size());
   const int chance_factor = num_rep_cards + num_iso_cards;
   const float reach_scale = 1.0f / static_cast<float>(chance_factor);
 
-  // Allocate storage for representative card utilities
   std::vector<float> cfv_actions(num_rep_cards * m_num_hero_hands);
   auto get_utils = [&](int card_idx, int hand) -> float& {
     return cfv_actions[card_idx * m_num_hero_hands + hand];
   };
 
-  // Process representative cards in parallel
   tbb::parallel_for(
       tbb::blocked_range<int>(0, num_rep_cards),
       [&](const tbb::blocked_range<int> &r) {
@@ -269,10 +254,8 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
         }
       });
 
-  // Sum up CFV from representative cards (using f64 for precision like wasm-postflop)
   // VECTORIZED: GCC converts f32->f64 and accumulates using SSE2 packed doubles
   // Assembly: cvtps2pd %xmm0, %xmm0; addpd %xmm7, %xmm1; movupd %xmm1, -16(%rax)
-  // Processes 2 doubles per iteration (128-bit SSE registers)
   std::vector<double> result_f64(m_num_hero_hands, 0.0);
   for (int i = 0; i < num_rep_cards; ++i) {
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
@@ -280,29 +263,22 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
     }
   }
 
-  // Process isomorphic cards using swap-add-swap pattern (exactly like wasm-postflop)
-  // For each isomorphic card, get its representative's CFV, apply swap, add, swap back
   for (std::size_t i = 0; i < iso_data.isomorphism_ref.size(); ++i) {
     int iso_card = iso_data.isomorphism_card[i];
     int iso_suit = iso_card & 3;
     int rep_action_idx = iso_data.isomorphism_ref[i];
 
-    // Get swap list for this player (hero)
     const auto& swap_list = iso_data.swap_list[iso_suit][m_hero - 1];
 
-    // Get pointer to the representative's CFV row
     float* tmp = &cfv_actions[rep_action_idx * m_num_hero_hands];
 
-    // Apply swap (transforms from rep suit perspective to isomorphic suit perspective)
     IsomorphismComputer::apply_swap(tmp, m_num_hero_hands, swap_list);
 
-    // Add to result
     // VECTORIZED: Same as above - cvtps2pd + addpd for 2 doubles/iter
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
       result_f64[h] += static_cast<double>(tmp[h]);
     }
 
-    // Apply swap again to restore (swap is its own inverse)
     IsomorphismComputer::apply_swap(tmp, m_num_hero_hands, swap_list);
   }
 
@@ -407,7 +383,7 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
   }
 
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
-  std::vector<int> card_counts(m_num_hero_hands, 0);  // Count valid cards per hero hand
+  std::vector<int> card_counts(m_num_hero_hands, 0);
 
   for (int card = 0; card < 52; ++card) {
     if (CardUtility::overlap(card, board))
@@ -425,7 +401,6 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
     const auto subgame_evs{
         get_all_in_utils(node, new_villain_reach_probs, new_board)};
 
-    // Only add for hero hands that don't block this card
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
       if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
         preflop_combo_evs[hand] += subgame_evs[hand];
@@ -434,7 +409,6 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
     }
   }
 
-  // Normalize by actual number of valid cards per hero hand
   for (int hand = 0; hand < m_num_hero_hands; ++hand) {
     if (card_counts[hand] > 0) {
       preflop_combo_evs[hand] /= static_cast<float>(card_counts[hand]);

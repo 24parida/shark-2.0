@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "../hands/PreflopRangeManager.hh"
 #include "../hands/RiverRangeManager.hh"
 #include "../tree/Nodes.hh"
@@ -10,7 +13,6 @@
 #include <vector>
 #include <functional>
 
-// Progress callback: void callback(int current_iteration, int total_iterations, float exploitability)
 using ProgressCallback = std::function<void(int, int, float)>;
 
 class ParallelDCFR {
@@ -23,7 +25,6 @@ class ParallelDCFR {
   int m_in_position_player;
   int m_thread_count;
 
-  // Precomputed combo mappings to avoid O(N*M) search per iteration
   std::vector<int> m_p1_to_p2;
   std::vector<int> m_p2_to_p1;
 
@@ -65,7 +66,6 @@ class CFRHelper {
   RiverRangeManager &m_rrm;
   std::vector<int> &m_hero_to_villain;
 
-  // Precomputed combo index for card weights calculation
   std::array<std::array<int, 52>, 52> m_villain_combo_index;
   bool m_combo_index_initialized;
 

@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #include "BestResponse.hh"
 #include "../Helper.hh"
 #include "hands/PreflopCombo.hh"
@@ -21,8 +24,6 @@ float BestResponse::get_best_response_ev(
 
   const uint64_t board_mask = CardUtility::board_to_mask(board);
 
-  // Compute num_combinations like wasm-postflop:
-  // num_combinations = Σ(hero_weight * villain_weight) for all non-overlapping pairs
   double num_combinations = 0.0;
   for (int h = 0; h < m_num_hero_hands; ++h) {
     if (CardUtility::overlap_mask(hero_combos[h], board_mask))
@@ -40,18 +41,14 @@ float BestResponse::get_best_response_ev(
   auto preflop_combo_evs{best_response(
       node, m_prm.get_initial_reach_probs(villain, board), board)};
 
-  // Compute EV like wasm-postflop: weighted_sum(CFV, hero_reach) / num_combinations
-  // CFV already contains sum of (opponent_reach * payoff) from terminal evaluation
   double weighted_cfv_sum = 0.0;
   for (int i = 0; i < m_num_hero_hands; ++i) {
     if (!CardUtility::overlap_mask(hero_combos[i], board_mask)) {
-      // weighted_sum: CFV[i] * hero_reach[i]
       weighted_cfv_sum += static_cast<double>(preflop_combo_evs[i]) *
                           static_cast<double>(hero_combos[i].probability);
     }
   }
 
-  // Divide by num_combinations (like wasm divides payoffs by num_combinations in evaluate)
   float ev = static_cast<float>(weighted_cfv_sum / num_combinations);
 
   return ev;
@@ -101,9 +98,6 @@ float BestResponse::get_exploitability(Node *node, int iteration_count,
   float ip_ev{get_best_response_ev(node, p2, p1, p2_combos, p1_combos, board,
                                    p2_to_p1)};
 
-  // Match wasm-postflop: exploitability in chips = (oop_ev + ip_ev) * 0.5
-  // Convert to percentage of starting pot for display
-  // Clamp to 0 to handle numerical precision issues (like wasm-postflop web app does)
   float exploitability_chips = std::max(0.0f, (oop_ev + ip_ev) * 0.5f);
   float exploitability_pct = exploitability_chips / init_pot * 100.0f;
 
@@ -125,7 +119,6 @@ auto BestResponse::best_response(Node *node,
     return terminal_best_response(static_cast<TerminalNode *>(node),
                                   villain_reach_probs, board);
   }
-  // Should never reach here - all node types handled above
   return std::vector<float>(m_num_hero_hands, 0.0f);
 }
 
@@ -151,11 +144,9 @@ auto BestResponse::action_best_response(
     std::vector<float> avg_strat(m_num_villain_hands * node->get_num_actions());
     node->get_trainer()->get_average_strat(avg_strat);
 
-    // Allocate once outside loop, reuse
     std::vector<float> new_villain_reach_probs(m_num_villain_hands);
 
     for (int action = 0; action < node->get_num_actions(); ++action) {
-      // Reuse vector - just overwrite values
       for (int hand = 0; hand < m_num_villain_hands; ++hand) {
         new_villain_reach_probs[hand] =
             avg_strat[hand + action * m_num_villain_hands] *
@@ -176,12 +167,9 @@ auto BestResponse::action_best_response(
 auto BestResponse::chance_best_response(
     ChanceNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
-  // BestResponse does NOT use isomorphism shortcuts - processes ALL cards
-  // to ensure ground truth exploitability calculation
   const uint64_t board_mask = CardUtility::board_to_mask(board);
   const auto& iso_data = node->get_isomorphism_data();
 
-  // Count total valid cards (representatives + isomorphic) for chance_factor
   int num_rep_cards = 0;
   for (int card = 0; card < 52; ++card) {
     if (!((1ULL << card) & board_mask) && node->get_child(card)) {
@@ -197,21 +185,17 @@ auto BestResponse::chance_best_response(
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
-  // Process ALL valid cards (not just representatives)
   for (int card = 0; card < 52; ++card) {
     if ((1ULL << card) & board_mask)
       continue;
 
-    // Find the child node - either direct (representative) or via isomorphism
     Node* child = node->get_child(card);
     bool is_isomorphic = (child == nullptr);
 
     if (is_isomorphic) {
-      // This is an isomorphic card - find its representative
       int suit = card & 3;
       int rank = card >> 2;
 
-      // Find which suit this maps to by checking lower suits
       for (int rep_suit = 0; rep_suit < suit; ++rep_suit) {
         int rep_card = (rank << 2) | rep_suit;
         if (node->get_child(rep_card)) {
@@ -220,10 +204,9 @@ auto BestResponse::chance_best_response(
         }
       }
 
-      if (!child) continue;  // Should not happen if isomorphism is correct
+      if (!child) continue;
     }
 
-    // Use the actual card for board extension and blocking
     new_board.resize(board.size());
     new_board.push_back(card);
 
@@ -237,7 +220,6 @@ auto BestResponse::chance_best_response(
     std::vector<float> subgame_evs{
         best_response(child, new_villain_reach_probs, new_board)};
 
-    // If this is an isomorphic card, apply swap to transform results
     if (is_isomorphic) {
       int suit = card & 3;
       const auto& swap_list = iso_data.swap_list[suit][m_hero - 1];
@@ -274,12 +256,10 @@ auto BestResponse::all_in_best_response(
   std::vector<float> preflop_combo_evs(m_num_hero_hands, 0.0f);
   const uint64_t board_mask = CardUtility::board_to_mask(board);
 
-  // Allocate once outside loop, reuse
   std::vector<float> new_villain_reach_probs(m_num_villain_hands);
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
-  // Count number of valid runout cards (chance_factor)
   int chance_factor = 0;
   for (int card = 0; card < 52; ++card) {
     const uint64_t card_mask = 1ULL << card;
@@ -292,11 +272,9 @@ auto BestResponse::all_in_best_response(
     if (card_mask & board_mask)
       continue;
 
-    // Reuse board vector
     new_board.resize(board.size());
     new_board.push_back(card);
 
-    // Scale opponent reach by 1/chance_factor (like wasm-postflop)
     std::fill(new_villain_reach_probs.begin(), new_villain_reach_probs.end(), 0.0f);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card))
@@ -306,7 +284,6 @@ auto BestResponse::all_in_best_response(
     const auto subgame_evs{
         all_in_best_response(node, new_villain_reach_probs, new_board)};
 
-    // Sum EVs across all runout cards
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
       preflop_combo_evs[hand] += subgame_evs[hand];
     }

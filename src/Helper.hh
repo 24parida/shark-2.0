@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #pragma once
 #include "hands/PreflopCombo.hh"
 #include "phevaluator.h"
@@ -38,13 +41,11 @@ inline bool overlap(const PreflopCombo &combo1, const PreflopCombo &combo2) {
           combo1.hand2 == combo2.hand1 || combo1.hand2 == combo2.hand2);
 }
 
-// Fast overlap check using precomputed board mask
 inline bool overlap_mask(const PreflopCombo &combo, uint64_t board_mask) {
   uint64_t combo_mask = (1ULL << int(combo.hand1)) | (1ULL << int(combo.hand2));
   return (combo_mask & board_mask) != 0;
 }
 
-// this sucks
 inline int board_to_key(const std::vector<Card> &board) {
   assert((board.size() >= 3 && board.size() <= 5) &&
          "CardUtility: board_to_key incorrect board size");

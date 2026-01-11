@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #pragma once
 
 #include <string>
@@ -17,20 +20,18 @@ public:
   auto describeCard() const -> std::string;
   auto get_card() const -> int { return m_card; }
 
-  // Add rank and suit accessors with bounds checking
-  auto get_rank() const -> int { 
+  auto get_rank() const -> int {
     int rank = m_card / 4;
     assert(rank >= 0 && rank < 13 && "Invalid card rank");
     return rank;
   }
-  
-  auto get_suit() const -> int { 
+
+  auto get_suit() const -> int {
     int suit = m_card % 4;
     assert(suit >= 0 && suit < 4 && "Invalid card suit");
     return suit;
   }
 
-  // Character-based accessors
   auto describeRank() const -> char {
     static const char RANKS[] = "23456789TJQKA";
     int rank = get_rank();

@@ -1,3 +1,6 @@
+// --------------------------------
+// Created by Anubhav Parida.
+// --------------------------------
 #pragma once
 #include "../game/Action.hh"
 #include "../trainer/DCFR.hh"
@@ -23,7 +26,6 @@ public:
   virtual ~Node() = default;
 };
 
-// Action Node
 class ActionNode : public Node {
   std::vector<Action> m_actions;
   std::vector<std::unique_ptr<Node>> m_children;
@@ -78,15 +80,13 @@ public:
   }
 };
 
-// Chance Node
 class ChanceNode : public Node {
 public:
   enum ChanceType { DEAL_TURN, DEAL_RIVER };
 
 private:
-  // Compact storage: only allocate for actual children
   std::vector<std::unique_ptr<Node>> m_children;
-  std::array<int8_t, 52> m_card_to_index;  // card -> index in m_children (-1 if none)
+  std::array<int8_t, 52> m_card_to_index;
   ChanceType m_type;
   IsomorphismData m_iso_data;
 
@@ -111,11 +111,9 @@ public:
   }
   auto get_node_type() const -> NodeType { return m_node_type; }
 
-  // Iterator access for efficient traversal
   auto begin() const { return m_children.begin(); }
   auto end() const { return m_children.end(); }
 
-  // Get card for a given child index (for iteration)
   auto get_card_at_index(size_t idx) const -> int {
     for (int c = 0; c < 52; ++c) {
       if (m_card_to_index[c] == static_cast<int8_t>(idx)) return c;
@@ -124,7 +122,6 @@ public:
   }
 };
 
-// Terminal Node
 class TerminalNode : public Node {
 public:
   enum TerminalType { ALLIN, UNCONTESTED, SHOWDOWN };
