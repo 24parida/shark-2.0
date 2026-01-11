@@ -25,6 +25,8 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
     }
 
     if (total > 0) {
+      // VECTORIZED: GCC emits divps (packed divide) processing 4 floats/iter
+      // Assembly: divps %xmm1, %xmm0; movups %xmm0, (%rax)
       for (std::size_t action{0}; action < m_num_actions; ++action) {
         average_strategy[hand + action * m_num_hands] =
             m_cummulative_strategy[hand + action * m_num_hands] / total;
@@ -88,6 +90,8 @@ void DCFR::get_average_strat(std::vector<float> &average_strategy) const {
     }
 
     if (total > 0) {
+      // VECTORIZED: GCC emits divps (packed divide) processing 4 floats/iter
+      // Assembly: divps %xmm1, %xmm0; movups %xmm0, (%rax)
       for (std::size_t action{0}; action < m_num_actions; ++action) {
         average_strategy[hand + action * m_num_hands] =
             m_cummulative_strategy[hand + action * m_num_hands] / total;
@@ -217,6 +221,8 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
   // Use precomputed gamma from precompute_discounts()
   (void)iteration;
 
+  // VECTORIZED: GCC emits mulps+addps (fused multiply-add pattern) for 4 floats/iter
+  // Assembly: mulps %xmm2, %xmm0; mulps %xmm1, %xmm3; addps %xmm3, %xmm0; movups %xmm0, (%rax)
   for (std::size_t action{0}; action < m_num_actions; ++action) {
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;
@@ -230,6 +236,8 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
 void DCFR::update_cum_strategy(const std::vector<float> &strategy,
                                const std::vector<float> &reach_probs,
                                const float discount_factor) {
+  // VECTORIZED: GCC emits mulps+addps (fused multiply-add pattern) for 4 floats/iter
+  // Assembly: mulps %xmm2, %xmm0; mulps %xmm1, %xmm3; addps %xmm3, %xmm0; movups %xmm0, (%rax)
   for (std::size_t action{0}; action < m_num_actions; ++action) {
     for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
       const std::size_t idx = hand + action * m_num_hands;

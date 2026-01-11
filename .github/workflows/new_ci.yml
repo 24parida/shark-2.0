@@ -6,8 +6,51 @@ on:
       - 'v*'
 
 jobs:
-  build-mac:
-    name: Build on macOS
+  build-mac-intel:
+    name: Build on macOS (Intel)
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install dependencies (macOS)
+        run: |
+          brew update
+          brew install fltk tbb cmake
+
+      - name: Configure & build
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+          cmake --build build --config Release --parallel "$(sysctl -n hw.logicalcpu)"
+
+      - name: Make binary executable
+        run: chmod +x build/shark
+
+      - name: Create macOS launcher script
+        run: |
+          cp build/shark build/shark.command
+          chmod +x build/shark.command
+
+      - name: Package macOS build
+        run: |
+          cd build
+          tar czf shark-macos-intel.tar.gz shark shark.command
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-macos-intel
+          path: build/shark-macos-intel.tar.gz
+
+  build-mac-arm:
+    name: Build on macOS (Apple Silicon)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -41,13 +84,13 @@ jobs:
       - name: Package macOS build
         run: |
           cd build
-          tar czf shark-macos.tar.gz shark shark.command
+          tar czf shark-macos-arm.tar.gz shark shark.command
 
-      - name: Upload macOS artifact
+      - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shark-macos
-          path: build/shark-macos.tar.gz
+          name: shark-macos-arm
+          path: build/shark-macos-arm.tar.gz
 
   build-win:
     name: Build on Windows (MinGW)
@@ -134,14 +177,20 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [build-mac, build-win]
+    needs: [build-mac-intel, build-mac-arm, build-win]
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS artifact
+      - name: Download macOS Intel artifact
         uses: actions/download-artifact@v4
         with:
-          name: shark-macos
-          path: ./mac
+          name: shark-macos-intel
+          path: ./mac-intel
+
+      - name: Download macOS ARM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shark-macos-arm
+          path: ./mac-arm
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -160,14 +209,24 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload macOS tarball to release
+      - name: Upload macOS Intel tarball to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./mac/shark-macos.tar.gz
-          asset_name: shark-macos.tar.gz
+          asset_path: ./mac-intel/shark-macos-intel.tar.gz
+          asset_name: shark-macos-intel.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload macOS ARM tarball to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./mac-arm/shark-macos-arm.tar.gz
+          asset_name: shark-macos-arm.tar.gz
           asset_content_type: application/gzip
 
       - name: Upload Windows ZIP to release

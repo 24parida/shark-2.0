@@ -121,17 +121,22 @@ void CFRHelper::action_node_utility(
         for (auto i = r.begin(); i < r.end(); ++i) {
           if (player == m_hero) {
             // Weight hero reach by strategy for cumulative strategy updates at child nodes
+            // VECTORIZED: GCC emits SSE packed multiply (mulps xmm0, xmm1) processing 4 floats/iter
+            // Assembly: movups (%r13,%rcx), %xmm6; mulps %xmm6, %xmm0; movups %xmm0, (%rdi,%rcx)
             for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
               hero_buffer[hand] =
                   strategy[hand + i * m_num_hero_hands] * hero_reach_pr[hand];
             }
+            // VECTORIZED: Simple copy uses movups (16-byte unaligned move)
             for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
               villain_buffer[hand] = villain_reach_pr[hand];
             }
           } else {
+            // VECTORIZED: Simple copy uses movups (16-byte unaligned move)
             for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
               hero_buffer[hand] = hero_reach_pr[hand];
             }
+            // VECTORIZED: GCC emits SSE packed multiply (mulps) processing 4 floats/iter
             for (std::size_t hand{0}; hand < m_num_villain_hands; ++hand) {
               villain_buffer[hand] =
                   strategy[hand + i * m_num_villain_hands] *
@@ -265,6 +270,9 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
       });
 
   // Sum up CFV from representative cards (using f64 for precision like wasm-postflop)
+  // VECTORIZED: GCC converts f32->f64 and accumulates using SSE2 packed doubles
+  // Assembly: cvtps2pd %xmm0, %xmm0; addpd %xmm7, %xmm1; movupd %xmm1, -16(%rax)
+  // Processes 2 doubles per iteration (128-bit SSE registers)
   std::vector<double> result_f64(m_num_hero_hands, 0.0);
   for (int i = 0; i < num_rep_cards; ++i) {
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
@@ -289,6 +297,7 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
     IsomorphismComputer::apply_swap(tmp, m_num_hero_hands, swap_list);
 
     // Add to result
+    // VECTORIZED: Same as above - cvtps2pd + addpd for 2 doubles/iter
     for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
       result_f64[h] += static_cast<double>(tmp[h]);
     }
@@ -298,6 +307,8 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
   }
 
   // Convert back to f32
+  // VECTORIZED: GCC emits cvtpd2ps (packed double to single) + movups
+  // Assembly: cvtpd2ps %xmm0, %xmm0; movlps %xmm0, (%rax)
   for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
     m_result[h] = static_cast<float>(result_f64[h]);
   }
@@ -448,6 +459,12 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   const float value{static_cast<float>(node->get_pot() / 2.0)};
   std::array<float, 52> card_win_sum{};
 
+  // Two-pointer showdown algorithm (NOT VECTORIZED)
+  // Cannot vectorize because:
+  //   1. Variable array indices: card_win_sum[villain_combo.hand1] requires scatter/gather
+  //   2. Data-dependent loop bounds: while(hero.rank > villain.rank) is sequential
+  // This is the same algorithm as wasm-postflop - O(n+m) optimal complexity
+  // Assembly: scalar movss/addss operations (single float at a time)
   int j{0};
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
     const auto &hero_combo{hero_river_combos[i]};

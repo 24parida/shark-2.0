@@ -54,8 +54,28 @@ file(GLOB_RECURSE POKER_GUI_SRCS
   src/tree/*.cpp
 )
 
-# 6. Executable
-add_executable(shark WIN32 ${POKER_GUI_SRCS})
+# 6. Executable (with platform-specific icon resources)
+if(WIN32)
+  set(PLATFORM_RESOURCES gui/shark.rc)
+elseif(APPLE)
+  set(MACOSX_BUNDLE_ICON_FILE generated_logo.icns)
+  set(APP_ICON ${CMAKE_SOURCE_DIR}/icons/generated_logo.icns)
+  set_source_files_properties(${APP_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+  set(PLATFORM_RESOURCES ${APP_ICON})
+endif()
+
+if(APPLE)
+  add_executable(shark MACOSX_BUNDLE ${POKER_GUI_SRCS} ${PLATFORM_RESOURCES})
+  set_target_properties(shark PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME "Shark Poker Solver"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.shark.pokersolver"
+    MACOSX_BUNDLE_ICON_FILE "generated_logo.icns"
+  )
+elseif(WIN32)
+  add_executable(shark WIN32 ${POKER_GUI_SRCS} ${PLATFORM_RESOURCES})
+else()
+  add_executable(shark ${POKER_GUI_SRCS})
+endif()
 
 # 7. Include paths
 target_include_directories(shark PRIVATE
@@ -85,6 +105,7 @@ elseif(UNIX)
     m pthread dl
   )
 else()
+  # Windows
   target_link_libraries(shark PRIVATE
     ${FLTK_LIBRARIES}
     TBB::tbb
