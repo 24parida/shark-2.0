@@ -2,6 +2,11 @@
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
 #include <FL/fl_ask.H>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -1128,6 +1133,14 @@ private:
     // Enable the window's title bar
     border(1);
 
+#ifdef _WIN32
+    // Load icon from resources and set as window title bar icon
+    HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(1));
+    if (hIcon) {
+      icon(hIcon);
+    }
+#endif
+
     // Create page components
     m_pg1 = new Page1_Settings(0, 0, new_w, new_h);
     m_pg1->setNextCallback(cb1Next, this);
@@ -1166,9 +1179,21 @@ private:
 };
 
 int main(int argc, char **argv) {
+  // Set platform-specific fonts for a modern, native look
+#ifdef _WIN32
+  Fl::set_font(FL_HELVETICA, "Segoe UI");
+  Fl::set_font(FL_HELVETICA_BOLD, "Segoe UI Bold");
+#elif defined(__APPLE__)
+  Fl::set_font(FL_HELVETICA, "Helvetica Neue");
+  Fl::set_font(FL_HELVETICA_BOLD, "Helvetica Neue Bold");
+#else
+  Fl::set_font(FL_HELVETICA, "DejaVu Sans");
+  Fl::set_font(FL_HELVETICA_BOLD, "DejaVu Sans Bold");
+#endif
+
   fl_message_font(FL_HELVETICA, FL_NORMAL_SIZE * 2);
   fl_message_hotspot(1);
-  Wizard wiz("Shark Poker Solver");
+  Wizard wiz("Shark 2.0");
   wiz.show(argc, argv);
   return Fl::run();
 }

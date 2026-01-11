@@ -67,7 +67,7 @@ endif()
 if(APPLE)
   add_executable(shark MACOSX_BUNDLE ${POKER_GUI_SRCS} ${PLATFORM_RESOURCES})
   set_target_properties(shark PROPERTIES
-    MACOSX_BUNDLE_BUNDLE_NAME "Shark Poker Solver"
+    MACOSX_BUNDLE_BUNDLE_NAME "Shark 2.0"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.shark.pokersolver"
     MACOSX_BUNDLE_ICON_FILE "generated_logo.icns"
   )
