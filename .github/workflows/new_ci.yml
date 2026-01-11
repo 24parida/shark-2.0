@@ -28,7 +28,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          cmake --build build --config Release --parallel "$(sysctl -n hw.logicalcpu)"
+          cmake --build build --config Release --target shark --parallel "$(sysctl -n hw.logicalcpu)"
 
       - name: Make binary executable
         run: chmod +x build/shark
@@ -71,7 +71,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
-          cmake --build build --config Release --parallel "$(sysctl -n hw.logicalcpu)"
+          cmake --build build --config Release --target shark --parallel "$(sysctl -n hw.logicalcpu)"
 
       - name: Make binary executable
         run: chmod +x build/shark
@@ -127,7 +127,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-O3 -ffast-math -s"
-          mingw32-make -j$(nproc)
+          mingw32-make shark -j$(nproc)
 
       - name: Copy required DLLs
         shell: msys2 {0}
@@ -145,35 +145,29 @@ jobs:
             [ -f "$lib" ] && cp -u -v "$lib" .
           done
 
-          for exe in *.exe; do
-            echo "Scanning $exe for dependencies..."
-            ntldd "$exe" | awk '{print $3}' | while read -r dll; do
-              if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
-                cp -u -v "$dll" .
-              fi
-            done
+          echo "Scanning shark.exe for dependencies..."
+          ntldd "shark.exe" | awk '{print $3}' | while read -r dll; do
+            if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
+              cp -u -v "$dll" .
+            fi
           done
 
       - name: Verify no missing DLLs
         shell: msys2 {0}
         run: |
           cd build
-          FAIL=0
-          for exe in *.exe; do
-            echo "Verifying $exe"
-            if ntldd "$exe" | grep "not found"; then
-              echo "❌ Missing DLLs in $exe"
-              FAIL=1
-            else
-              echo "✅ All DLLs found for $exe"
-            fi
-          done
-          exit $FAIL
+          echo "Verifying shark.exe"
+          if ntldd "shark.exe" | grep "not found"; then
+            echo "Missing DLLs in shark.exe"
+            exit 1
+          else
+            echo "All DLLs found for shark.exe"
+          fi
 
       - name: Package Windows build
         shell: pwsh
         run: |
-          Compress-Archive -Path build\*.exe,build\*.dll -DestinationPath build\shark-windows.zip
+          Compress-Archive -Path build\shark.exe,build\*.dll -DestinationPath build\shark-windows.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

@@ -117,7 +117,6 @@ void CFRHelper::action_node_utility(
 
         for (auto i = r.begin(); i < r.end(); ++i) {
           if (player == m_hero) {
-            // Weight hero reach by strategy for cumulative strategy updates at child nodes
             // VECTORIZED: GCC emits SSE packed multiply (mulps xmm0, xmm1) processing 4 floats/iter
             // Assembly: movups (%r13,%rcx), %xmm6; mulps %xmm6, %xmm0; movups %xmm0, (%rdi,%rcx)
             for (std::size_t hand{0}; hand < m_num_hero_hands; ++hand) {
@@ -282,7 +281,6 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
     IsomorphismComputer::apply_swap(tmp, m_num_hero_hands, swap_list);
   }
 
-  // Convert back to f32
   // VECTORIZED: GCC emits cvtpd2ps (packed double to single) + movups
   // Assembly: cvtpd2ps %xmm0, %xmm0; movlps %xmm0, (%rax)
   for (std::size_t h{0}; h < m_num_hero_hands; ++h) {
@@ -437,7 +435,6 @@ auto CFRHelper::get_showdown_utils(const TerminalNode *node,
   // Cannot vectorize because:
   //   1. Variable array indices: card_win_sum[villain_combo.hand1] requires scatter/gather
   //   2. Data-dependent loop bounds: while(hero.rank > villain.rank) is sequential
-  // This is the same algorithm as wasm-postflop - O(n+m) optimal complexity
   // Assembly: scalar movss/addss operations (single float at a time)
   int j{0};
   for (std::size_t i{0}; i < hero_river_combos.size(); ++i) {
