@@ -108,6 +108,7 @@ if(APPLE)
     "-framework CoreFoundation"
     "-framework Carbon"
     "-framework IOKit"
+    "-framework ScreenCaptureKit"
   )
 elseif(UNIX)
   target_link_libraries(shark PRIVATE
