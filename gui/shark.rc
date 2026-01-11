@@ -1,0 +1,5 @@
+// Windows resource file for Shark Poker Solver
+// This embeds the icon into the executable
+
+// Icon resource ID 1 (used by LoadIcon in gui.cpp)
+1 ICON "../icons/generated_logo.ico"
