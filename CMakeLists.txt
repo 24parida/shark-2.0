@@ -22,9 +22,13 @@ if(APPLE OR UNIX)
   # Static library paths (may vary based on system)
   if(APPLE)
     set(FLTK_STATIC_LIB /opt/homebrew/opt/fltk/lib/libfltk.a)
+    set(FLTK_IMAGES_STATIC_LIB /opt/homebrew/opt/fltk/lib/libfltk_images.a)
+    set(FLTK_PNG_STATIC_LIB /opt/homebrew/opt/fltk/lib/libfltk_png.a)
+    set(FLTK_JPEG_STATIC_LIB /opt/homebrew/opt/fltk/lib/libfltk_jpeg.a)
     set(TBB_STATIC_LIB /opt/homebrew/opt/tbb/lib/libtbb.a)
   else() # Linux
     set(FLTK_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk.a)
+    set(FLTK_IMAGES_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk_images.a)
     set(TBB_STATIC_LIB /usr/lib/x86_64-linux-gnu/libtbb.a)
   endif()
 endif()
@@ -32,6 +36,11 @@ endif()
 # 3. Find dependencies
 find_package(FLTK REQUIRED)
 find_package(TBB REQUIRED)
+
+# Image libraries for FLTK PNG/JPEG support
+find_package(PNG REQUIRED)
+find_package(JPEG REQUIRED)
+find_package(ZLIB REQUIRED)
 
 # 4. PokerHandEvaluator subproject
 set(BUILD_CARD5    OFF CACHE BOOL "" FORCE)
@@ -85,12 +94,18 @@ target_include_directories(shark PRIVATE
   ${FLTK_INCLUDE_DIR}
 )
 
-# 8. Link libraries
+# 8. Link libraries (fltk_images must come before fltk, image libs after)
 if(APPLE)
   target_link_libraries(shark PRIVATE
+    ${FLTK_IMAGES_STATIC_LIB}
+    ${FLTK_PNG_STATIC_LIB}
+    ${FLTK_JPEG_STATIC_LIB}
     ${FLTK_STATIC_LIB}
     ${TBB_STATIC_LIB}
     pheval
+    PNG::PNG
+    JPEG::JPEG
+    ZLIB::ZLIB
     "-framework Cocoa"
     "-framework ApplicationServices"
     "-framework CoreFoundation"
@@ -99,17 +114,25 @@ if(APPLE)
   )
 elseif(UNIX)
   target_link_libraries(shark PRIVATE
+    ${FLTK_IMAGES_STATIC_LIB}
     ${FLTK_STATIC_LIB}
     ${TBB_STATIC_LIB}
     pheval
-    m pthread dl
+    PNG::PNG
+    JPEG::JPEG
+    ZLIB::ZLIB
+    m pthread dl X11 Xext Xft fontconfig Xrender Xinerama Xcursor Xfixes
   )
 else()
-  # Windows
+  # Windows - FLTK uses system PNG/JPEG directly (no fltk_png/fltk_jpeg)
   target_link_libraries(shark PRIVATE
+    fltk_images
     ${FLTK_LIBRARIES}
     TBB::tbb
     pheval
+    PNG::PNG
+    JPEG::JPEG
+    ZLIB::ZLIB
     dwmapi
   )
 endif()

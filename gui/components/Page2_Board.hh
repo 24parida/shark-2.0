@@ -2,7 +2,6 @@
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Grid.H>
 #include <FL/Fl_Box.H>
-#include <FL/Fl_Input.H>
 #include <FL/Fl_Button.H>
 #include "CardButton.hh"
 #include <vector>
@@ -11,9 +10,8 @@
 
 class Page2_Board : public Fl_Group {
   Fl_Box *m_lblTitle;
-  Fl_Grid *m_cardGrid;  // 13×4 grid of cards
+  Fl_Grid *m_cardGrid;  // 13x4 grid of cards
   std::vector<CardButton *> m_cards;
-  Fl_Input *m_selDisplay;
   Fl_Button *m_btnRand, *m_btnBack, *m_btnNext;
 
   std::vector<std::string> m_selectedCards;
@@ -39,5 +37,4 @@ private:
 
   void handleCardClick(CardButton *btn);
   void handleRandom();
-  void updateDisplay();
 };

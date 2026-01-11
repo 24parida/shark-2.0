@@ -4,12 +4,11 @@
 #include <FL/Fl_Grid.H>
 #include <algorithm>
 #include <random>
-#include <sstream>
 
 Page2_Board::Page2_Board(int X, int Y, int W, int H)
     : Fl_Group(X, Y, W, H) {
 
-  // Main container grid: 4 rows (title, cards, input, nav)
+  // Main container grid: 4 rows (title, cards, button, nav)
   auto *mainGrid = new Fl_Grid(X, Y, W, H);
   mainGrid->layout(4, 1, 5, 5);  // 4 rows, 1 column, 5px margins
 
@@ -21,7 +20,7 @@ Page2_Board::Page2_Board(int X, int Y, int W, int H)
   mainGrid->widget(m_lblTitle, 0, 0);
   mainGrid->row_height(0, 60);
 
-  // Row 1: Card grid (13 rows × 4 columns)
+  // Row 1: Card grid (13 rows x 4 columns)
   m_cardGrid = new Fl_Grid(0, 0, 0, 0);
   m_cardGrid->layout(13, 4, 5, 5);  // 13 rows, 4 columns, 5px spacing
 
@@ -58,24 +57,20 @@ Page2_Board::Page2_Board(int X, int Y, int W, int H)
   m_cardGrid->end();
   mainGrid->widget(m_cardGrid, 1, 0);
   // Set a reasonable fixed height for card grid (will be adjusted in resize)
-  mainGrid->row_height(1, H - 170);  // Leave space for title, input, nav
+  mainGrid->row_height(1, H - 170);  // Leave space for title, button, nav
 
-  // Row 2: Input + Random button
-  auto *inputRow = new Fl_Group(0, 0, 0, 0);
-  inputRow->begin();
-  m_selDisplay = new Fl_Input(0, 0, 0, 0);
-  m_selDisplay->textsize(18);
-  m_selDisplay->readonly(1);
-
+  // Row 2: Random flop button (centered)
+  auto *btnRow = new Fl_Group(0, 0, 0, 0);
+  btnRow->begin();
   m_btnRand = new Fl_Button(0, 0, 0, 0, "Random Flop");
   m_btnRand->labelsize(18);
   m_btnRand->labelfont(FL_HELVETICA_BOLD);
   m_btnRand->color(Colors::ThemeButtonBg());
   m_btnRand->labelcolor(FL_WHITE);
   m_btnRand->callback(cbRand, this);
-  inputRow->end();
+  btnRow->end();
 
-  mainGrid->widget(inputRow, 2, 0);
+  mainGrid->widget(btnRow, 2, 0);
   mainGrid->row_height(2, 50);
 
   // Row 3: Navigation
@@ -121,7 +116,6 @@ void Page2_Board::clearSelection() {
   for (auto *card : m_cards) {
     card->select(false);
   }
-  updateDisplay();
 }
 
 void Page2_Board::randomFlop() {
@@ -150,7 +144,6 @@ void Page2_Board::randomFlop() {
     }
   }
 
-  updateDisplay();
   if (m_onBoardChange) {
     m_onBoardChange(m_selectedCards);
   }
@@ -176,7 +169,6 @@ void Page2_Board::handleCardClick(CardButton *btn) {
     btn->select(true);
   }
 
-  updateDisplay();
   if (m_onBoardChange) {
     m_onBoardChange(m_selectedCards);
   }
@@ -184,15 +176,6 @@ void Page2_Board::handleCardClick(CardButton *btn) {
 
 void Page2_Board::handleRandom() {
   randomFlop();
-}
-
-void Page2_Board::updateDisplay() {
-  std::ostringstream oss;
-  for (size_t i = 0; i < m_selectedCards.size(); ++i) {
-    if (i > 0) oss << " ";
-    oss << m_selectedCards[i];
-  }
-  m_selDisplay->value(oss.str().c_str());
 }
 
 void Page2_Board::resize(int X, int Y, int W, int H) {
@@ -204,24 +187,19 @@ void Page2_Board::resize(int X, int Y, int W, int H) {
     if (!mainGrid || mainGrid->children() < 4) return;
 
     // Adjust row 1 (card grid) height based on window size
-    int cardGridHeight = H - 180;  // Leave space for title (60) + input (50) + nav (60) + margins (10)
+    int cardGridHeight = H - 180;  // Leave space for title (60) + button (50) + nav (60) + margins (10)
     mainGrid->row_height(1, cardGridHeight);
     mainGrid->resize(X, Y, W, H);
 
-    // Row 2: Input row - position input and button
-    auto *inputRow = mainGrid->child(2);
-    int rowW = inputRow->w();
-    int rowX = inputRow->x();
-    int rowY = inputRow->y();
+    // Row 2: Button row - center the random flop button
+    auto *btnRow = mainGrid->child(2);
+    int rowW = btnRow->w();
+    int rowX = btnRow->x();
+    int rowY = btnRow->y();
 
-    int inputWidth = static_cast<int>(rowW * 0.6);
-    int btnWidth = static_cast<int>(rowW * 0.3);
-    int spacing = 20;
-    int totalW = inputWidth + spacing + btnWidth;
-    int startX = rowX + (rowW - totalW) / 2;
-
-    m_selDisplay->resize(startX, rowY + 5, inputWidth, 40);
-    m_btnRand->resize(startX + inputWidth + spacing, rowY + 5, btnWidth, 40);
+    int btnWidth = 180;
+    int startX = rowX + (rowW - btnWidth) / 2;
+    m_btnRand->resize(startX, rowY + 5, btnWidth, 40);
 
     // Row 3: Nav row - position back and next buttons
     auto *navRow = mainGrid->child(3);

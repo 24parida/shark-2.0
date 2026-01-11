@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies (macOS)
         run: |
           brew update
-          brew install fltk tbb cmake
+          brew install fltk tbb cmake libpng jpeg zlib
 
       - name: Configure & build
         run: |
@@ -62,7 +62,7 @@ jobs:
       - name: Install dependencies (macOS)
         run: |
           brew update
-          brew install fltk tbb cmake
+          brew install fltk tbb cmake libpng jpeg zlib
 
       - name: Configure & build
         run: |
@@ -113,6 +113,9 @@ jobs:
             mingw-w64-x86_64-tbb
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ntldd-git
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libjpeg-turbo
+            mingw-w64-x86_64-zlib
 
       - name: Configure & build
         shell: msys2 {0}
@@ -135,7 +138,10 @@ jobs:
             /mingw64/bin/libstdc++-6.dll \
             /mingw64/bin/libwinpthread-1.dll \
             /mingw64/bin/libfltk*.dll \
-            /mingw64/bin/libtbb*.dll; do
+            /mingw64/bin/libtbb*.dll \
+            /mingw64/bin/libpng*.dll \
+            /mingw64/bin/libjpeg*.dll \
+            /mingw64/bin/zlib*.dll; do
             [ -f "$lib" ] && cp -u -v "$lib" .
           done
 

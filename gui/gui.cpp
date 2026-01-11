@@ -1,5 +1,5 @@
 #include <FL/Fl.H>
-#include <FL/Fl_Window.H>
+#include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Box.H>
 #include <FL/fl_ask.H>
 #include <FL/x.H>
@@ -55,7 +55,7 @@ static const std::vector<std::string> RANKS = {
     "A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"};
 static const std::vector<char> SUITS = {'h', 'd', 'c', 's'};
 
-class Wizard : public Fl_Window {
+class Wizard : public Fl_Double_Window {
   struct UserInputs {
     int stackSize{}, startingPot{}, minBet{}, iterations{}, threadCount{};
     float allInThreshold{};
@@ -65,6 +65,7 @@ class Wizard : public Fl_Window {
     std::vector<std::string> villainRange;
     float min_exploitability{};
     bool autoImportRanges{true};
+    bool forceDonkCheck{true};
   } m_data;
 
   Node *m_current_node;
@@ -141,11 +142,10 @@ class Wizard : public Fl_Window {
 
   // Page1 -> Page2
   void do1Next() {
-    // Validate all fields are filled
-    if (m_pg1->getStackSize() <= 0 || m_pg1->getStartingPot() <= 0 ||
-        m_pg1->getMinBet() <= 0 || m_pg1->getAllInThreshold() <= 0 ||
-        m_pg1->getIterations() <= 0) {
-      fl_message("Please fill out all fields with valid values.");
+    // Validate all input fields
+    std::string error = m_pg1->validateInputs();
+    if (!error.empty()) {
+      fl_message("%s", error.c_str());
       return;
     }
 
@@ -153,7 +153,7 @@ class Wizard : public Fl_Window {
     std::string yourPos = m_pg1->getYourPosition();
     std::string theirPos = m_pg1->getTheirPosition();
     if (yourPos == theirPos) {
-      fl_message("Positions must differ.");
+      fl_message("Your Position and Their Position must be different.");
       return;
     }
 
@@ -169,7 +169,9 @@ class Wizard : public Fl_Window {
     m_data.yourPos = yourPos;
     m_data.theirPos = theirPos;
     m_data.autoImportRanges = m_pg1->getAutoImport();
+    m_data.forceDonkCheck = m_pg1->getForceDonkCheck();
 
+    m_pg1->stopAnimation();  // Stop animations when leaving Page 1
     m_pg1->hide();
     m_pg2->show();
   }
@@ -180,6 +182,7 @@ class Wizard : public Fl_Window {
     m_pg4->clearSelection();
     m_pg2->hide();
     m_pg1->show();
+    m_pg1->startCreditAnimation();  // Restart typewriter animation
   }
 
   void do2Next() {
@@ -331,7 +334,11 @@ class Wizard : public Fl_Window {
     // These optimizations are enabled when solving from flop (board.size() == 3)
     // and disabled for turn/river starting solves
     const bool is_flop_solve = (board.size() == 3);
-    settings.remove_donk_bets = is_flop_solve;
+
+    // Force Donk Check: user-toggleable, but only applies to flop solves
+    settings.remove_donk_bets = is_flop_solve && m_data.forceDonkCheck;
+
+    // Other flop optimizations (always enabled for flop solves)
     settings.raise_cap = is_flop_solve ? 3 : -1;  // 3 raises max for flop, unlimited otherwise
     DCFR::compress_strategy = is_flop_solve;
 
@@ -1128,7 +1135,7 @@ class Wizard : public Fl_Window {
   }
 
 public:
-  Wizard(const char *L = 0) : Fl_Window(100, 100, L) {
+  Wizard(const char *L = 0) : Fl_Double_Window(100, 100, L) {
     init();
   }
 
@@ -1224,8 +1231,8 @@ int main(int argc, char **argv) {
   // Set title bar color to match oceanic theme (Windows 10 1809+ / Windows 11)
   HWND hwnd = fl_xid(&wiz);
   if (hwnd) {
-    // Title bar background: Deep ocean blue (RGB 20, 40, 80)
-    COLORREF captionColor = RGB(20, 40, 80);
+    // Title bar background: Darker than window bg so they're distinguishable
+    COLORREF captionColor = RGB(10, 25, 50);
     DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
 
     // Title bar text: White

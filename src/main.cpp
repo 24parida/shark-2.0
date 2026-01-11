@@ -10,113 +10,111 @@
 #include <chrono>
 #include <functional>
 
-struct BoardTest {
-  std::string name;
-  std::vector<std::string> cards;
-};
-
 int main() {
   using phevaluator::Card;
 
-  std::cout << "=== Isomorphism Benchmark ===" << std::endl;
+  std::cout << "=== Flop Optimization Gating Test ===" << std::endl;
   std::cout << std::endl;
 
-  // Standard ranges
-  PreflopRange range1{"22+,ATs+,KJs+,QTs+,JTs,T9s,98s,87s,76s,AKo,AQo,AJo,KQo"};
-  PreflopRange range2{"22+,A2s+,K9s+,Q9s+,J9s+,T8s+,97s+,87s,76s,65s,A8o+,KTo+,QTo+,JTo"};
+  // Even larger ranges - approaching memory limits
+  PreflopRange range1{"55+,A2s+,K7s+,Q8s+,J8s+,T8s+,97s+,87s,76s,A9o+,KTo+,QJo"}; // ~280+ combos
+  PreflopRange range2{"33+,A2s+,K2s+,Q5s+,J7s+,T7s+,96s+,85s+,75s+,64s+,A5o+,K9o+,Q9o+,J9o+,T9o"}; // ~450+ combos
+
+  std::cout << "Range1 combos: " << range1.num_hands << std::endl;
+  std::cout << "Range2 combos: " << range2.num_hands << std::endl;
+  std::cout << std::endl;
 
   int stack = 100;
   int pot = 10;
   int min_bet = 2;
 
-  // Test boards - some with isomorphism potential, some without
-  std::vector<BoardTest> boards = {
-    // Isomorphism possible (two suits with same board ranks)
-    {"Ks Kh 2d 9c", {"Ks", "Kh", "2d", "9c"}},   // s/h both have K
-    {"As Ah 7c 3d", {"As", "Ah", "7c", "3d"}},   // s/h both have A
-    {"Qc Qd 5h 8s", {"Qc", "Qd", "5h", "8s"}},   // c/d both have Q
-    {"Jh Jc 4d 6s", {"Jh", "Jc", "4d", "6s"}},   // h/c both have J
-
-    // No isomorphism (all suits have different ranks)
-    {"As Kh Qd Jc", {"As", "Kh", "Qd", "Jc"}},   // All different
-    {"9s 7h 5d 3c", {"9s", "7h", "5d", "3c"}},   // Rainbow
-    {"Ks Qh Jd Tc", {"Ks", "Qh", "Jd", "Tc"}},   // Broadway rainbow
-    {"Ah 8d 4c 2s", {"Ah", "8d", "4c", "2s"}},   // Rainbow low
-
-    // Monotone/Two-tone (often no isomorphism due to flush draws)
-    {"Ks Qs Js 2c", {"Ks", "Qs", "Js", "2c"}},   // 3 spades
-    {"Ah Kh 7d 2c", {"Ah", "Kh", "7d", "2c"}},   // 2 hearts
-  };
-
-  DCFR::debug_node_id = -1;
-  DCFR::debug_hand = -1;
-
-  std::cout << std::fixed << std::setprecision(4);
-  std::cout << "| Board           | Iso? | Children | Time (ms) | Exploitability |" << std::endl;
-  std::cout << "|-----------------|------|----------|-----------|----------------|" << std::endl;
-
-  for (const auto& test : boards) {
-    std::vector<Card> board;
-    for (const auto& c : test.cards) {
-      board.push_back(Card{c});
-    }
+  // ============ TEST 1: Turn solve (should NOT use flop optimizations) ============
+  std::cout << "=== TEST 1: Turn Solve (4 cards) ===" << std::endl;
+  {
+    std::vector<Card> board{Card{"Ks"}, Card{"Qh"}, Card{"7d"}, Card{"2c"}};
+    std::cout << "Board: Ks Qh 7d 2c (turn)" << std::endl;
 
     TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
 
-    // Gate flop-only optimizations based on initial board size
     const bool is_flop_solve = (board.size() == 3);
     settings.remove_donk_bets = is_flop_solve;
     settings.raise_cap = is_flop_solve ? 3 : -1;
     DCFR::compress_strategy = is_flop_solve;
 
+    std::cout << "is_flop_solve: " << (is_flop_solve ? "true" : "false") << std::endl;
+    std::cout << "remove_donk_bets: " << (settings.remove_donk_bets ? "true" : "false") << std::endl;
+    std::cout << "raise_cap: " << settings.raise_cap << std::endl;
+    std::cout << "compress_strategy: " << (DCFR::compress_strategy ? "true" : "false") << std::endl;
+
     PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos, board};
     GameTree game_tree{settings};
-    BestResponse br{prm};
+
+    auto stats = game_tree.getTreeStats();
+    std::cout << "Tree stats: " << stats.total_action_nodes << " action nodes" << std::endl;
 
     std::unique_ptr<Node> root{game_tree.build()};
 
-    // Count chance node children to verify isomorphism
-    int num_children = 0;
-    bool has_iso = false;
-    std::function<void(Node*)> count_first_chance = [&](Node* node) {
-      if (node->get_node_type() == NodeType::CHANCE_NODE) {
-        ChanceNode* cn = static_cast<ChanceNode*>(node);
-        for (int i = 0; i < 52; ++i) {
-          if (cn->get_child(i)) num_children++;
-        }
-        has_iso = cn->get_isomorphism_data().has_isomorphism;
-        return;
-      }
-      if (node->get_node_type() == NodeType::ACTION_NODE) {
-        ActionNode* an = static_cast<ActionNode*>(node);
-        for (int i = 0; i < an->get_num_actions(); ++i) {
-          count_first_chance(an->get_child(i));
-          return;
-        }
-      }
-    };
-    count_first_chance(root.get());
-
     ParallelDCFR trainer{prm, board, settings.starting_pot, settings.in_position_player};
+    BestResponse br{prm};
 
-    // Time 200 iterations
-    auto start = std::chrono::high_resolution_clock::now();
-    trainer.train(root.get(), 200, -1.0, nullptr);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "Training 500 iterations..." << std::endl;
+    trainer.train(root.get(), 500, -1.0, nullptr);
 
-    float exp = br.get_exploitability(root.get(), 200, board, pot, 2);
-
-    std::cout << "| " << std::setw(15) << std::left << test.name
-              << " | " << std::setw(4) << (has_iso ? "YES" : "NO")
-              << " | " << std::setw(8) << num_children
-              << " | " << std::setw(9) << duration
-              << " | " << std::setw(13) << std::right << exp << "% |" << std::endl;
+    float exp = br.get_exploitability(root.get(), 500, board, pot, 2);
+    std::cout << "Exploitability: " << std::fixed << std::setprecision(4) << exp << "%" << std::endl;
+    std::cout << (exp < 0.5 ? "PASS: Turn solve converged!" : "FAIL: Turn solve did not converge") << std::endl;
   }
 
   std::cout << std::endl;
-  std::cout << "Children = number of river card subtrees (48 max, less with isomorphism)" << std::endl;
-  std::cout << "Boards with isomorphism have fewer children -> faster solving" << std::endl;
+
+  // ============ TEST 2: Flop tree (memory estimate only, no solve) ============
+  std::cout << "=== TEST 2: Flop Tree Memory Estimate (3 cards) ===" << std::endl;
+  {
+    std::vector<Card> board{Card{"Ks"}, Card{"Qh"}, Card{"7d"}};
+    std::cout << "Board: Ks Qh 7d (flop)" << std::endl;
+
+    TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
+
+    const bool is_flop_solve = (board.size() == 3);
+    settings.remove_donk_bets = is_flop_solve;
+    settings.raise_cap = is_flop_solve ? 3 : -1;
+    DCFR::compress_strategy = is_flop_solve;
+
+    std::cout << "is_flop_solve: " << (is_flop_solve ? "true" : "false") << std::endl;
+    std::cout << "remove_donk_bets: " << (settings.remove_donk_bets ? "true" : "false") << std::endl;
+    std::cout << "raise_cap: " << settings.raise_cap << std::endl;
+    std::cout << "compress_strategy: " << (DCFR::compress_strategy ? "true" : "false") << std::endl;
+
+    GameTree game_tree{settings};
+
+    std::cout << "Building tree..." << std::endl;
+    std::unique_ptr<Node> root{game_tree.build()};
+    std::cout << "Tree built successfully!" << std::endl;
+
+    auto stats = game_tree.getTreeStats();
+    size_t mem_bytes = stats.estimateMemoryBytes();
+
+    std::cout << std::endl;
+    std::cout << "--- Tree Statistics ---" << std::endl;
+    std::cout << "Flop action nodes:  " << stats.flop_action_nodes << std::endl;
+    std::cout << "Turn action nodes:  " << stats.turn_action_nodes << std::endl;
+    std::cout << "River action nodes: " << stats.river_action_nodes << std::endl;
+    std::cout << "Total action nodes: " << stats.total_action_nodes << std::endl;
+    std::cout << "Chance nodes:       " << stats.chance_nodes << std::endl;
+    std::cout << "Terminal nodes:     " << stats.terminal_nodes << std::endl;
+    std::cout << "P1 hands: " << stats.p1_num_hands << ", P2 hands: " << stats.p2_num_hands << std::endl;
+    std::cout << std::endl;
+    std::cout << "Estimated memory: " << (mem_bytes / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "                  " << std::fixed << std::setprecision(2)
+              << (mem_bytes / 1024.0 / 1024.0 / 1024.0) << " GB" << std::endl;
+
+    if (mem_bytes > 15ULL * 1024 * 1024 * 1024) {
+      std::cout << std::endl << "WARNING: Exceeds 15GB RAM estimate" << std::endl;
+    }
+  }
+
+  std::cout << std::endl;
+  std::cout << "=== All tests complete ===" << std::endl;
 
   return 0;
 }
