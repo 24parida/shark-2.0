@@ -327,6 +327,14 @@ class Wizard : public Fl_Window {
                                  m_data.minBet,
                                  m_data.allInThreshold};
 
+    // Gate flop-only optimizations based on initial board size
+    // These optimizations are enabled when solving from flop (board.size() == 3)
+    // and disabled for turn/river starting solves
+    const bool is_flop_solve = (board.size() == 3);
+    settings.remove_donk_bets = is_flop_solve;
+    settings.raise_cap = is_flop_solve ? 3 : -1;  // 3 raises max for flop, unlimited otherwise
+    DCFR::compress_strategy = is_flop_solve;
+
     // Build manager + tree
     m_prm = PreflopRangeManager(range1.preflop_combos, range2.preflop_combos,
                                 settings.initial_board);

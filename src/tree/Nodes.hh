@@ -2,6 +2,7 @@
 #include "../game/Action.hh"
 #include "../trainer/DCFR.hh"
 #include "../solver/Isomorphism.hh"
+#include <array>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -83,29 +84,44 @@ public:
   enum ChanceType { DEAL_TURN, DEAL_RIVER };
 
 private:
+  // Compact storage: only allocate for actual children
   std::vector<std::unique_ptr<Node>> m_children;
-  int m_child_count;
+  std::array<int8_t, 52> m_card_to_index;  // card -> index in m_children (-1 if none)
   ChanceType m_type;
   IsomorphismData m_iso_data;
 
 public:
   ChanceNode(const Node *parent, const ChanceType type)
-      : Node(parent, NodeType::CHANCE_NODE), m_children(52), m_child_count(0),
-        m_type(type) {}
+      : Node(parent, NodeType::CHANCE_NODE), m_type(type) {
+    m_card_to_index.fill(-1);
+  }
 
   void add_child(std::unique_ptr<Node> node, const int card) {
     assert(card >= 0 && card < 52 && "ChanceNode: add_child card out of range");
-    m_children[card] = std::move(node);
-    ++m_child_count;
+    m_card_to_index[card] = static_cast<int8_t>(m_children.size());
+    m_children.push_back(std::move(node));
   }
   void set_isomorphism_data(IsomorphismData&& data) { m_iso_data = std::move(data); }
   auto get_isomorphism_data() const -> const IsomorphismData& { return m_iso_data; }
-  auto get_num_children() const -> int { return m_child_count; }
+  auto get_num_children() const -> int { return static_cast<int>(m_children.size()); }
   auto get_type() const -> ChanceType { return m_type; }
-  auto get_child(const int index) const -> Node *const {
-    return m_children[static_cast<std::size_t>(index)].get();
+  auto get_child(const int card) const -> Node* {
+    int8_t idx = m_card_to_index[card];
+    return idx >= 0 ? m_children[idx].get() : nullptr;
   }
   auto get_node_type() const -> NodeType { return m_node_type; }
+
+  // Iterator access for efficient traversal
+  auto begin() const { return m_children.begin(); }
+  auto end() const { return m_children.end(); }
+
+  // Get card for a given child index (for iteration)
+  auto get_card_at_index(size_t idx) const -> int {
+    for (int c = 0; c < 52; ++c) {
+      if (m_card_to_index[c] == static_cast<int8_t>(idx)) return c;
+    }
+    return -1;
+  }
 };
 
 // Terminal Node

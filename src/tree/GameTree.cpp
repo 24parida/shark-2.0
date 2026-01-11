@@ -83,7 +83,26 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
       Action action{.type = i, .amount = amount};
       action_node = build_action(std::move(action_node), state, action);
     } else if (i == ActionType::BET) {
-      for (const auto &size : GameParams::BET_SIZES) {
+      // Donk bet removal: OOP cannot lead if IP was aggressor (or checked through)
+      if (m_settings.remove_donk_bets) {
+        bool is_oop = !state.current->has_position;
+        int ip_id = state.p1->has_position ? 1 : 2;
+
+        if (state.street == Street::TURN && is_oop) {
+          if (state.flop_aggressor == ip_id || state.flop_aggressor == -1) {
+            continue;  // Skip all bet sizes - OOP cannot donk
+          }
+        }
+        if (state.street == Street::RIVER && is_oop) {
+          if (state.turn_aggressor == ip_id || state.turn_aggressor == -1) {
+            continue;  // Skip all bet sizes - OOP cannot donk
+          }
+        }
+      }
+
+      // Use per-street bet sizing
+      const auto& street_cfg = m_settings.bet_sizing.for_street(state.street);
+      for (const auto &size : street_cfg.bet_sizes) {
         int bet_amount{static_cast<int>(size * state.pot)};
         bet_amount = bet_amount > state.current->stack ? state.current->stack
                                                        : bet_amount;
@@ -100,7 +119,19 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
         action_node = build_action(std::move(action_node), state, action);
       }
     } else {
-      for (const auto &size : GameParams::RAISE_SIZES) {
+      // Raise cap: after N raises, force all-in only
+      if (m_settings.raise_cap >= 0 && state.street_raise_count >= m_settings.raise_cap) {
+        int all_in = state.current->stack + state.current->wager;
+        if (all_in > state.get_max_bet()) {  // Can still raise
+          const Action action{.type = i, .amount = all_in};
+          action_node = build_action(std::move(action_node), state, action);
+        }
+        continue;  // Skip normal raise sizes
+      }
+
+      // Use per-street raise sizing
+      const auto& street_cfg = m_settings.bet_sizing.for_street(state.street);
+      for (const auto &size : street_cfg.raise_sizes) {
         int raise_amount{
             static_cast<int>(state.current->wager + state.get_call_amount() +
                              size * (state.get_call_amount() + state.pot))};

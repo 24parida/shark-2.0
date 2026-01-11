@@ -62,6 +62,13 @@ int main() {
     }
 
     TreeBuilderSettings settings{range1, range2, 2, board, stack, pot, min_bet, 0.67};
+
+    // Gate flop-only optimizations based on initial board size
+    const bool is_flop_solve = (board.size() == 3);
+    settings.remove_donk_bets = is_flop_solve;
+    settings.raise_cap = is_flop_solve ? 3 : -1;
+    DCFR::compress_strategy = is_flop_solve;
+
     PreflopRangeManager prm{range1.preflop_combos, range2.preflop_combos, board};
     GameTree game_tree{settings};
     BestResponse br{prm};

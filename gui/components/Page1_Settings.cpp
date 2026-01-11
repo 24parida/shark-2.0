@@ -1,6 +1,9 @@
 #include "Page1_Settings.hh"
 #include "utils/Colors.hh"
 #include <cstdlib>
+#include <thread>
+#include <algorithm>
+#include <string>
 
 Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
     : Fl_Group(X, Y, W, H) {
@@ -128,7 +131,10 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   m_inpThreads = new Fl_Float_Input(0, 0, 0, 0);
   m_inpThreads->textsize(24);
-  m_inpThreads->value("0");  // 0 = auto-detect
+  // Default to (num_cores - 1), minimum 1
+  unsigned int numCores = std::thread::hardware_concurrency();
+  int defaultThreads = std::max(1, static_cast<int>(numCores) - 1);
+  m_inpThreads->value(std::to_string(defaultThreads).c_str());
   m_grid->widget(m_inpThreads, 9, 1);
 
   // Row 10: Auto-import checkbox

@@ -12,10 +12,14 @@ class DCFR {
   int m_num_actions;
   int m_current;
   std::vector<int16_t> m_cummulative_regret;
-  std::vector<float> m_cummulative_strategy;
 
-  // Per-node scale factor for regret compression (wasm-postflop style)
+  // Strategy storage: use int16 when compress_strategy=true (flop solves), float otherwise
+  std::vector<int16_t> m_cummulative_strategy_i16;
+  std::vector<float> m_cummulative_strategy_f32;
+
+  // Per-node scale factors for compression (wasm-postflop style)
   float m_regret_scale = 1.0f;
+  float m_strategy_scale = 1.0f;  // Only used when compress_strategy=true
 
 public:
   // DCFR discount factors (precomputed once per iteration)
@@ -44,6 +48,10 @@ public:
     float ratio = tf / (tf + 1.0f);
     gamma = ratio * ratio;  // (t/(t+1))^2
   }
+
+  // Compression flag: set to true for flop solves to save memory
+  // Should be set before tree construction based on initial_board.size() == 3
+  static inline bool compress_strategy = true;
 
   // Debug: track a specific node
   static inline int debug_node_id = -1;

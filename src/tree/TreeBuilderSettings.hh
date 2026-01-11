@@ -15,6 +15,15 @@ struct TreeBuilderSettings {
   int minimum_bet;
   float all_in_threshold;
 
+  // Per-street bet sizing configuration
+  BetSizingConfig bet_sizing;
+
+  // Raise cap: max raises per street before forcing all-in (-1 = no cap)
+  int raise_cap = -1;
+
+  // Enable donk bet removal
+  bool remove_donk_bets = false;
+
   TreeBuilderSettings(const PreflopRange &o_range1,
                       const PreflopRange &o_range2,
                       const int o_in_position_player,

@@ -10,8 +10,14 @@ DCFR::DCFR(const ActionNode *node)
     : m_num_hands(node->get_num_hands()),
       m_num_actions(node->get_num_actions()), m_current(node->get_player()),
       m_cummulative_regret(m_num_hands * m_num_actions),
-      m_cummulative_strategy(m_num_hands * m_num_actions),
-      m_regret_scale(1.0f) {
+      m_regret_scale(1.0f), m_strategy_scale(1.0f) {
+  // Initialize strategy storage based on compression flag
+  const size_t total_size = m_num_hands * m_num_actions;
+  if (compress_strategy) {
+    m_cummulative_strategy_i16.resize(total_size, 0);
+  } else {
+    m_cummulative_strategy_f32.resize(total_size, 0.0f);
+  }
   m_node_id = g_node_counter++;
 }
 
@@ -20,20 +26,39 @@ auto DCFR::get_average_strat() const -> std::vector<float> {
 
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float total{0.0};
-    for (std::size_t action{0}; action < m_num_actions; ++action) {
-      total += m_cummulative_strategy[hand + action * m_num_hands];
-    }
 
-    if (total > 0) {
-      // VECTORIZED: GCC emits divps (packed divide) processing 4 floats/iter
-      // Assembly: divps %xmm1, %xmm0; movups %xmm0, (%rax)
+    if (compress_strategy) {
+      const float decoder = m_strategy_scale / 32767.0f;
       for (std::size_t action{0}; action < m_num_actions; ++action) {
-        average_strategy[hand + action * m_num_hands] =
-            m_cummulative_strategy[hand + action * m_num_hands] / total;
+        float decoded = static_cast<float>(m_cummulative_strategy_i16[hand + action * m_num_hands]) * decoder;
+        total += decoded;
+      }
+
+      if (total > 0) {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          float decoded = static_cast<float>(m_cummulative_strategy_i16[hand + action * m_num_hands]) * decoder;
+          average_strategy[hand + action * m_num_hands] = decoded / total;
+        }
+      } else {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] = 1.0f / m_num_actions;
+        }
       }
     } else {
+      // Float mode: direct access
       for (std::size_t action{0}; action < m_num_actions; ++action) {
-        average_strategy[hand + action * m_num_hands] = 1.0 / m_num_actions;
+        total += m_cummulative_strategy_f32[hand + action * m_num_hands];
+      }
+
+      if (total > 0) {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] =
+              m_cummulative_strategy_f32[hand + action * m_num_hands] / total;
+        }
+      } else {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] = 1.0f / m_num_actions;
+        }
       }
     }
   }
@@ -85,20 +110,38 @@ void DCFR::get_average_strat(std::vector<float> &average_strategy) const {
 
   for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
     float total{0.0};
-    for (std::size_t action{0}; action < m_num_actions; ++action) {
-      total += m_cummulative_strategy[hand + action * m_num_hands];
-    }
 
-    if (total > 0) {
-      // VECTORIZED: GCC emits divps (packed divide) processing 4 floats/iter
-      // Assembly: divps %xmm1, %xmm0; movups %xmm0, (%rax)
+    if (compress_strategy) {
+      const float decoder = m_strategy_scale / 32767.0f;
       for (std::size_t action{0}; action < m_num_actions; ++action) {
-        average_strategy[hand + action * m_num_hands] =
-            m_cummulative_strategy[hand + action * m_num_hands] / total;
+        float decoded = static_cast<float>(m_cummulative_strategy_i16[hand + action * m_num_hands]) * decoder;
+        total += decoded;
+      }
+
+      if (total > 0) {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          float decoded = static_cast<float>(m_cummulative_strategy_i16[hand + action * m_num_hands]) * decoder;
+          average_strategy[hand + action * m_num_hands] = decoded / total;
+        }
+      } else {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] = 1.0f / m_num_actions;
+        }
       }
     } else {
       for (std::size_t action{0}; action < m_num_actions; ++action) {
-        average_strategy[hand + action * m_num_hands] = 1.0 / m_num_actions;
+        total += m_cummulative_strategy_f32[hand + action * m_num_hands];
+      }
+
+      if (total > 0) {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] =
+              m_cummulative_strategy_f32[hand + action * m_num_hands] / total;
+        }
+      } else {
+        for (std::size_t action{0}; action < m_num_actions; ++action) {
+          average_strategy[hand + action * m_num_hands] = 1.0f / m_num_actions;
+        }
       }
     }
   }
@@ -221,14 +264,34 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
   // Use precomputed gamma from precompute_discounts()
   (void)iteration;
 
-  // VECTORIZED: GCC emits mulps+addps (fused multiply-add pattern) for 4 floats/iter
-  // Assembly: mulps %xmm2, %xmm0; mulps %xmm1, %xmm3; addps %xmm3, %xmm0; movups %xmm0, (%rax)
-  for (std::size_t action{0}; action < m_num_actions; ++action) {
-    for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-      const std::size_t idx = hand + action * m_num_hands;
-      float discounted_old = m_cummulative_strategy[idx] * gamma;
-      float new_contribution = strategy[idx] * reach_probs[hand];
-      m_cummulative_strategy[idx] = discounted_old + new_contribution;
+  const size_t total_size = m_num_hands * m_num_actions;
+
+  if (compress_strategy) {
+    // int16 mode: decode, update, re-encode
+    thread_local std::vector<float> new_strategy;
+    new_strategy.resize(total_size);
+
+    const float gamma_decoder = gamma * m_strategy_scale / 32767.0f;
+
+    for (std::size_t action{0}; action < m_num_actions; ++action) {
+      for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
+        const std::size_t idx = hand + action * m_num_hands;
+        float discounted_old = static_cast<float>(m_cummulative_strategy_i16[idx]) * gamma_decoder;
+        float new_contribution = strategy[idx] * reach_probs[hand];
+        new_strategy[idx] = discounted_old + new_contribution;
+      }
+    }
+
+    m_strategy_scale = encode_signed_slice(m_cummulative_strategy_i16.data(), new_strategy.data(), total_size);
+  } else {
+    // Float mode: direct update
+    for (std::size_t action{0}; action < m_num_actions; ++action) {
+      for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
+        const std::size_t idx = hand + action * m_num_hands;
+        float discounted_old = m_cummulative_strategy_f32[idx] * gamma;
+        float new_contribution = strategy[idx] * reach_probs[hand];
+        m_cummulative_strategy_f32[idx] = discounted_old + new_contribution;
+      }
     }
   }
 }
@@ -236,18 +299,41 @@ void DCFR::update_cum_strategy(const std::vector<float> &strategy,
 void DCFR::update_cum_strategy(const std::vector<float> &strategy,
                                const std::vector<float> &reach_probs,
                                const float discount_factor) {
-  // VECTORIZED: GCC emits mulps+addps (fused multiply-add pattern) for 4 floats/iter
-  // Assembly: mulps %xmm2, %xmm0; mulps %xmm1, %xmm3; addps %xmm3, %xmm0; movups %xmm0, (%rax)
-  for (std::size_t action{0}; action < m_num_actions; ++action) {
-    for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
-      const std::size_t idx = hand + action * m_num_hands;
-      float discounted_old = m_cummulative_strategy[idx] * discount_factor;
-      float new_contribution = strategy[idx] * reach_probs[hand];
-      m_cummulative_strategy[idx] = discounted_old + new_contribution;
+  const size_t total_size = m_num_hands * m_num_actions;
+
+  if (compress_strategy) {
+    thread_local std::vector<float> new_strategy;
+    new_strategy.resize(total_size);
+
+    const float discount_decoder = discount_factor * m_strategy_scale / 32767.0f;
+
+    for (std::size_t action{0}; action < m_num_actions; ++action) {
+      for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
+        const std::size_t idx = hand + action * m_num_hands;
+        float discounted_old = static_cast<float>(m_cummulative_strategy_i16[idx]) * discount_decoder;
+        float new_contribution = strategy[idx] * reach_probs[hand];
+        new_strategy[idx] = discounted_old + new_contribution;
+      }
+    }
+
+    m_strategy_scale = encode_signed_slice(m_cummulative_strategy_i16.data(), new_strategy.data(), total_size);
+  } else {
+    for (std::size_t action{0}; action < m_num_actions; ++action) {
+      for (std::size_t hand{0}; hand < m_num_hands; ++hand) {
+        const std::size_t idx = hand + action * m_num_hands;
+        float discounted_old = m_cummulative_strategy_f32[idx] * discount_factor;
+        float new_contribution = strategy[idx] * reach_probs[hand];
+        m_cummulative_strategy_f32[idx] = discounted_old + new_contribution;
+      }
     }
   }
 }
 
 void DCFR::reset_cumulative_strategy() {
-  std::fill(m_cummulative_strategy.begin(), m_cummulative_strategy.end(), 0.0f);
+  if (compress_strategy) {
+    std::fill(m_cummulative_strategy_i16.begin(), m_cummulative_strategy_i16.end(), static_cast<int16_t>(0));
+    m_strategy_scale = 1.0f;
+  } else {
+    std::fill(m_cummulative_strategy_f32.begin(), m_cummulative_strategy_f32.end(), 0.0f);
+  }
 }
