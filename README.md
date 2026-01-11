@@ -101,11 +101,14 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 ## 🍎 macOS Installation
 > macOS is more strict with unsigned apps
 
-1. Go to the Releases tab and download the mac .zip file: https://github.com/24parida/shark-2.0/releases
-2. Unzip the file
-3. Try to open shark — it will say the app is untrusted
-4. Go to System Settings → Privacy & Security
-5. Scroll down and click Open Anyway under "shark wants to run"
+**For Intel Macs (pre-2020): download the `macos-intel` .tar.gz**  
+**For Apple Silicon Macs (2020+): download the `macos-arm` .tar.gz**
+
+1. Go to the Releases tab and download the correct file for your Mac: https://github.com/24parida/shark-2.0/releases  
+2. Double-click the `.tar.gz` file to extract it  
+3. Try to open `shark` — it will say the app is untrusted  
+4. Go to System Settings → Privacy & Security  
+5. Scroll down and click Open Anyway under "shark wants to run"  
 6. Confirm to run the app
 
 ---
