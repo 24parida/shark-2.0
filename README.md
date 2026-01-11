@@ -7,9 +7,9 @@
 1. **Simplicity** – Keep the UI and usage as simple as possible.
 2. **Accessibility** – Allow anyone, even those unfamiliar with poker, to use the solver with ease.
 
-Many features seen in other solvers have been intentionally omitted to reduce clutter and cognitive load. For example:
-- Bet sizes are fixed to **33, 66, 100**
-- Raise sizes are limited to **50% and 100%**
+Many features seen in other solvers have been intentionally omitted to reduce clutter and cognitive load. Bet/raise sizes vary by street:
+- **Flop**: Bet 50%, 100% | Raise 100%
+- **Turn/River**: Bet 33%, 66%, 100% | Raise 50%, 100%
 
 These trade-offs were made to maintain a clean user experience.
 
@@ -20,22 +20,22 @@ These trade-offs were made to maintain a clean user experience.
 ## 🎮 How to Use Shark
 
 ### Page 1: Initial Setup
-NOTE: There is almost **NO** input checking, program will crash with nonsensical inputs
 
 Input the following:
-- Starting stack
-- Starting pot size
-- Minimum bet
-- All-in threshold *(default: 0.67)*
-- Number of iterations *(default: 100)*
-- Minimum exploitability *(set to 0 to never stop early)*
+- Stack Size
+- Starting Pot
+- Initial Min Bet
+- All-In Threshold *(default: 0.67)*
+- Pot Type (Single Raise, 3-bet, 4-bet)
+- Your Position (SB, BB, UTG, UTG+1, MP, LJ, HJ, CO, BTN)
+- Their Position
+- Iterations *(default: 100)*
+- Min Exploitability % *(default: 0.1%, set to 0 to never stop early)*
+- Thread Count *(default: CPU cores - 1)*
 
-You’ll also be asked for:
-- Your position
-- Villain’s position
-- Pot type (e.g. single raised, 3-bet)
-
-> ✅ Based on this, ranges are **auto-imported**. Uncheck the box to input them manually.
+Options:
+- **Auto-import ranges** – automatically loads ranges based on positions and pot type
+- **Force Donk Check** – disables donk bets on flop (recommended for memory savings)
 ---
 
 ### Page 2: Board Selection
@@ -98,14 +98,23 @@ The build process is located in `.github/workflows/new_ci.yml`.
 Huge thanks to [Fossana's original solver](https://github.com/Fossana/discounted-cfr-poker-solver), which served as the foundation for this project.
 
 ### Key Improvements:
-- Ported to **C++** for 10–40x speed boost with `-O3` optimizations allowing auto SIMD vectorization
+- Ported to **C++** for 10–40x speed boost with `-O3` optimizations
+- **50% memory reduction** via int16 strategy compression (enables larger flop solves)
+- **Hand isomorphism** exploits suit symmetry for ~25% fewer computations
+- **Intel TBB parallelization** for efficient multi-core utilization
+- **SIMD vectorization** for reach probability calculations
+- **Optimized showdown algorithm** using two-pointer technique
+- **Flop-specific optimizations**: donk bet removal, raise caps, reduced action space
+- **Per-street bet sizing**: different bet/raise options for flop vs turn/river
 - **Bug fixes** (e.g., proper chance node updates)
 - Support for **asymmetric ranges** (Fossana required hero = villain)
 - Added support for **flop** solving (not just turn)
 - Improved **reach probability propagation**
-- Different concurrency model
-- Fully functional **GUI**
-- Numerous quality-of-life and performance enhancements
+- Fully functional **GUI** with oceanic blue theme
+- **Solve caching** – skips redundant computations when re-exploring
+- **Undo history** – navigate backwards through the game tree
+- **Strategy export** – copy ranges in PIO-compatible format
+- **Thread count control** – configure parallelism from the UI
 
 ### Base Algorithm:
  - Discounted Counter Factual Regret Minimization
@@ -121,12 +130,13 @@ Also uses [HenryRLee’s PokerHandEvaluator](https://github.com/HenryRLee/PokerH
 
 I’m a college student who built this as a side project to deepen my C++ skills—and because I love poker!  
 
-### Future Optimizations I’d Like to Explore
+### Future Optimizations I'd Like to Explore
 
-- Hand isomorphism for a 2–3× speed boost  
-- Improved GUI design and overall UX  
+- Improved GUI design and overall UX
+- Additional bet sizing configurations
+- Preflop solver integration
 
-*I’m currently too busy to implement these myself, but pull requests and forks are very welcome. If this project gains enough traction, I may revisit these ideas!*  
+*Pull requests and forks are welcome!*  
 
 If you found this project helpful or interesting, please star the repo or reach out 🙌
 
