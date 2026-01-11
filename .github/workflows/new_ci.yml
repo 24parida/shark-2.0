@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions UI
 
 jobs:
   build-mac-intel:
@@ -19,29 +20,28 @@ jobs:
       - name: Install dependencies (macOS)
         run: |
           brew update
-          brew install fltk tbb cmake libpng jpeg zlib
+          brew install tbb cmake libpng jpeg zlib
+          # Build FLTK from source to get static libraries
+          brew install --build-from-source fltk
 
       - name: Configure & build
         run: |
+          BREW_PREFIX=$(brew --prefix)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math" \
+            -DCMAKE_PREFIX_PATH="$BREW_PREFIX"
           cmake --build build --config Release --target shark --parallel "$(sysctl -n hw.logicalcpu)"
 
-      - name: Make binary executable
-        run: chmod +x build/shark
-
-      - name: Create macOS launcher script
-        run: |
-          cp build/shark build/shark.command
-          chmod +x build/shark.command
+      - name: Code sign app bundle
+        run: codesign --force --deep -s - build/shark.app
 
       - name: Package macOS build
         run: |
           cd build
-          tar czf shark-macos-intel.tar.gz shark shark.command
+          tar czf shark-macos-intel.tar.gz shark.app
 
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v4
@@ -62,29 +62,28 @@ jobs:
       - name: Install dependencies (macOS)
         run: |
           brew update
-          brew install fltk tbb cmake libpng jpeg zlib
+          brew install tbb cmake libpng jpeg zlib
+          # Build FLTK from source to get static libraries
+          brew install --build-from-source fltk
 
       - name: Configure & build
         run: |
+          BREW_PREFIX=$(brew --prefix)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_EXTENSIONS=OFF \
-            -DCMAKE_CXX_FLAGS="-O3 -ffast-math"
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math" \
+            -DCMAKE_PREFIX_PATH="$BREW_PREFIX"
           cmake --build build --config Release --target shark --parallel "$(sysctl -n hw.logicalcpu)"
 
-      - name: Make binary executable
-        run: chmod +x build/shark
-
-      - name: Create macOS launcher script
-        run: |
-          cp build/shark build/shark.command
-          chmod +x build/shark.command
+      - name: Code sign app bundle
+        run: codesign --force --deep -s - build/shark.app
 
       - name: Package macOS build
         run: |
           cd build
-          tar czf shark-macos-arm.tar.gz shark shark.command
+          tar czf shark-macos-arm.tar.gz shark.app
 
       - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v4
