@@ -23,8 +23,11 @@ if(APPLE OR UNIX)
     execute_process(COMMAND brew --prefix OUTPUT_VARIABLE BREW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
     set(FLTK_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk.a)
     set(FLTK_IMAGES_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_images.a)
-    # Note: fltk_png/fltk_jpeg are not built when using system PNG/JPEG (Homebrew default)
     set(TBB_STATIC_LIB ${BREW_PREFIX}/opt/tbb/lib/libtbb.a)
+    # Static image libraries - must use .a files, not CMake targets (which link dynamically)
+    set(PNG_STATIC_LIB ${BREW_PREFIX}/opt/libpng/lib/libpng.a)
+    set(JPEG_STATIC_LIB ${BREW_PREFIX}/opt/jpeg/lib/libjpeg.a)
+    set(ZLIB_STATIC_LIB ${BREW_PREFIX}/opt/zlib/lib/libz.a)
   else() # Linux
     set(FLTK_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk.a)
     set(FLTK_IMAGES_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk_images.a)
@@ -100,9 +103,9 @@ if(APPLE)
     ${FLTK_STATIC_LIB}
     ${TBB_STATIC_LIB}
     pheval
-    PNG::PNG
-    JPEG::JPEG
-    ZLIB::ZLIB
+    ${PNG_STATIC_LIB}
+    ${JPEG_STATIC_LIB}
+    ${ZLIB_STATIC_LIB}
     "-framework Cocoa"
     "-framework ApplicationServices"
     "-framework CoreFoundation"
