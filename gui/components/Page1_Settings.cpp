@@ -206,10 +206,10 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
   m_logoBox->image(m_logoImage);
   m_logoBox->align(FL_ALIGN_CENTER | FL_ALIGN_INSIDE);
 
-  // Developer credit with typewriter animation (positioned below logo)
-  m_lblCredit = new Fl_Box(0, 0, 0, 0, "");
+  // Developer credit (positioned below logo)
+  m_lblCredit = new Fl_Box(0, 0, 0, 0, "Developed by Anubhav Parida");
   m_lblCredit->labelsize(16);
-  m_lblCredit->labelfont(FL_HELVETICA_ITALIC);
+  m_lblCredit->labelfont(FL_TIMES_ITALIC);
   m_lblCredit->align(FL_ALIGN_RIGHT | FL_ALIGN_INSIDE);
 
   // Next button (outside grid, fixed at bottom center)
@@ -223,9 +223,6 @@ Page1_Settings::Page1_Settings(int X, int Y, int W, int H)
 
   // Force initial layout
   resize(X, Y, W, H);
-
-  // Start typewriter animation
-  startCreditAnimation();
 
   // Start logo bounce animation
   Fl::add_timeout(0.016, logoAnimCallback, this);  // ~60fps
@@ -427,49 +424,9 @@ void Page1_Settings::resize(int X, int Y, int W, int H) {
   m_btnNext->resize((W - 225) / 2, Y + H - 70, 225, 52);
 }
 
-// Typewriter animation
-void Page1_Settings::typewriterCallback(void *data) {
-  auto *self = static_cast<Page1_Settings*>(data);
-  self->advanceTypewriter();
-}
-
-void Page1_Settings::advanceTypewriter() {
-  if (m_creditIndex < static_cast<int>(m_creditFull.length())) {
-    m_creditCurrent += m_creditFull[m_creditIndex];
-    m_creditIndex++;
-    m_lblCredit->copy_label(m_creditCurrent.c_str());
-    m_lblCredit->redraw();
-    // Schedule next character (100ms between characters - 2x slower)
-    Fl::add_timeout(0.1, typewriterCallback, this);
-  } else {
-    // Animation complete - wait 2 seconds then restart
-    m_animationComplete = true;
-    Fl::add_timeout(2.0, [](void *data) {
-      static_cast<Page1_Settings*>(data)->startCreditAnimation();
-    }, this);
-  }
-}
-
-void Page1_Settings::startCreditAnimation() {
-  // Reset animation state
-  m_creditIndex = 0;
-  m_creditCurrent.clear();
-  m_animationComplete = false;
-  m_lblCredit->copy_label("");
-
-  // Start the animation with a small delay
-  Fl::add_timeout(0.3, typewriterCallback, this);
-
-  // Also restart logo animation (remove any existing to avoid duplicates)
-  Fl::remove_timeout(logoAnimCallback, this);
-  m_logoAnimTime = 0.0;  // Reset animation time
-  Fl::add_timeout(0.016, logoAnimCallback, this);
-}
-
 void Page1_Settings::stopAnimation() {
-  // Stop both animations by removing their timeouts
+  // Stop logo animation
   Fl::remove_timeout(logoAnimCallback, this);
-  Fl::remove_timeout(typewriterCallback, this);
 }
 
 // Logo bounce animation - makes the shark look lively

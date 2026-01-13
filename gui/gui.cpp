@@ -182,7 +182,6 @@ class Wizard : public Fl_Double_Window {
     m_pg4->clearSelection();
     m_pg2->hide();
     m_pg1->show();
-    m_pg1->startCreditAnimation();  // Restart typewriter animation
   }
 
   void do2Next() {

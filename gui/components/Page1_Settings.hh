@@ -34,22 +34,14 @@ class Page1_Settings : public Fl_Group {
   static void logoAnimCallback(void *data);
   void updateLogoAnimation();
 
-  // Typewriter animation for credit
+  // Developer credit (static text)
   Fl_Box *m_lblCredit;
-  std::string m_creditFull{"Developed by Anubhav Parida"};
-  std::string m_creditCurrent;
-  int m_creditIndex{0};
-  bool m_animationComplete{false};
-
-  static void typewriterCallback(void *data);
-  void advanceTypewriter();
 
 public:
   Page1_Settings(int X, int Y, int W, int H);
 
   void setNextCallback(Fl_Callback *cb, void *data);
-  void startCreditAnimation();  // Call when page becomes visible
-  void stopAnimation();         // Call when page becomes hidden
+  void stopAnimation();  // Call when page becomes hidden
 
   // Validation - returns empty string if valid, error message if invalid
   std::string validateInputs() const;
