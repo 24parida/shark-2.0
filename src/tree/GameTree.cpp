@@ -286,12 +286,18 @@ auto GameTree::getTreeStats() const -> TreeStatistics {
 
 size_t TreeStatistics::estimateMemoryBytes() const {
   const int avg_actions_per_node = 3;
-  const int bytes_per_hand_action = 4;
+
+  int max_hands = (p1_num_hands > p2_num_hands) ? p1_num_hands : p2_num_hands;
 
   size_t dcfr_bytes = 0;
 
-  int max_hands = (p1_num_hands > p2_num_hands) ? p1_num_hands : p2_num_hands;
-  dcfr_bytes = static_cast<size_t>(total_action_nodes) * max_hands * avg_actions_per_node * bytes_per_hand_action;
+  bool is_flop_solve = (flop_action_nodes > 0);
+
+  if (is_flop_solve) {
+    dcfr_bytes = static_cast<size_t>(total_action_nodes) * max_hands * avg_actions_per_node * 4;
+  } else {
+    dcfr_bytes = static_cast<size_t>(total_action_nodes) * max_hands * avg_actions_per_node * 6;
+  }
 
   size_t tree_structure_bytes = static_cast<size_t>(total_action_nodes + chance_nodes + terminal_nodes) * 200;
 

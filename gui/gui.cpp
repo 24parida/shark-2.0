@@ -361,8 +361,16 @@ class Wizard : public Fl_Double_Window {
     Fl::check();
 
     if (!m_pg5->isMemoryOk()) {
-      fl_alert("Warning: Estimated memory usage exceeds available memory.\n"
-               "The solver may run slowly or fail.");
+      fl_alert("Not enough memory to solve this game.\n\n"
+               "Your computer has %s available, but this solve needs approximately %s.\n\n"
+               "Try reducing range sizes or solving from turn/river instead of flop.",
+               MemoryUtil::formatBytes(availableMemory).c_str(),
+               MemoryUtil::formatBytes(estimatedMemory).c_str());
+
+      m_root.reset();
+      m_pg5->hide();
+      m_pg4->show();
+      return;
     }
 
     m_pg5->setStatus("Training solver...");
