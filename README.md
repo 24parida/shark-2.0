@@ -91,7 +91,7 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 ---
 
 ## 🪟 Windows Installation
-1. Go to the Releases tab and download the shark.zip for Windows: https://github.com/24parida/shark-2.0/releases
+1. Go to the Releases tab and download `shark_windows.zip`: https://github.com/24parida/shark-2.0/releases
 2. Unzip the folder
 3. Inside the folder, double-click shark.exe
 4. Windows may warn you about an untrusted app — click More Options → Run Anyway
@@ -101,14 +101,21 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 ## 🍎 macOS Installation
 > macOS is more strict with unsigned apps
 
-**For Intel Macs (pre-2020): download the `macos-intel` .tar.gz**  
-**For Apple Silicon Macs (2020+): download the `macos-arm` .tar.gz**
+**Choose the right download for your Mac:**
 
-1. Go to the Releases tab and download the correct file for your Mac: https://github.com/24parida/shark-2.0/releases  
-2. Double-click the `.tar.gz` file to extract it  
-3. Try to open `shark` — it will say the app is untrusted  
-4. Go to System Settings → Privacy & Security  
-5. Scroll down and click Open Anyway under "shark wants to run"  
+| Download | For | macOS Version |
+|----------|-----|---------------|
+| `shark_macOS_compatible.tar.gz` | Apple Silicon (M1/M2/M3) | macOS 12 Monterey or newer |
+| `shark_macOS_latest.tar.gz` | Apple Silicon (M1/M2/M3) | Latest macOS only |
+| `shark_macOS_intel.tar.gz` | Intel Macs (pre-2020) | macOS 10.15 Catalina or newer |
+
+> **Which should I pick?** If you have an M1/M2/M3 Mac, use `shark_macOS_compatible` — it works on most macOS versions. Only use `shark_macOS_latest` if you're on the newest macOS and want bleeding-edge builds.
+
+1. Go to the Releases tab and download the correct file for your Mac: https://github.com/24parida/shark-2.0/releases
+2. Double-click the `.tar.gz` file to extract it
+3. Try to open `shark` — it will say the app is untrusted
+4. Go to System Settings → Privacy & Security
+5. Scroll down and click Open Anyway under "shark wants to run"
 6. Confirm to run the app
 
 ---
