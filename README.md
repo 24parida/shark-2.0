@@ -1,4 +1,5 @@
-# Shark 2.0 ![logo](icons/generated_logo.png)
+# Shark 2.0 
+![logo](icons/generated_logo.png)
 ## Demo (old version but still 90% relevant): https://youtu.be/3Rcd4PqS9L0
 ![Solver UI](icons/Solver.png)
 
