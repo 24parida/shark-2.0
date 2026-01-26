@@ -1,4 +1,4 @@
-# Shark 2.0 🦈
+# Shark 2.0 ![logo](icons/generated_logo.png)
 ## Demo (old version but still 90% relevant): https://youtu.be/3Rcd4PqS9L0
 ![Solver UI](icons/Solver.png)
 
@@ -41,11 +41,9 @@ Options:
 
 ### Page 2: Board Selection
 Click to select the board cards:
-- 3 cards for flop
+- 3 cards for flop (Or click "Random Flop" to auto-generate)
 - 4 cards for turn
 - 5 cards for river  
-Or click "Random Flop" to auto-generate and tweak from there.
-
 ---
 
 ### Pages 3 & 4: Range Editing
