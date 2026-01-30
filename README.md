@@ -1,7 +1,7 @@
 # Shark 2.0 
 ![logo](icons/generated_logo.png)
 ## Demo (old version but still 90% relevant): https://youtu.be/3Rcd4PqS9L0
-(Promotional) [LinkedIn post](https://www.linkedin.com/feed/update/urn:li:activity:7416664544271323136/)
+## (Promotional) [LinkedIn post](https://www.linkedin.com/feed/update/urn:li:activity:7416664544271323136/)
 ![Solver UI](icons/Solver.png)
 
 Shark is a completely free (and ad-free) open-source solver that implements state-of-the-art algorithms to solve Heads-Up (HU) poker. While other solvers exist, this project had two main goals:
