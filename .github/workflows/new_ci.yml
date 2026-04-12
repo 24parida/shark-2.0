@@ -192,6 +192,17 @@ jobs:
 
           echo "Scanning shark.exe for dependencies..."
           ntldd "shark.exe" | awk '{print $3}' | while read -r dll; do
+            base=$(basename "$dll")
+            case "${base,,}" in
+              dwmapi.dll|uxtheme.dll|comctl32.dll|comdlg32.dll| \
+              kernel32.dll|user32.dll|gdi32.dll|advapi32.dll| \
+              ole32.dll|oleaut32.dll|shell32.dll|shlwapi.dll| \
+              ws2_32.dll|crypt32.dll|wininet.dll|winmm.dll| \
+              msvcrt.dll|ntdll.dll|api-ms-win-*.dll)
+                echo "Skipping system DLL: $base"
+                continue
+                ;;
+            esac
             if [[ -f "$dll" && "$dll" != /c/Windows/* && "$dll" != /C/Windows/* ]]; then
               cp -u -v "$dll" .
             fi
@@ -208,6 +219,14 @@ jobs:
           else
             echo "All DLLs found for shark.exe"
           fi
+
+          echo "Checking for accidentally bundled Windows system DLLs..."
+          for forbidden in dwmapi.dll uxtheme.dll kernel32.dll user32.dll gdi32.dll; do
+            if [ -f "$forbidden" ]; then
+              echo "ERROR: $forbidden must not be bundled — it must load from System32"
+              exit 1
+            fi
+          done
 
       - name: Package Windows build
         shell: pwsh
