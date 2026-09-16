@@ -53,7 +53,7 @@ inline int board_to_key(const std::vector<Card> &board) {
     return 100000000 * static_cast<int>(board[0]) +
            1000000 * static_cast<int>(board[1]) +
            10000 * static_cast<int>(board[2]);
-  } else if (board.size() == 3) {
+  } else if (board.size() == 4) {
     return 100000000 * static_cast<int>(board[0]) +
            1000000 * static_cast<int>(board[1]) +
            10000 * static_cast<int>(board[2]) +
