@@ -49,7 +49,7 @@ public:
     }
 
     for (int i = 0; i < 52 * 52; ++i) {
-      if (std::abs(weights[i] - swapped_weights[i]) > 1e-6f) {
+      if (weights[i] != swapped_weights[i]) {
         return false;
       }
     }

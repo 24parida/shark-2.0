@@ -38,8 +38,12 @@ float BestResponse::get_best_response_ev(
     }
   }
 
-  auto preflop_combo_evs{best_response(
-      node, m_prm.get_initial_reach_probs(villain, board), board)};
+  std::vector<float> villain_reach(m_num_villain_hands);
+  for (int hand = 0; hand < m_num_villain_hands; ++hand) {
+    if (!CardUtility::overlap_mask(villain_combos[hand], board_mask))
+      villain_reach[hand] = villain_combos[hand].probability;
+  }
+  auto preflop_combo_evs{best_response(node, villain_reach, board)};
 
   double weighted_cfv_sum = 0.0;
   for (int i = 0; i < m_num_hero_hands; ++i) {
@@ -167,45 +171,20 @@ auto BestResponse::action_best_response(
 auto BestResponse::chance_best_response(
     ChanceNode *node, const std::vector<float> &villain_reach_probs,
     const std::vector<Card> &board) -> std::vector<float> {
-  const uint64_t board_mask = CardUtility::board_to_mask(board);
   const auto& iso_data = node->get_isomorphism_data();
 
-  int num_rep_cards = 0;
-  for (int card = 0; card < 52; ++card) {
-    if (!((1ULL << card) & board_mask) && node->get_child(card)) {
-      num_rep_cards++;
-    }
-  }
-  const int num_iso_cards = static_cast<int>(iso_data.isomorphism_card.size());
-  const int chance_factor = num_rep_cards + num_iso_cards;
+  const int chance_factor = 52 - static_cast<int>(board.size()) - 4;
   const float reach_scale = 1.0f / static_cast<float>(chance_factor);
 
-  std::vector<float> preflop_combo_evs(m_num_hero_hands, 0.0f);
+  std::vector<double> totals(m_num_hero_hands, 0.0);
+  std::vector<std::vector<float>> child_values(node->get_num_children());
   std::vector<float> new_villain_reach_probs(m_num_villain_hands);
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
-  for (int card = 0; card < 52; ++card) {
-    if ((1ULL << card) & board_mask)
-      continue;
-
+  for (int index = 0; index < node->get_num_children(); ++index) {
+    const int card = node->get_card_at_index(index);
     Node* child = node->get_child(card);
-    bool is_isomorphic = (child == nullptr);
-
-    if (is_isomorphic) {
-      int suit = card & 3;
-      int rank = card >> 2;
-
-      for (int rep_suit = 0; rep_suit < suit; ++rep_suit) {
-        int rep_card = (rank << 2) | rep_suit;
-        if (node->get_child(rep_card)) {
-          child = node->get_child(rep_card);
-          break;
-        }
-      }
-
-      if (!child) continue;
-    }
 
     new_board.resize(board.size());
     new_board.push_back(card);
@@ -217,21 +196,21 @@ auto BestResponse::chance_best_response(
       }
     }
 
-    std::vector<float> subgame_evs{
-        best_response(child, new_villain_reach_probs, new_board)};
-
-    if (is_isomorphic) {
-      int suit = card & 3;
-      const auto& swap_list = iso_data.swap_list[suit][m_hero - 1];
-      IsomorphismComputer::apply_swap(subgame_evs, swap_list);
-    }
-
+    child_values[index] = best_response(child, new_villain_reach_probs, new_board);
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
-      preflop_combo_evs[hand] += subgame_evs[hand];
+      totals[hand] += child_values[index][hand];
     }
   }
 
-  return preflop_combo_evs;
+  for (size_t i = 0; i < iso_data.isomorphism_ref.size(); ++i) {
+    auto &values = child_values[iso_data.isomorphism_ref[i]];
+    const auto &swaps = iso_data.swap_list[iso_data.isomorphism_card[i] & 3][m_hero - 1];
+    IsomorphismComputer::apply_swap(values, swaps);
+    for (int hand = 0; hand < m_num_hero_hands; ++hand) totals[hand] += values[hand];
+    IsomorphismComputer::apply_swap(values, swaps);
+  }
+
+  return std::vector<float>(totals.begin(), totals.end());
 }
 
 auto BestResponse::terminal_best_response(
@@ -260,11 +239,7 @@ auto BestResponse::all_in_best_response(
   auto new_board{board};
   new_board.reserve(board.size() + 1);
 
-  int chance_factor = 0;
-  for (int card = 0; card < 52; ++card) {
-    const uint64_t card_mask = 1ULL << card;
-    if (!(card_mask & board_mask)) chance_factor++;
-  }
+  const int chance_factor = 52 - static_cast<int>(board.size()) - 4;
   const float reach_scale = 1.0f / static_cast<float>(chance_factor);
 
   for (int card = 0; card < 52; ++card) {

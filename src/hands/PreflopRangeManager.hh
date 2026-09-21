@@ -4,6 +4,7 @@
 #pragma once
 #include "PreflopCombo.hh"
 #include <cassert>
+#include <vector>
 
 class PreflopRangeManager {
   std::vector<PreflopCombo> m_p1_preflop_combos;

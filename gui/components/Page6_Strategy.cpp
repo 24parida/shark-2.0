@@ -51,6 +51,7 @@ Page6_Strategy::Page6_Strategy(int X, int Y, int W, int H)
 }
 
 Page6_Strategy::~Page6_Strategy() {
+  m_infoDisplay->buffer(nullptr);
   delete m_infoBuffer;
 }
 

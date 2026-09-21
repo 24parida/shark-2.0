@@ -46,24 +46,10 @@ inline bool overlap_mask(const PreflopCombo &combo, uint64_t board_mask) {
   return (combo_mask & board_mask) != 0;
 }
 
-inline int board_to_key(const std::vector<Card> &board) {
+inline uint64_t board_to_key(const std::vector<Card> &board) {
   assert((board.size() >= 3 && board.size() <= 5) &&
          "CardUtility: board_to_key incorrect board size");
-  if (board.size() == 3) {
-    return 100000000 * static_cast<int>(board[0]) +
-           1000000 * static_cast<int>(board[1]) +
-           10000 * static_cast<int>(board[2]);
-  } else if (board.size() == 4) {
-    return 100000000 * static_cast<int>(board[0]) +
-           1000000 * static_cast<int>(board[1]) +
-           10000 * static_cast<int>(board[2]) +
-           100 * static_cast<int>(board[3]);
-  } else {
-    return 100000000 * static_cast<int>(board[0]) +
-           1000000 * static_cast<int>(board[1]) +
-           10000 * static_cast<int>(board[2]) +
-           100 * static_cast<int>(board[3]) + static_cast<int>(board[4]);
-  }
+  return board_to_mask(board);
 }
 
 inline auto get_rank(const Card &card1, const Card &card2,

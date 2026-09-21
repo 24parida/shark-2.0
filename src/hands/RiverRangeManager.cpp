@@ -11,7 +11,7 @@ auto RiverRangeManager::get_river_combos(
     const std::vector<Card> &board) -> std::vector<RiverCombo> {
 
   auto &river_ranges{player == 1 ? m_p1_river_ranges : m_p2_river_ranges};
-  const int key{CardUtility::board_to_key(board)};
+  const uint64_t key{CardUtility::board_to_key(board)};
 
   if (auto it = river_ranges.find(key); it != river_ranges.end())
     return it->second;

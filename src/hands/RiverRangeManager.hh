@@ -4,11 +4,12 @@
 #pragma once
 #include "PreflopCombo.hh"
 #include "RiverCombo.hh"
+#include <cstdint>
 #include <oneapi/tbb/concurrent_unordered_map.h>
 #include <tbb/concurrent_unordered_map.h>
 #include <vector>
 
-using RiverMap = tbb::concurrent_unordered_map<int, std::vector<RiverCombo>>;
+using RiverMap = tbb::concurrent_unordered_map<uint64_t, std::vector<RiverCombo>>;
 
 class RiverRangeManager {
   RiverMap m_p1_river_ranges;
