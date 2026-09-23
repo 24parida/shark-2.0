@@ -138,7 +138,7 @@ jobs:
           path: build/shark_macOS_latest.tar.gz
 
   build-win:
-    name: Build on Windows (MinGW)
+    name: Build on Windows (UCRT64)
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -150,17 +150,17 @@ jobs:
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-fltk
-            mingw-w64-x86_64-tbb
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ntldd-git
-            mingw-w64-x86_64-libpng
-            mingw-w64-x86_64-libjpeg-turbo
-            mingw-w64-x86_64-zlib
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-fltk
+            mingw-w64-ucrt-x86_64-tbb
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ntldd-git
+            mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-libjpeg-turbo
+            mingw-w64-ucrt-x86_64-zlib
 
       - name: Configure & build
         shell: msys2 {0}
@@ -179,14 +179,14 @@ jobs:
         run: |
           cd build
           for lib in \
-            /mingw64/bin/libgcc_s_seh-1.dll \
-            /mingw64/bin/libstdc++-6.dll \
-            /mingw64/bin/libwinpthread-1.dll \
-            /mingw64/bin/libfltk*.dll \
-            /mingw64/bin/libtbb*.dll \
-            /mingw64/bin/libpng*.dll \
-            /mingw64/bin/libjpeg*.dll \
-            /mingw64/bin/zlib*.dll; do
+            /ucrt64/bin/libgcc_s_seh-1.dll \
+            /ucrt64/bin/libstdc++-6.dll \
+            /ucrt64/bin/libwinpthread-1.dll \
+            /ucrt64/bin/libfltk*.dll \
+            /ucrt64/bin/libtbb*.dll \
+            /ucrt64/bin/libpng*.dll \
+            /ucrt64/bin/libjpeg*.dll \
+            /ucrt64/bin/zlib*.dll; do
             [ -f "$lib" ] && cp -u -v "$lib" .
           done
 
