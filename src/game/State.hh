@@ -124,9 +124,9 @@ struct GameState {
 
     case Action::RAISE: {
       const int chips_to_commit = action.amount - current->wager;
+      const int raise_size = action.amount - get_max_bet();
       current->commit_chips(chips_to_commit);
       pot += chips_to_commit;
-      const int raise_size = action.amount - get_max_bet();
       if (raise_size > minimum_raise_size)
         minimum_raise_size = raise_size;
       if (street == Street::FLOP) flop_aggressor = current->_id;

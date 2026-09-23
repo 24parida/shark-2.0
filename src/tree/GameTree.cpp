@@ -142,7 +142,7 @@ auto GameTree::build_action_nodes(const Node *parent, const GameState &state)
         if ((static_cast<float>(raise_amount) /
              (state.current->stack + state.current->wager)) >=
             m_settings.all_in_threshold) {
-          raise_amount = state.current->stack;
+          raise_amount = state.current->stack + state.current->wager;
           const Action action{.type = i, .amount = raise_amount};
           action_node = build_action(std::move(action_node), state, action);
           break;
@@ -178,11 +178,14 @@ auto GameTree::build_chance_nodes(const Node *parent, const GameState &state)
     board_mask |= (1ULL << int(c));
   }
 
-  IsomorphismData iso_data = IsomorphismComputer::compute(
-      m_settings.range1.preflop_combos,
-      m_settings.range2.preflop_combos,
-      state.board,
-      board_mask);
+  IsomorphismData iso_data;
+  if (m_settings.use_isomorphism) {
+    iso_data = IsomorphismComputer::compute(
+        m_settings.range1.preflop_combos,
+        m_settings.range2.preflop_combos,
+        state.board,
+        board_mask);
+  }
 
   uint64_t skip_mask = 0;
   for (int card : iso_data.isomorphism_card) {
@@ -259,7 +262,7 @@ bool is_valid_action(const Action &action, const GameState &state) {
             action.amount == stack);
   case Action::BET:
     return call_amount == 0 &&
-           ((action.amount > minimum_raise_size && action.amount <= stack) ||
+           ((action.amount >= minimum_raise_size && action.amount <= stack) ||
             (action.amount > 0 && action.amount == stack));
   case Action::RAISE:
     int raiseSize = action.amount - call_amount - wager;

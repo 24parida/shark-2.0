@@ -23,6 +23,7 @@ struct TreeBuilderSettings {
   int raise_cap = -1;
 
   bool remove_donk_bets = false;
+  bool use_isomorphism = true;
 
   TreeBuilderSettings(const PreflopRange &o_range1,
                       const PreflopRange &o_range2,

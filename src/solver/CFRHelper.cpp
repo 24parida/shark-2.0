@@ -196,8 +196,7 @@ void CFRHelper::chance_node_utility(const ChanceNode *node,
   const int num_rep_cards = static_cast<int>(rep_cards.size());
   if (num_rep_cards == 0) return;
 
-  const int num_iso_cards = static_cast<int>(iso_data.isomorphism_card.size());
-  const int chance_factor = num_rep_cards + num_iso_cards;
+  const int chance_factor = 52 - static_cast<int>(board.size()) - 4;
   const float reach_scale = 1.0f / static_cast<float>(chance_factor);
 
   std::vector<float> cfv_actions(num_rep_cards * m_num_hero_hands);
@@ -381,7 +380,7 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
   }
 
   std::vector<float> preflop_combo_evs(m_num_hero_hands);
-  std::vector<int> card_counts(m_num_hero_hands, 0);
+  const float reach_scale = 1.0f / (52 - static_cast<int>(board.size()) - 4);
 
   for (int card = 0; card < 52; ++card) {
     if (CardUtility::overlap(card, board))
@@ -393,7 +392,7 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
     std::vector<float> new_villain_reach_probs(m_num_villain_hands);
     for (int hand = 0; hand < m_num_villain_hands; ++hand) {
       if (!CardUtility::overlap(m_villain_preflop_combos[hand], card))
-        new_villain_reach_probs[hand] = villain_reach_pr[hand];
+        new_villain_reach_probs[hand] = villain_reach_pr[hand] * reach_scale;
     }
 
     const auto subgame_evs{
@@ -402,14 +401,7 @@ auto CFRHelper::get_all_in_utils(const TerminalNode *node,
     for (int hand = 0; hand < m_num_hero_hands; ++hand) {
       if (!CardUtility::overlap(m_hero_preflop_combos[hand], card)) {
         preflop_combo_evs[hand] += subgame_evs[hand];
-        card_counts[hand]++;
       }
-    }
-  }
-
-  for (int hand = 0; hand < m_num_hero_hands; ++hand) {
-    if (card_counts[hand] > 0) {
-      preflop_combo_evs[hand] /= static_cast<float>(card_counts[hand]);
     }
   }
 

@@ -1,5 +1,6 @@
 #include "Page3_HeroRange.hh"
 #include "../utils/RangeData.hh"
+#include "../utils/RangeEditor.hh"
 #include "../utils/Colors.hh"
 #include <FL/Fl_Grid.H>
 #include <FL/Fl.H>
@@ -121,18 +122,14 @@ void Page3_HeroRange::setRangeChangeCallback(std::function<void(const std::vecto
 }
 
 void Page3_HeroRange::setSelectedRange(const std::vector<std::string>& range) {
-  m_selectedRange = range;
-
-  // Update button selection states
+  PreflopRange parsed(RangeEditor::join(range));
+  m_selectedRange = parsed.to_strings();
   for (auto *btn : m_rangeBtns) {
-    std::string hand = btn->label();
-    bool selected = std::find(range.begin(), range.end(), hand) != range.end();
-    btn->select(selected);
+    const std::string hand = btn->label();
+    btn->select(std::any_of(parsed.preflop_combos.begin(), parsed.preflop_combos.end(),
+                            [&](const auto &combo) { return combo.hand_type() == hand; }));
   }
-
-  if (m_onRangeChange) {
-    m_onRangeChange(m_selectedRange);
-  }
+  if (m_onRangeChange) m_onRangeChange(m_selectedRange);
 }
 
 void Page3_HeroRange::clearSelection() {
@@ -150,22 +147,17 @@ void Page3_HeroRange::cbRange(Fl_Widget *w, void *data) {
 }
 
 void Page3_HeroRange::handleRangeClick(CardButton *btn) {
-  std::string hand = btn->label();
-
-  auto it = std::find(m_selectedRange.begin(), m_selectedRange.end(), hand);
-  if (it != m_selectedRange.end()) {
-    // Deselect
-    m_selectedRange.erase(it);
-    btn->select(false);
+  PreflopRange range(RangeEditor::join(m_selectedRange));
+  const std::string hand = btn->label();
+  if (btn->selected()) {
+    auto &combos = range.preflop_combos;
+    combos.erase(std::remove_if(combos.begin(), combos.end(),
+                                [&](const auto &combo) { return combo.hand_type() == hand; }), combos.end());
   } else {
-    // Select
-    m_selectedRange.push_back(hand);
-    btn->select(true);
+    const PreflopRange added(hand);
+    range.preflop_combos.insert(range.preflop_combos.end(), added.preflop_combos.begin(), added.preflop_combos.end());
   }
-
-  if (m_onRangeChange) {
-    m_onRangeChange(m_selectedRange);
-  }
+  setSelectedRange(range.to_strings());
 }
 
 void Page3_HeroRange::resize(int X, int Y, int W, int H) {
@@ -211,9 +203,10 @@ void Page3_HeroRange::handleImport() {
 
   const char* input = fl_input("Enter range (PIO/WASM format):", "");
   if (input && strlen(input) > 0) {
-    std::vector<std::string> parsed = parseRangeString(input);
-    if (!parsed.empty()) {
-      setSelectedRange(parsed);
+    try {
+      setSelectedRange(parseRangeString(input));
+    } catch (const std::exception &error) {
+      fl_alert("%s", error.what());
     }
   }
 }
@@ -233,79 +226,5 @@ void Page3_HeroRange::handleCopy() {
 }
 
 std::vector<std::string> Page3_HeroRange::parseRangeString(const std::string& rangeStr) {
-  std::vector<std::string> result;
-
-  // Remove whitespace and split by comma
-  std::string cleaned;
-  for (char c : rangeStr) {
-    if (!std::isspace(c)) cleaned += c;
-  }
-
-  std::stringstream ss(cleaned);
-  std::string token;
-
-  while (std::getline(ss, token, ',')) {
-    if (token.empty()) continue;
-
-    // Handle weight suffix (e.g., "AKo:0.5" -> just "AKo")
-    size_t colonPos = token.find(':');
-    if (colonPos != std::string::npos) {
-      token = token.substr(0, colonPos);
-    }
-
-    // Handle range notation (e.g., "77+" or "ATs-A5s" or "KQo-K9o")
-    if (token.find('+') != std::string::npos) {
-      // Pair+ notation (e.g., "77+" means 77,88,99,TT,JJ,QQ,KK,AA)
-      std::string base = token.substr(0, token.find('+'));
-      if (base.length() >= 2 && base[0] == base[1]) {
-        int startIdx = -1;
-        for (int i = 0; i < 13; ++i) {
-          if (RangeData::RANKS[i][0] == base[0]) {
-            startIdx = i;
-            break;
-          }
-        }
-        if (startIdx >= 0) {
-          for (int i = startIdx; i >= 0; --i) {
-            result.push_back(RangeData::RANKS[i] + RangeData::RANKS[i]);
-          }
-        }
-      }
-    } else if (token.find('-') != std::string::npos) {
-      // Range notation (e.g., "ATs-A5s" or "77-55")
-      size_t dashPos = token.find('-');
-      std::string start = token.substr(0, dashPos);
-      std::string end = token.substr(dashPos + 1);
-
-      // Check if it's suited/offsuit range
-      bool isSuited = (start.back() == 's');
-      bool isOffsuit = (start.back() == 'o');
-
-      if (start.length() >= 2 && end.length() >= 2) {
-        char highCard = start[0];
-        int startKicker = -1, endKicker = -1;
-
-        for (int i = 0; i < 13; ++i) {
-          if (RangeData::RANKS[i][0] == start[1]) startKicker = i;
-          if (RangeData::RANKS[i][0] == end[1]) endKicker = i;
-        }
-
-        if (startKicker >= 0 && endKicker >= 0) {
-          int lo = std::min(startKicker, endKicker);
-          int hi = std::max(startKicker, endKicker);
-          for (int i = lo; i <= hi; ++i) {
-            std::string hand = std::string(1, highCard) + RangeData::RANKS[i];
-            if (isSuited) hand += "s";
-            else if (isOffsuit) hand += "o";
-            result.push_back(hand);
-          }
-        }
-      }
-    } else {
-      // Single hand (e.g., "AA", "AKs", "AKo")
-      result.push_back(token);
-    }
-  }
-
-  return result;
+  return PreflopRange(rangeStr).to_strings();
 }

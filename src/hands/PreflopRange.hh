@@ -3,6 +3,7 @@
 // --------------------------------
 #pragma once
 #include "PreflopCombo.hh"
+#include <vector>
 
 struct PreflopRange {
   std::vector<PreflopCombo> preflop_combos;
@@ -11,6 +12,7 @@ struct PreflopRange {
   PreflopRange() = delete;
   PreflopRange(std::string);
   void print() const;
+  auto to_strings() const -> std::vector<std::string>;
 
 private:
   void add_combo(const char rank1, const int suit1, const char rank2, const int suit2, const float weight = 1.0f);

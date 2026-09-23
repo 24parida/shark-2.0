@@ -13,30 +13,26 @@ else()
 endif()
 
 # 2. Static linking setup
-if(APPLE OR UNIX)
+if(APPLE)
   message(STATUS "Enabling static linking for TBB and FLTK")
   set(FLTK_USE_STATIC_LIBS ON)
   add_definitions(-DSTATIC_FLTK)
 
-  if(APPLE)
-    # Use Homebrew paths - works for both Intel (/usr/local) and ARM (/opt/homebrew)
-    execute_process(COMMAND brew --prefix OUTPUT_VARIABLE BREW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(FLTK_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk.a)
-    set(FLTK_IMAGES_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_images.a)
-    set(TBB_STATIC_LIB ${BREW_PREFIX}/opt/tbb/lib/libtbb.a)
-    # Static image libraries - must use .a files, not CMake targets (which link dynamically)
-    set(PNG_STATIC_LIB ${BREW_PREFIX}/opt/libpng/lib/libpng.a)
-    set(JPEG_STATIC_LIB ${BREW_PREFIX}/opt/jpeg/lib/libjpeg.a)
-    set(ZLIB_STATIC_LIB ${BREW_PREFIX}/opt/zlib/lib/libz.a)
-  else() # Linux
-    set(FLTK_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk.a)
-    set(FLTK_IMAGES_STATIC_LIB /usr/lib/x86_64-linux-gnu/libfltk_images.a)
-    set(TBB_STATIC_LIB /usr/lib/x86_64-linux-gnu/libtbb.a)
-  endif()
+  execute_process(COMMAND brew --prefix OUTPUT_VARIABLE BREW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(FLTK_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk.a)
+  set(FLTK_IMAGES_STATIC_LIB ${BREW_PREFIX}/opt/fltk/lib/libfltk_images.a)
+  set(TBB_STATIC_LIB ${BREW_PREFIX}/opt/tbb/lib/libtbb.a)
+  set(PNG_STATIC_LIB ${BREW_PREFIX}/opt/libpng/lib/libpng.a)
+  set(JPEG_STATIC_LIB ${BREW_PREFIX}/opt/jpeg/lib/libjpeg.a)
+  set(ZLIB_STATIC_LIB ${BREW_PREFIX}/opt/zlib/lib/libz.a)
 endif()
 
 # 3. Find dependencies
-find_package(FLTK REQUIRED)
+if(UNIX AND NOT APPLE)
+  find_package(FLTK 1.4 CONFIG REQUIRED)
+else()
+  find_package(FLTK REQUIRED)
+endif()
 find_package(TBB REQUIRED)
 
 # Image libraries for FLTK PNG/JPEG support
@@ -115,9 +111,9 @@ if(APPLE)
   )
 elseif(UNIX)
   target_link_libraries(shark PRIVATE
-    ${FLTK_IMAGES_STATIC_LIB}
-    ${FLTK_STATIC_LIB}
-    ${TBB_STATIC_LIB}
+    fltk::images
+    fltk::fltk
+    TBB::tbb
     pheval
     PNG::PNG
     JPEG::JPEG
@@ -153,7 +149,7 @@ target_include_directories(shark_cli PRIVATE
 if(APPLE)
   target_link_libraries(shark_cli PRIVATE ${TBB_STATIC_LIB} pheval)
 elseif(UNIX)
-  target_link_libraries(shark_cli PRIVATE ${TBB_STATIC_LIB} pheval m pthread dl)
+  target_link_libraries(shark_cli PRIVATE TBB::tbb pheval m pthread dl)
 else()
   target_link_libraries(shark_cli PRIVATE TBB::tbb pheval)
 endif()

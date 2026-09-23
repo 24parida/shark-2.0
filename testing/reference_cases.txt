@@ -1,0 +1,8 @@
+river_equal|AA,QQ|KK,JJ|2c 3d 7h 8s 9c|5000
+river_weighted|AA:0.25,QQ|KK:0.75,JJ:0.2|2c 3d 7h 8s 9c|5000
+river_blocked|AA,QQ|KK,JJ|Ac Kd 7h 8s 9c|5000
+river_shared|AA,AKs|KK,AKs|2c 3d 7h 8s 9c|5000
+turn_mono|AA,QQ|KK,JJ|2c 3c 4c 5d|2000
+turn_paired|AA,QQ|KK,JJ|2c 2d 3h 3s|2000
+flop_mono|AA|KK|2c 3c 4c|1000
+flop_rainbow|AA|KK|2c 3d 4h|1000
