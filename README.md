@@ -4,10 +4,9 @@
 ## (Promotional) [LinkedIn post](https://www.linkedin.com/feed/update/urn:li:activity:7416664544271323136/)
 ![Solver UI](icons/Solver.png)
 
-Shark is a completely free (and ad-free) open-source solver that implements state-of-the-art algorithms to solve Heads-Up (HU) poker. While other solvers exist, this project had two main goals:
-
-1. Simplicity – Keep the UI and usage as simple as possible.
-2. Accessibility – Allow anyone, even those unfamiliar with poker, to use the solver with ease.
+Shark is a completely free (and ad-free) open-source solver for Heads-Up (HU) poker. My primary two goals while writing this solver was:
+1. Simplicity – Keep UI Simple & Fast
+2. Accessibility – Allow anyone to use the solver, even those not experienced with other solvers.
 
 Many features seen in other solvers have been intentionally omitted to reduce clutter and cognitive load. Bet/raise sizes vary by street:
 - Flop: Bet 50%, 100% | Raise 100%
@@ -15,11 +14,11 @@ Many features seen in other solvers have been intentionally omitted to reduce cl
 
 These trade-offs were made to maintain a clean user experience.
 
-> 🗂️ Installers (.zip files) are available on the Releases tab: https://github.com/24parida/shark-2.0/releases
+> Installers are available on the Releases tab: https://github.com/24parida/shark-2.0/releases
 
 ---
 
-## 🎮 How to Use Shark
+## How to Use Shark
 
 ### Page 1: Initial Setup
 
@@ -33,7 +32,7 @@ Input the following:
 - Their Position
 - Iterations (default: 100)
 - Min Exploitability % (default: 0.1%, set to 0 to never stop early)
-- Thread Count (default: CPU cores - 1)
+- Thread Count (default: Your CPU cores - 1)
 
 Options:
 - Auto-import ranges – automatically loads ranges based on positions and pot type
@@ -68,7 +67,7 @@ Use Back to return to inputs and solve a different game.
 
 ---
 
-## 🧠 Flop Solving (RAM-Saving Mode)
+## Flop Solving (RAM-Saving Mode)
 
 Flop solving is the most memory-intensive part of the game tree. To make flop solves fit in a typical laptop's RAM, Shark applies a few flop-specific constraints that greatly reduce tree size and memory usage. The below ONLY applies for flop solves.
 
@@ -90,7 +89,7 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 
 ---
 
-## 🪟 Windows Installation
+## Windows Installation
 1. Go to the Releases tab and download `shark_windows.zip`: https://github.com/24parida/shark-2.0/releases
 2. Unzip the folder
 3. Inside the folder, double-click shark.exe
@@ -98,7 +97,7 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 
 ---
 
-## 🍎 macOS Installation
+## macOS Installation
 > macOS is more strict with unsigned apps
 
 **Choose the right download for your Mac:**
@@ -120,7 +119,7 @@ Flop only has bet options of 50% and 100%, and a single raise option of 100% to 
 
 ---
 
-## 🔐 Security Note
+## Security Note
 The reason for having to trust the file is b/c to get a developer license is around $100/year for each platforms which I currently can't afford for just a side project :(.  
 For anyone wrorried about security: this project is fully open source — feel free to inspect the code yourself.  
 The build process is located in .github/workflows/new_ci.yml.
